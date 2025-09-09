@@ -175,9 +175,11 @@ a{ color:var(--text); text-decoration:none; }
   /* Header compaction */
   .header{ padding:14px 0; gap:8px; }
   .brand span{ font-size:16px; }
-  .nav{ gap:8px; flex-wrap:wrap; justify-content:flex-end; }
-  /* Hide non-critical text links; keep primary actions */
-  .nav a:not(.btn){ display:none; }
+  .nav{ gap:8px; flex-wrap:nowrap; justify-content:flex-end; }
+  /* Mobile navbar: ONLY logo+brand and hamburger remain */
+  .nav a{ display:none !important; }
+  .nav .btn:not(#btnMenu){ display:none !important; }
+  #btnMenu{ display:inline-flex !important; margin-left:auto; }
   .btn{ padding:10px 12px; font-size:14px; border-radius:12px; }
   .btn.btn-primary{ font-weight:700; }
 

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin · KonusKonusabilirsen</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <script>
+    try{
+      const token = localStorage.getItem('hk_token');
+      if (!token){
+        const redirect = encodeURIComponent('/admin.html');
+        window.location.replace(`/?auth=1&redirect=${redirect}`);
+      }
+    }catch{}
+  </script>
+</head>
+<body>
+  <header class="container header">
+    <a class="brand" href="/" aria-label="KonusKonusabilirsen anasayfa">
+      <picture>
+        <source media="(max-width: 640px)" srcset="/logo-icon.png, /logo-icon.svg" />
+        <img src="/logo.png" alt="KonusKonusabilirsen" style="height:36px; display:block;" />
+      </picture>
+      <span style="font-weight:700;">KonusKonusabilirsen</span>
+    </a>
+    <nav class="nav">
+      <a href="/">Ana Sayfa</a>
+      <a href="/realtime.html">Canlı Demo</a>
+    </nav>
+  </header>
+
+  <main class="container" style="padding:24px 0 40px; max-width:720px;">
+    <div class="card" style="padding:18px;">
+      <h2 style="margin:0 0 8px;">Admin: Plan Atama</h2>
+      <div class="subtle">Bu ekran yalnızca admin kullanıcılar için çalışır. Admin değilseniz istek 403 döner.</div>
+      <div class="row" style="gap:10px; margin-top:12px; flex-wrap:wrap;">
+        <input id="email" placeholder="Kullanıcı e‑posta" style="flex:1; min-width:220px; padding:10px 12px; border-radius:10px; background:#0b1022; border:1px solid #1b2442; color:var(--text);" />
+        <select id="plan" style="flex:0 0 160px; padding:10px 12px; border-radius:10px; background:#0b1022; border:1px solid #1b2442; color:var(--text);">
+          <option value="starter" selected>starter</option>
+          <option value="pro">pro</option>
+          <option value="enterprise">enterprise</option>
+        </select>
+        <button id="apply" class="btn btn-primary" type="button">Planı Ata</button>
+      </div>
+      <div id="msg" class="subtle" style="margin-top:10px;"></div>
+    </div>
+  </main>
+
+  <script type="module">
+    const backendBase = location.origin;
+    const $ = (s)=>document.querySelector(s);
+    $('#apply')?.addEventListener('click', async () => {
+      const msg = $('#msg'); msg.textContent = 'İstek gönderiliyor...';
+      try{
+        const email = $('#email')?.value?.trim();
+        const plan = $('#plan')?.value || 'starter';
+        if (!email){ msg.textContent = 'Lütfen e‑posta yazın'; return; }
+        const token = localStorage.getItem('hk_token');
+        if (!token){ msg.textContent = 'Giriş gerekli'; return; }
+        const r = await fetch(`${backendBase}/admin/set-plan`, { method:'POST', headers:{ 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ email, plan }) });
+        const j = await r.json();
+        if (!r.ok){ msg.textContent = j?.message || j?.error || 'Hata'; return; }
+        msg.textContent = `OK: ${j.email} -> ${j.plan}`;
+      }catch(e){ $('#msg').textContent = 'Bağlantı hatası'; }
+    });
+  </script>
+</body>
+</html>

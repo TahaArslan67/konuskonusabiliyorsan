@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ödeme Başarılı - KonusKonusabilirsen</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="icon" href="/favicon.png" type="image/png" />
+  <style>
+    .center { max-width: 720px; margin: 60px auto; }
+    .card.center { text-align: center; padding: 28px; }
+    .success { color:#22c55e; font-weight:700; }
+    .actions { display:flex; gap:10px; justify-content:center; margin-top:14px; }
+  </style>
+</head>
+<body>
+  <header class="container header">
+    <a class="brand" href="/" aria-label="KonusKonusabilirsen anasayfa">
+      <img src="/logo.png" alt="KonusKonusabilirsen" style="height:36px; display:block;"
+           onerror="if(!this.dataset.fallback){this.dataset.fallback='svg';this.src='/logo.svg';}else{this.src='/logo-icon.svg';}" />
+      <span style="font-weight:700;">KonusKonusabilirsen</span>
+    </a>
+    <nav class="nav">
+      <a href="/">Ana Sayfa</a>
+      <a href="/realtime.html" class="btn btn-text">Canlı Demo</a>
+    </nav>
+  </header>
+  <main class="container center">
+    <div class="card center">
+      <h2 class="success">Ödeme Başarılı</h2>
+      <p>Aboneliğiniz aktif edildi. Hemen kullanmaya başlayabilirsiniz.</p>
+      <p id="planInfo" class="subtle" style="margin-top:8px;"></p>
+      <div class="actions">
+        <a href="/realtime.html" class="btn btn-primary">Canlı Demoya Git</a>
+        <a href="/?account=1" class="btn btn-secondary">Hesabı Aç</a>
+        <a href="/" class="btn btn-secondary">Ana Sayfaya Dön</a>
+      </div>
+    </div>
+  </main>
+  <script src="/site.js" type="module"></script>
+  <script>
+    (function(){
+      try {
+        const token = localStorage.getItem('hk_token');
+        if (!token) return;
+        fetch('/me', { headers: { Authorization: `Bearer ${token}` } })
+          .then(r => r.ok ? r.json() : null)
+          .then(me => {
+            if (!me) return;
+            const el = document.getElementById('planInfo');
+            if (el) el.textContent = `Planınız: ${me.plan || 'free'}`;
+          });
+      } catch {}
+    })();
+  </script>
+</body>
+</html>

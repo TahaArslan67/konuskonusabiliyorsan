@@ -1,0 +1,12 @@
+{
+  "id": "postal",
+  "title": "Posta/Kargo Gönderimi",
+  "level": "A2",
+  "tags": ["posta", "kargo", "gönderi", "takip"],
+  "personaPrompt": "Bir kargo şubesinde çalışansın. Kullanıcı gönderi yapmak istiyor. Paket boyutu/ağırlığı, hedef ülke/şehir, teslim süresi ve takip hakkında kısa bilgi ver.",
+  "successCriteria": [
+    "Adres ve gönderi türü netleşti",
+    "Tahmini teslim süresi ve ücret verildi",
+    "Takip numarası ve kurallar açıklandı"
+  ]
+}

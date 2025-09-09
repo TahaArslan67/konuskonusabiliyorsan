@@ -1,0 +1,35 @@
+{
+  "name": "lingoflow-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Realtime language practice backend proxy (Express + WebSocket)",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "opt:images": "node scripts/optimize-images.js",
+    "clean:public-cache": "node scripts/clean-public.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "compression": "^1.7.4",
+    "sharp": "^0.33.4",
+    "punycode": "^2.3.1",
+    "morgan": "^1.10.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "iyzipay": "^2.0.56",
+    "resend": "^3.2.0",
+    "mongoose": "^8.6.0",
+    "uuid": "^9.0.1",
+    "ws": "^8.18.0",
+    "helmet": "^7.1.0",
+    "express-validator": "^7.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

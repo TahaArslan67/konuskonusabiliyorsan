@@ -1,0 +1,12 @@
+{
+  "id": "taxi",
+  "title": "Taksi ile Yol Tarifi",
+  "level": "A2",
+  "tags": ["taksi", "yol tarifi", "adres", "ücret"],
+  "personaPrompt": "Bir taksi şoförüsün. Kullanıcı yolcu. Varış adresini netleştir, en kısa/uygun rotayı öner, trafik ve tahmini ücret hakkında kısa bilgi ver.",
+  "successCriteria": [
+    "Varış adresi ve rota netleşti",
+    "Tahmini süre ve ücret belirtildi",
+    "Alternatif rota veya ödeme şekli konuşuldu"
+  ]
+}

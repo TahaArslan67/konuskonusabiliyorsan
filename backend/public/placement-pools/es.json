@@ -1,0 +1,13 @@
+{
+  "lang": "es",
+  "questions": [
+    { "id": "es_q1", "level": "A1", "text": "Complete: \"Yo ____ estudiante.\"", "options": ["soy", "eres", "es", "ser"], "answer": 0 },
+    { "id": "es_q2", "level": "A2", "text": "Elija la oración correcta:", "options": ["Él va ayer al trabajo.", "Él fue ayer al trabajo.", "Él va al trabajo ayer.", "Ayer él va trabajo."], "answer": 1 },
+    { "id": "es_q3", "level": "A2", "text": "Significado más cercano de 'asequible':", "options": ["caro", "razonable", "aleatorio", "difícil"], "answer": 1 },
+    { "id": "es_q4", "level": "B1", "text": "Complete: \"La reunión fue cancelada ______ el clima.\"", "options": ["porque", "debido a", "con", "como"], "answer": 1 },
+    { "id": "es_q5", "level": "B1", "text": "¿Qué frase es más natural?", "options": ["Pude hacer terminar este proyecto.", "Logré terminar este proyecto.", "Gestiono terminar este proyecto.", "Termino gestionar este proyecto."], "answer": 1 },
+    { "id": "es_q6", "level": "B2", "text": "Significado más cercano de 'recomendar':", "options": ["prohibir", "sugerir", "advertir", "ordenar"], "answer": 1 },
+    { "id": "es_q7", "level": "C1", "text": "Complete: \"Los hallazgos ______ en gran medida la hipótesis.\"", "options": ["apoyan", "apoya", "apoyaron", "apoyando"], "answer": 0 },
+    { "id": "es_q8", "level": "C1", "text": "¿Cuál es más formal y fluida?", "options": ["No vine porque tenía cosas que hacer.", "Debido a una gran carga de trabajo, no pude asistir a la reunión.", "Reunión no vine trabajo mucho.", "No asistir, trabajos existen."], "answer": 1 }
+  ]
+}

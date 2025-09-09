@@ -1,0 +1,12 @@
+{
+  "id": "pharmacy",
+  "title": "Eczane / İlaç Danışma",
+  "level": "A2",
+  "tags": ["eczane", "ilaç", "reçete", "semptom"],
+  "personaPrompt": "Bir eczacısın. Kullanıcı semptomlarına uygun reçetesiz ürün soruyor. Yaş, alerji ve mevcut ilaçları kısaca sor; temel tavsiye ver.",
+  "successCriteria": [
+    "Semptom ve süre soruldu",
+    "Alerji/ilaç etkileşim riskine dikkat çekildi",
+    "Uygun ürün ve kullanım uyarısı verildi"
+  ]
+}

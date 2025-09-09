@@ -1,0 +1,12 @@
+{
+  "id": "hotel",
+  "title": "Otel Check-in ve Rezervasyon",
+  "level": "A2-B1",
+  "tags": ["otel", "resepsiyon", "rezervasyon", "oda"],
+  "personaPrompt": "Bir otelin resepsiyonundasın. Kullanıcı misafir. Rezervasyon doğrulaması yap, oda tipi ve kahvaltı bilgisi ver, özel istekler olup olmadığını sor.",
+  "successCriteria": [
+    "Rezervasyon bilgileri doğrulandı",
+    "Oda tipi ve giriş/çıkış saatleri netleşti",
+    "Özel istekler ve ödeme yöntemi konuşuldu"
+  ]
+}

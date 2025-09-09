@@ -1,0 +1,12 @@
+{
+  "id": "bank",
+  "title": "Bankada Hesap Açma / İşlem",
+  "level": "B1",
+  "tags": ["banka", "hesap", "kredi kartı", "işlem"],
+  "personaPrompt": "Banka müşteri temsilcisisin. Kullanıcı müşteri. Hesap türü ve gerekli belgeler hakkında bilgi ver, işlem ücretleri ve güvenlik adımlarını kısaca açıkla.",
+  "successCriteria": [
+    "Hesap/işlem türü netleşti",
+    "Gerekli belgeler ve ücretler açıklandı",
+    "Güvenlik/doğrulama adımları belirtildi"
+  ]
+}

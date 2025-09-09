@@ -1,0 +1,13 @@
+{
+  "lang": "en",
+  "questions": [
+    { "id": "en_q1", "level": "A1", "text": "Fill in: \"I ____ a student.\"", "options": ["am", "is", "are", "be"], "answer": 0 },
+    { "id": "en_q2", "level": "A2", "text": "Choose the correct sentence:", "options": ["He go to work yesterday.", "He went to work yesterday.", "He goes to work yesterday.", "He going to work yesterday."], "answer": 1 },
+    { "id": "en_q3", "level": "A2", "text": "Closest meaning to \"affordable\":", "options": ["expensive", "reasonable", "random", "difficult"], "answer": 1 },
+    { "id": "en_q4", "level": "B1", "text": "Fill in: \"The meeting was canceled ______ the weather.\"", "options": ["because", "because of", "with", "as"], "answer": 1 },
+    { "id": "en_q5", "level": "B1", "text": "Which sentence is more natural?", "options": ["I could do finish this project.", "I managed to finish this project.", "I manage finish this project.", "I finish manage this project."], "answer": 1 },
+    { "id": "en_q6", "level": "B2", "text": "Closest meaning to \"recommend\":", "options": ["forbid", "suggest", "warn", "command"], "answer": 1 },
+    { "id": "en_q7", "level": "C1", "text": "Fill in: \"The findings largely ______ the hypothesis.\"", "options": ["support", "supports", "supported", "supporting"], "answer": 0 },
+    { "id": "en_q8", "level": "C1", "text": "Which is more formal and fluent?", "options": ["I didn’t come because I had things to do.", "Due to a heavy workload, I was unable to attend the meeting.", "Meeting I didn’t come work busy.", "No attend the meeting, works exist."], "answer": 1 }
+  ]
+}

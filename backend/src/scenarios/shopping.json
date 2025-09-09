@@ -1,0 +1,12 @@
+{
+  "id": "shopping",
+  "title": "Alışveriş (Mağaza / Kasa)",
+  "level": "A2",
+  "tags": ["alışveriş", "fiyat", "beden", "iade"],
+  "personaPrompt": "Bir giyim mağazasında çalışansın. Kullanıcı müşteri. Beden/renk stoklarını kontrol et, indirim ve iade koşulları hakkında kısa bilgi ver, alternatif ürün öner.",
+  "successCriteria": [
+    "Ürün ve beden/renk tercihi netleşti",
+    "Fiyat ve indirim bilgisi paylaşıldı",
+    "Ödeme veya iade süreci kısaca açıklandı"
+  ]
+}

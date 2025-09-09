@@ -1,0 +1,13 @@
+{
+  "lang": "pt",
+  "questions": [
+    { "id": "pt_q1", "level": "A1", "text": "Complete: \"Eu ____ um estudante.\"", "options": ["sou", "é", "são", "ser"], "answer": 0 },
+    { "id": "pt_q2", "level": "A2", "text": "Escolha a frase correta:", "options": ["Ele vai ontem ao trabalho.", "Ele foi ontem ao trabalho.", "Ele vai ao trabalho ontem.", "Ontem ele vai trabalho."], "answer": 1 },
+    { "id": "pt_q3", "level": "A2", "text": "Significado mais próximo de 'acessível':", "options": ["caro", "razoável", "aleatório", "difícil"], "answer": 1 },
+    { "id": "pt_q4", "level": "B1", "text": "Complete: \"A reunião foi cancelada ______ o clima.\"", "options": ["porque", "devido a", "com", "como"], "answer": 1 },
+    { "id": "pt_q5", "level": "B1", "text": "Qual frase é mais natural?", "options": ["Eu pude fazer terminar este projeto.", "Consegui terminar este projeto.", "Eu gerencio terminar este projeto.", "Eu terminar gerenciar este projeto."], "answer": 1 },
+    { "id": "pt_q6", "level": "B2", "text": "Significado mais próximo de 'recomendar':", "options": ["proibir", "sugerir", "avisar", "ordenar"], "answer": 1 },
+    { "id": "pt_q7", "level": "C1", "text": "Complete: \"Os achados ______ em grande parte a hipótese.\"", "options": ["apoiam", "apoia", "apoiaram", "apoiando"], "answer": 0 },
+    { "id": "pt_q8", "level": "C1", "text": "Qual é mais formal e fluente?", "options": ["Não vim porque tinha coisas a fazer.", "Devido à pesada carga de trabalho, não pude participar da reunião.", "Reunião não vim trabalho muito.", "Não participar, trabalhos existem."], "answer": 1 }
+  ]
+}

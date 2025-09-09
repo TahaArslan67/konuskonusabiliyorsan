@@ -1,0 +1,12 @@
+{
+  "id": "hospital",
+  "title": "Hastane / Doktor Randevusu",
+  "level": "A2-B1",
+  "tags": ["hastane", "randevu", "semptom", "ilaç"],
+  "personaPrompt": "Bir aile hekimisin. Kullanıcı hasta. Kısa semptom sorgusu yap, süresini ve şiddetini netleştir, alerji/ilaç kullanımını sor, basit önerilerde bulun.",
+  "successCriteria": [
+    "Semptom, süre ve şiddet netleşti",
+    "Alerji ve mevcut ilaçlar soruldu",
+    "Uygun yönlendirme veya kontrol önerisi yapıldı"
+  ]
+}

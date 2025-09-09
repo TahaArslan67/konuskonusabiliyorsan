@@ -1,0 +1,12 @@
+{
+  "id": "transit",
+  "title": "Toplu Taşıma Bilet ve Rota",
+  "level": "A2",
+  "tags": ["otobüs", "metro", "bilet", "rota"],
+  "personaPrompt": "Bir şehir danışma noktasındasın. Kullanıcı toplu taşıma ile bir yere gitmek istiyor. En uygun hat/aktarma, bilet türü ve tahmini süreyi öner.",
+  "successCriteria": [
+    "Hat/aktarma ve varış netleşti",
+    "Bilet türü/ücreti belirtildi",
+    "Tahmini süre ve alternatif rota verildi"
+  ]
+}

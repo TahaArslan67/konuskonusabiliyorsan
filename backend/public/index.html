@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KonusKonusabilirsen – Gerçek Zamanlı Sesli Asistan</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="/favicon.png" type="image/png" />
+</head>
+<body>
+  <header class="container header">
+    <a class="brand" href="/" aria-label="KonusKonusabilirsen anasayfa">
+      <picture>
+        <source media="(max-width: 640px)" srcset="/logo-icon.png, /logo-icon.svg" />
+        <img src="/logo.png" alt="KonusKonusabilirsen" style="height:36px; display:block;" />
+      </picture>
+      <span style="font-weight:700;">KonusKonusabilirsen</span>
+    </a>
+    <nav class="nav">
+      <a href="#features">Özellikler</a>
+      <a href="#pricing">Fiyatlandırma</a>
+      <a href="/realtime.html" class="btn btn-text">Canlı Demo</a>
+      
+      <button class="btn btn-text" id="btnAccount" type="button" style="display:none;">Hesabım <span id="verifyDot" class="dot" style="display:none;"></span></button>
+      <button class="btn btn-secondary" id="btnLogin" type="button">Giriş Yap</button>
+      <a href="#" class="btn btn-primary" id="btnStart">Hemen Başla</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero container" data-reveal>
+      <div class="hero__content">
+        <h1>Gerçek zamanlı, doğal Türkçe konuşan yapay zekâ asistanı</h1>
+        <p>Web sitenize veya uygulamanıza tek satır entegrasyonla, milisaniyeler içinde yanıt veren sesli asistan ekleyin.</p>
+        <div class="hero__cta">
+          <a href="/realtime.html" class="btn btn-primary">Canlı Demoyu Aç</a>
+          <a href="#pricing" class="btn btn-secondary">Planları Gör</a>
+        </div>
+        <div class="hero__trust">
+          <span>24kHz PCM, düşük gecikme, Türkçe için optimize VAD</span>
+        </div>
+      </div>
+      <div class="hero__visual">
+        <div class="card demo-card">
+          <div class="demo-wave"></div>
+          <div class="demo-text">“Nasıl yardımcı olabilirim?”</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Marquee: akıcı, kesintisiz döngü -->
+    <section class="marquee" aria-hidden="true">
+      <div class="marquee__inner">
+        <div class="marquee__track">
+          <span>Gerçek zamanlı ·</span>
+          <span>Düşük gecikme ·</span>
+          <span>24kHz PCM16 ·</span>
+          <span>Türkçe için optimize VAD ·</span>
+          <span>Koçluk modu ·</span>
+          <span>Çoklu dil desteği ·</span>
+          <span>Anlık transkript ·</span>
+          <span>Kişiselleştirilebilir ses ·</span>
+          <span>Güvenli altyapı ·</span>
+          <span>Yüksek memnuniyet ·</span>
+          <span>Hafif istemci ·</span>
+          <span>Kolay entegrasyon ·</span>
+        </div>
+        <div class="marquee__track" aria-hidden="true">
+          <span>Gerçek zamanlı ·</span>
+          <span>Düşük gecikme ·</span>
+          <span>24kHz PCM16 ·</span>
+          <span>Türkçe için optimize VAD ·</span>
+          <span>Koçluk modu ·</span>
+          <span>Çoklu dil desteği ·</span>
+          <span>Anlık transkript ·</span>
+          <span>Kişiselleştirilebilir ses ·</span>
+          <span>Güvenli altyapı ·</span>
+          <span>Yüksek memnuniyet ·</span>
+          <span>Hafif istemci ·</span>
+          <span>Kolay entegrasyon ·</span>
+        </div>
+      </div>
+    </section>
+
+    
+
+    <!-- Stats -->
+    <section class="stats container" data-reveal>
+      <div class="grid" style="grid-template-columns: repeat(4, 1fr); gap:16px;">
+        <div class="card stat">
+          <div class="stat__value" data-counter="240">0</div>
+          <div class="stat__label">ms Ortalama Gecikme</div>
+        </div>
+        <div class="card stat">
+          <div class="stat__value">%95+</div>
+          <div class="stat__label">% Anlama Başarımı</div>
+        </div>
+        <div class="card stat">
+          <div class="stat__value">4.8/5</div>
+          <div class="stat__label">Kullanıcı Memnuniyet Skoru</div>
+        </div>
+        <div class="card stat">
+          <div class="stat__value" data-counter="43">0</div>
+          <div class="stat__label">+ Desteklenen Dil</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="features container" data-reveal>
+      <h2>Öne Çıkan Özellikler</h2>
+      <div class="grid grid-3">
+        <div class="card" data-reveal>
+          <h3>Kişiselleştirilmiş Konuşma Pratiği</h3>
+          <p>Seviyenize, ilgi alanlarınıza ve hedeflerinize göre uyarlanan senaryolarla doğal akışta pratik yapın.</p>
+        </div>
+        <div class="card" data-reveal>
+          <h3>Telaffuz ve Akıcılık Geri Bildirimi</h3>
+          <p>Konuşma sırasında anlık geri bildirim alın; vurgu, hız ve telaffuz için pratik ipuçları edinin.</p>
+        </div>
+        <div class="card" data-reveal>
+          <h3>İlerleme ve Hedef Takibi</h3>
+          <p>Günlük hedefler, kullanım (dk) istatistikleri ve gelişim eğrinizle motivasyonunuzu yüksek tutun.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="pricing" class="pricing container" data-reveal>
+      <h2>Fiyatlandırma</h2>
+      <div class="grid" style="grid-template-columns: repeat(4, 1fr); gap:16px;">
+        <!-- Free -->
+        <div class="card price-card" data-reveal>
+          <div class="price-tier">Free</div>
+          <div class="price-value">₺0</div>
+          <ul class="price-features">
+            <li>Günde 5 dk</li>
+            <li>Web demo erişimi</li>
+            <li>Temel destek</li>
+          </ul>
+          <button class="btn btn-secondary w-100" data-plan="starter">Ücretsiz Başla</button>
+        </div>
+        <!-- Starter -->
+        <div class="card price-card" data-reveal>
+          <div class="price-tier">Starter</div>
+          <div class="price-value">₺99/ay</div>
+          <ul class="price-features">
+            <li>Günde 10 dk</li>
+            <li>Aylık 300 dk</li>
+            <li>Öncelikli e‑posta desteği</li>
+          </ul>
+          <button class="btn btn-primary w-100" data-plan="starter">Starter’a Geç</button>
+        </div>
+        <!-- Pro -->
+        <div class="card price-card featured" data-reveal>
+          <div class="price-badge">Popüler</div>
+          <div class="price-tier">Pro</div>
+          <div class="price-value">₺299/ay</div>
+          <ul class="price-features">
+            <li>Günde 60 dk</li>
+            <li>Aylık 1.800 dk</li>
+            <li>Öncelikli destek</li>
+          </ul>
+          <button class="btn btn-primary w-100" data-plan="pro">Pro’ya Geç</button>
+        </div>
+        <!-- Enterprise -->
+        <div class="card price-card">
+          <div class="price-tier">Kurumsal</div>
+          <div class="price-value">Özel</div>
+          <ul class="price-features">
+            <li>Sınırsız dakika</li>
+            <li>SLA + SSO</li>
+            <li>Özel modeller</li>
+          </ul>
+          <button class="btn btn-secondary w-100" data-plan="enterprise">İletişime Geç</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="container" style="padding:16px 0 24px;" data-reveal>
+      <h2>Nasıl Çalışır?</h2>
+      <div class="grid grid-3">
+        <div class="card" style="padding:16px;" data-reveal>
+          <h3>1) Giriş Yap</h3>
+          <p class="subtle">E‑posta ile kayıt olun ve doğrulama linkine tıklayın.</p>
+        </div>
+        <div class="card" style="padding:16px;">
+          <h3>2) Plan Seçin</h3>
+          <p class="subtle">İhtiyacınıza göre plan seçin; ücretsiz olarak da başlayabilirsiniz.</p>
+        </div>
+        <div class="card" style="padding:16px;">
+          <h3>3) Konuşmaya Başlayın</h3>
+          <p class="subtle">Canlı demo ile anında konuşun veya uygulamanıza entegre edin.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta container" data-reveal>
+      <div class="card cta-card">
+        <h3>Hemen denemek ister misiniz?</h3>
+        <p>Canlı demoyu açın ve gerçek zamanlı sesli yanıtları deneyimleyin.</p>
+        <a href="/realtime.html" class="btn btn-primary">Demoyu Aç</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="container footer">
+    <div>© <span id="year"></span> KonusKonusabilirsen</div>
+    <nav class="nav small">
+      <a href="#features">Özellikler</a>
+      <a href="#pricing">Fiyatlandırma</a>
+      <a href="/realtime.html">Canlı Demo</a>
+    </nav>
+  </footer>
+
+  <section class="container" style="padding:0 0 40px;" data-reveal>
+    <h2>SSS</h2>
+    <div class="grid" style="grid-template-columns: 1fr 1fr; gap:16px;">
+      <div class="card" style="padding:16px;">
+        <h3 style="margin:0 0 6px;">E‑posta doğrulaması zorunlu mu?</h3>
+        <p class="subtle" style="margin:0;">Evet. Kayıt sonrası doğrulama linki e‑postanıza gelir; doğrulamadan giriş yapamazsınız.</p>
+      </div>
+      <div class="card" style="padding:16px;">
+        <h3 style="margin:0 0 6px;">Ödeme altyapısı nedir?</h3>
+        <p class="subtle" style="margin:0;">PayTR ile çalışıyoruz. Başarılı/iptal işlemlerinden sonra durum sayfasına yönlendirilirsiniz.</p>
+      </div>
+      <div class="card" style="padding:16px;">
+        <h3 style="margin:0 0 6px;">Plan limitleri nasıl işler?</h3>
+        <p class="subtle" style="margin:0;">Günlük/aylık dakika sınırları vardır. Limit dolunca mikrofon kapanır ve yükseltme önerilir.</p>
+      </div>
+      <div class="card" style="padding:16px;">
+        <h3 style="margin:0 0 6px;">Test modunda neler farklı?</h3>
+        <p class="subtle" style="margin:0;">Domain doğrulaması tamamlanana kadar bazı e‑posta kısıtları olabilir; kayıt/giriş akışını yine test edebilirsiniz.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Auth Modal -->
+  <div id="authModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); backdrop-filter: blur(6px); z-index:50;">
+    <div class="container" style="height:100%; display:flex; align-items:center; justify-content:center;">
+      <div class="card" style="width:100%; max-width:520px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <h3 style="margin:0;">Hesabına Giriş Yap</h3>
+          <button id="authClose" class="btn btn-text">Kapat</button>
+        </div>
+        <div class="tabbar" style="gap:10px; margin-bottom:14px;">
+          <button id="tabLogin" class="btn btn-tab active" type="button">Giriş</button>
+          <button id="tabRegister" class="btn btn-tab" type="button">Kayıt</button>
+          <div id="tabIndicator" class="tab-indicator" style="width:60px; transform: translateX(0);"></div>
+        </div>
+        <form id="formLogin" class="stack" style="display:block; gap:10px;">
+          <div class="input-icon">
+            <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-3.31 0-6 2.69-6 6 0 .55.45 1 1 1h10c.55 0 1-.45 1-1 0-3.31-2.69-6-6-6z"/></svg>
+            <input id="loginEmail" type="email" placeholder="E-posta" required />
+          </div>
+          <div class="input-icon">
+            <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17 8V7c0-2.76-2.24-5-5-5S7 4.24 7 7v1H6c-1.1 0-2 .9-2 2v9c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-9c0-1.1-.9-2-2-2h-1zm-8 0V7c0-1.66 1.34-3 3-3s3 1.34 3 3v1H9z"/></svg>
+            <input id="loginPassword" type="password" placeholder="Şifre" required />
+          </div>
+          <div class="row form-actions" style="justify-content:space-between; align-items:center; gap:8px;">
+            <button class="btn btn-primary" type="submit">Giriş Yap</button>
+            <button id="linkForgot" class="btn btn-text" type="button">Şifremi unuttum?</button>
+          </div>
+        </form>
+        <form id="formRegister" class="stack" style="display:none; gap:10px;">
+          <div class="input-icon">
+            <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-3.31 0-6 2.69-6 6 0 .55.45 1 1 1h10c.55 0 1-.45 1-1 0-3.31-2.69-6-6-6z"/></svg>
+            <input id="regEmail" type="email" placeholder="E-posta" required />
+          </div>
+          <div class="input-icon">
+            <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17 8V7c0-2.76-2.24-5-5-5S7 4.24 7 7v1H6c-1.1 0-2 .9-2 2v9c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-9c0-1.1-.9-2-2-2h-1zm-8 0V7c0-1.66 1.34-3 3-3s3 1.34 3 3v1H9z"/></svg>
+            <input id="regPassword" type="password" placeholder="Şifre (min 6)" minlength="6" required />
+          </div>
+          <button class="btn btn-primary form-actions" type="submit">Kayıt Ol</button>
+        </form>
+        <form id="formForgot" class="stack" style="display:none; gap:10px;">
+          <div class="subtle">E‑posta adresinizi yazın; şifre sıfırlama bağlantısı konsola yazdırılacaktır (geliştirme modunda).</div>
+          <input id="forgotEmail" type="email" placeholder="E-posta" required style="padding:10px 12px; border-radius:10px; background:#0b1022; border:1px solid #1b2442; color:var(--text);" />
+          <div class="row" style="justify-content:space-between; align-items:center; gap:8px;">
+            <button class="btn btn-primary" type="submit">Sıfırlama linki gönder</button>
+            <button id="linkBackToLogin" class="btn btn-text" type="button">Girişe dön</button>
+          </div>
+        </form>
+        <div id="authMsg" class="alert alert-info" style="margin-top:8px; display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/config.js"></script>
+  <script src="/site.js" type="module"></script>
+</body>
+</html>

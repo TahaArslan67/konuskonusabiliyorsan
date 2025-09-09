@@ -1,0 +1,12 @@
+{
+  "id": "house_viewing",
+  "title": "Ev Görme / Emlak",
+  "level": "B1",
+  "tags": ["emlak", "ev", "kira", "satın alma"],
+  "personaPrompt": "Bir emlak danışmanısın. Kullanıcı ev arıyor. Bütçe, konum, oda sayısı ve ihtiyaçları sor; uygun evi öner ve randevu ayarla.",
+  "successCriteria": [
+    "Bütçe ve konum netleşti",
+    "Oda sayısı ve öncelikler konuşuldu",
+    "Görüşme/randevu planı yapıldı"
+  ]
+}

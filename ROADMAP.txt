@@ -1,0 +1,322 @@
+HemenKonus - Yol Haritası (Yapılacaklar Listesi)
+
+1) Kayıt/Giriş (Auth)
+- Amaç: E-posta + şifre ile kayıt/giriş, e-posta doğrulama, şifre sıfırlama.
+- Backend: POST /auth/register, POST /auth/login, POST /auth/forgot, POST /auth/reset (JWT, bcrypt)
+- Frontend: Kayıt/Giriş/Şifre Sıfırlama formları (validasyon + hata mesajları)
+- E-posta: Doğrulama ve sıfırlama linkleri (Resend/SendGrid vb.)
+- Çıktı: Güvenli JWT oturum, doğrulanmış kullanıcılar
+
+2) Abonelik ve Ödeme (Stripe)
+- Amaç: Planlar (Starter/Pro/Enterprise), Checkout, Billing Portal, Webhook
+- Backend: POST /api/checkout/session, POST /api/billing/portal, POST /webhooks/stripe
+- Plan kotası: Dakika limiti ve aşım davranışı
+- .env: STRIPE_SECRET_KEY, STRIPE_PRICE_ID, STRIPE_WEBHOOK_SECRET
+- Çıktı: Ödeme alan ve plan durumuna göre yetki veren sistem
+
+3) Logo Entegrasyonu
+- Amaç: Header’a logotype + ikon (SVG), favicon
+- GPT-5 ile SVG üret; dosyalar: logo.svg, logo-icon.svg, favicon.png
+- index.html header’a ekle, hover glow
+- Çıktı: Tutarlı marka görünümü
+
+4) UI İyileştirme (Landing + Realtime)
+- Amaç: Futuristik, animasyonlu, %100 Türkçe
+- styles.css: scroll fade-in, CTA micro-interactions, focus stilleri
+- realtime.html: WS-first UX cilası, mic toggle highlight, durum geri bildirimi
+- Çıktı: Profesyonel ve akıcı deneyim
+
+5) Güvenlik Sertleştirme
+- Amaç: Üretim standartlarında güvenlik
+- helmet + sıkı CSP, CORS beyaz liste, express-rate-limit ayarı
+- Validasyon: zod/express-validator ile şema kontrolü
+- Webhook imza doğrulama (Stripe)
+- Çıktı: Saldırı yüzeyi minimize
+
+6) Performans/Optimizasyon
+- Amaç: Hızlı yükleme, düşük gecikme
+- Static için Cache-Control, Gzip/Brotli
+- Görsel/SVG optimizasyonu
+- Lighthouse & Web Vitals takibi
+- Çıktı: Daha hızlı site ve stabil demo
+
+7) Temizlik
+- Amaç: Kod tabanı sade ve güncel
+- Eski WebRTC UI/handlers temizliği
+- README ve .env.example güncellemesi
+- Çıktı: Bakımı kolay ve net repo
+
+8) GPT‑Realtime Kişiselleştirme
+- Amaç: “hemenkonus” karakteri; seçilen dilde konuşup hataları nazikçe düzeltme
+- server.js: session.update + system prompt (markaya özel)
+- Profil: ses/dil/düzeltme modu tercihlerinin saklanması
+- Geri bildirim tarzı: kısa, örnekli düzeltme (“şöyle de diyebilirsin…”) 
+- Çıktı: Markaya özel dil koçu asistan
+
+9) Kullanıcı Profili ve Veritabanı
+- Amaç: users, subscriptions, usage (dakika), preferences (dil/ses) 
+- Tercihler UI: Dil/ses ayarlarını kaydet ve otomatik uygula
+- Çıktı: Kişiselleştirme ve limit takibi
+
+10) Webhook İşleyicileri (Stripe)
+- Amaç: Abonelik yaşam döngüsü senkronizasyonu
+- Olaylar: checkout.session.completed, invoice.paid, customer.subscription.updated/canceled
+- Plan/limit güncelleme
+- Çıktı: Otomatik ve güvenilir plan yönetimi
+
+11) Yetkilendirme/RBAC
+- Amaç: Plan bazlı erişim
+- Middleware: Pro özellikleri, ücretsiz limitler
+- UI: Pro olmayan kullanıcıda “yükselt” çağrıları
+- Çıktı: Doğru kullanıcıya doğru yetki
+
+12) Loglama/İzleme
+- Amaç: Sorunları hızlı tespit
+- morgan prod format + hata logları
+- Sentry/Logtail vb. hata izleme
+- Basit metrikler (p95 WS round-trip, yanıt süresi)
+- Çıktı: Görünürlük ve daha az sürpriz
+
+13) Analitik ve Çerezler
+- Amaç: Temel ölçüm ve yasal uygunluk
+- Privacy-first analytics (Plausible vb.)
+- Çerez/onay bantı
+- Çıktı: Ölçülebilir büyüme
+
+14) CI/CD ve Dağıtım
+- Amaç: Otomasyon ve güvenli üretim
+- Build scriptleri, production config (NODE_ENV, güvenli env)
+- Otomatik deploy pipeline (Netlify/Render/Vercel + backend host)
+- Çıktı: Hızlı ve güvenli release
+
+15) Erişilebilirlik (a11y)
+- Amaç: Herkes için erişilebilir arayüz
+- Klavye navigasyonu, odak göstergeleri, kontrast
+- ARIA etiketleri
+- Çıktı: Daha kapsayıcı ürün
+
+16) Hukuki Metinler
+- Amaç: KVKK/GDPR uyumluluğu
+- Gizlilik politikası, kullanım şartları, KVKK aydınlatma
+- Çıktı: Hukuki gereksinimlerin karşılanması
+
+Önerilen Ek Adımlar
+- Kullanım sayaçlarını veritabanına bağlama (in-memory yerine kalıcı)
+- Öğrenme Modu: Seviye (A1–C1) seçimi ve uygun zorlukta konuşma
+- Hata Düzeltme Modu: Her yanıtta 1–2 kısa öneri ve örnek cümle
+- Çoklu ses paketleri (gelecekte upsell)
+- Logo yerleşince preload ve favicon setleri
+
+Önerilen Başlangıç Sırası
+1) Auth + DB şeması
+2) Stripe Checkout + Webhook + limit mantığı
+3) GPT-Realtime kişiselleştirme (prompt + tercih senkronu)
+4) Güvenlik + performans
+5) UI cilası + logo entegrasyonu
+6) CI/CD + hukuki metinler + temizlik
+
+============================================================
+Praktika'dan İlham Alınan Özellikler (MVP Planı)
+============================================================
+
+1) Rol‑oyunu Senaryoları (scenarios/)
+- Amaç: Hedef bağlamlarda konuşma (restoran, havaalanı, iş görüşmesi, toplantı, seyahat, tanışma)
+- Backend: backend/src/scenarios/ altında JSON (title, level, tags, personaPrompt, successCriteria)
+- Server: server.js -> set_prefs ile seçili senaryoyu buildPersonaInstruction() içine enjekte et
+- UI: realtime.html -> Gelişmiş Kontroller’e “Senaryo” seçimi
+- Çıktı: Amaçlı ve akılda kalıcı diyalog akışı
+
+2) Koç Şapkaları (AI Avatar Kişilikleri)
+- Amaç: Gündelik Dost / İş Görüşmesi Koçu / Sınav Koçu (IELTS/TOEFL) / Seyahat Rehberi
+- Server: session.instructions başlangıçta; tur başına sadece kısa turn guide
+- UI: Koç seçimi drop‑down (realtime.html)
+- Çıktı: Ton/aksan/üslup farklılaşması, kişiselleştirme
+
+3) Shadowing / Tekrar Modu (Pronunciation Mini Geri Bildirim)
+- Amaç: Hedef cümleyi dinlet → kullanıcı tekrar etsin → kısa geri bildirim
+- İstemci: public/app.js içinde hedef cümle vs ASR transcript basit benzerlik skoru (WER benzeri, kelime matching)
+- Çıktı: Telaffuz ve akıcılık farkındalığı
+
+4) Gamifikasyon (Streak / Rozet / Günlük Hedef)
+- DB: Streak{userId,lastDay,count}, Achievement{userId,key,unlockedAt}, Goal{userId,dailyMinutes}
+- Server: usage güncellemesinde streak/goal tetikle
+- UI: Hesabım modalında rozetler ve seri göstergesi
+- Çıktı: Geri dönüş ve motivasyon artışı
+
+5) Mini Yerleştirme (Placement) + Patikalar
+- Amaç: 5–7 mikro soru ile önerilen seviye ve senaryo/patika önerimi
+- İçerik: levels/placement.json; senaryolara level/tag ekle
+- Çıktı: İlk seferde doğru başlangıç noktası
+
+6) Mikro İçerik Kataloğu (20–30 ders)
+- Amaç: Hızlı başlangıç için küçük konu kartları (iş, günlük, seyahat, sınav)
+- UI: index.html -> Hemen Başla altında kategori grid’i
+- Çıktı: Boşluğa düşmeyen kullanıcı deneyimi
+
+7) Avatar MVP (Görsel Tepki)
+- Amaç: TTS dalgasına göre ağız/baş hareketi (CSS/Canvas tabanlı)
+- Not: Video render yok; maliyetsiz algı iyileştirme
+- Çıktı: Daha “canlı” his
+
+8) Maliyet/Tüketim Kontrolü (Token + Dakika)
+- Varsayılan: RESPONSE_TEXT_ENABLED=false (ses‑only opsiyonu hazır)
+- Sınırlar: max_output_tokens normal 40 (gerekirse 30), “açıkla” 60; 5–6 tur/dk hedefi
+- Server: 4 sn gecikmeli yanıt penceresi, 1 sn suppress, barge‑in 200ms debounce (uygulandı)
+- Çıktı: Öngörülebilir ve düşük maliyetli deneyim
+
+Önerilen Sprint Sırası (Praktika İlhamlı)
+- Sprint 1: Rol‑oyunu + Koç Şapkaları + Shadowing (MVP)
+- Sprint 2: Streak/Rozet/Hedef + Mini Yerleştirme + 20–30 mikro senaryo
+- Sprint 3: Avatar MVP + Katalog genişletme + ölçüm panosu (tur/dk, token/dk)
+
+============================================================
+Rakip İlhamı (Speak & TalkPal)
+============================================================
+
+1) Speak (AI Language Tutor) – İlham Maddeleri
+- “Explain my answer” mikro düğmesi: Yanıtımdaki hatayı tek cümlede açıkla + 1 örnek ver (bizde gentle modla uyumlu)
+- “Mirroring/Shadowing” zenginleştirme: Hız/tempo göstergesi ve hedef cümleye benzerlik yüzdesi (istemci JS)
+- Seviye bazlı “journey”: CEFR patika ekranı; her patikada 8–12 mikro görev
+- “Mistake Journal”: Kullanıcının en sık yaptığı 20 kalıp hatayı kart olarak sakla (DB’de kısa metin + örnek cümle)
+- “Phrasebook”: Kullanıcının beğendiği/işaretlediği kalıpları kaydet, tekrar dinlet (TTS)
+
+2) TalkPal AI – İlham Maddeleri
+- AI Karakterleri: Koç şapkalarını karakter kartları olarak sun; mini biyografi/aksan/alan bilgisi
+- Haftalık meydan okumalar (weekly challenge): 5 görev bitti → rozet + puan
+- Liderlik (minimal): Haftalık puan tablosu (yalnızca top‑10 görünür, gizlilik dostu)
+- Çoklu dil patikası: Öğrenilen dil + ana dil kombinasyonuna göre hazır öneri paketi
+- “Quick Topics”: 60 saniyede başlayan mikro konu kutuları (bekleme/boş turları azaltır)
+
+3) Yapılacaklar (Rakip İlhamı)
+- [ ] Explain‑my‑answer butonu (UI) + server: kısa açıklama ve tek örnek formatı (mevcut gentle ile uyumlu)
+- [ ] Shadowing göstergeleri: tempo barı + benzerlik yüzdesi (public/app.js)
+- [ ] CEFR Journey ekranı: A1–C1 patikalar (20–30 mikro görevle başla)
+- [ ] Mistake Journal: /me sayfasına “Hata Geçmişi” bölümü (son 100 turdan çıkarım)
+- [ ] Phrasebook: “Yıldızla” → Favori kalıplarım (TTS ile tekrar dinlet)
+- [ ] Haftalık Challenge: 5 görev → rozet + streak bonusu
+- [ ] Liderlik tablosu (opsiyonel MVP): Haftalık top‑10, yalnızca takma ad göster
+- [ ] Quick Topics: 60 saniyelik konu başlatıcıları (realtime.html kısa menü)
+
+============================================================
+Fazlar ve Sprintler (Onaylandı)
+============================================================
+
+Faz 1 — Deneyim Çekirdeği (2 sprint)
+Sprint 1 (MVP+)
+- Rol‑oyunu senaryoları: 20–30 mikro senaryo (restoran, havaalanı, mülakat, toplantı)
+- Koç şapkaları: Gündelik / İş Görüşmesi / Sınav / Seyahat
+- Shadowing (tekrar) modu: hedef cümle + tempo/benzerlik yüzdesi (istemci tarafı)
+- Başarı ölçütleri: Ortalama tur/dk 5–6; Çıkış tokeni ≤ 40 ortalama; Memnuniyet ≥ 4.6/5
+
+Sprint 2
+- Gamifikasyon: Streak + rozetler + günlük hedef
+- Mini yerleştirme (placement) + öneri patikası (CEFR A1–C1)
+- Quick Topics (60 sn konu başlatıcıları)
+- Başarı ölçütleri: D7 retention +%10; Günlük hedef tamamlama ≥ %35
+
+Faz 2 — Öğrenme Katmanı ve Katalog (2 sprint)
+Sprint 3
+- CEFR Journey ekranı: Patikalar (her patika 8–12 mikro görev)
+- Mistake Journal: Sık hata kartları; Phrasebook: Favori kalıplar + TTS
+- Başarı ölçütleri: Patika tamamlama ≥ %40; Kısa seans terk oranında %10 azalma
+
+Sprint 4
+- Katalog genişletme: +50 mikro ders (iş/seyahat/günlük)
+- Avatar MVP (CSS/Canvas hareket)
+- Başarı ölçütleri: Ortalama seans süresi +%15; Konuşma başlat → devam dönüşüm +%10
+
+Faz 3 — Büyüme ve Monetizasyon (2 sprint)
+Sprint 5
+- Haftalık challenge’lar; mini liderlik (top‑10)
+- A/B fiyat testleri (Starter/Pro paket sayfaları)
+- Başarı ölçütleri: Deneme→Ücretli +%20; Pro upgrade +%10
+
+Sprint 6
+- “Explain my answer” (tek cümle + tek örnek) butonu
+- Ölçüm panosu: tur/dk, token/dk, dak/ay maliyet, barge‑in sayısı, placement seviyesi
+- Başarı ölçütleri: Token/dk ≤ 400–450; Maliyet/saat iyileşmesi ≥ %15
+
+============================================================
+KPI Hedefleri (Ürün)
+============================================================
+- Nitelikler: Kısa ve amaçlı yanıtlar; tek örnekli gentle düzeltme; ana dilde koçluk + öğrenilen dilde pratik
+- Nicelikler: Token/dk ≤ 400–450; Ortalama seans 8–12 dk; D7 Retention ≥ %20–25; Deneme→Ücretli ≥ %3–5
+
+============================================================
+Kabul Kriterleri (Örnek)
+============================================================
+- Rol‑oyunu: Seçilen senaryo prompta eklenir, konuşma bağlamda sürer
+- Shadowing: Tekrar sonrası benzerlik yüzdesi ve tek cümle ipucu görünür
+- Gamifikasyon: Üst üste 3 gün → streak=3; rozet tetiklenir
+- Placement: 5–7 soru sonrası seviye ve önerilen patika görünür
+
+============================================================
+Görev Kartları (S1–S3)
+============================================================
+
+Sprint 1 (MVP+) – Rol‑oyunu + Koç Şapkaları + Shadowing
+S1-01 | backend/src/scenarios/ | Senaryo şeması ve örnekler
+- Modül: scenarios/*.json, server.js
+- Açıklama: JSON şema (title, level, tags, personaPrompt, successCriteria); 20–30 mikro senaryo.
+- AC/DoD: En az 20 JSON; şema geçerli; server ilk yüklemede okuyabiliyor.
+- Tahmin: 1.5–2 gün
+
+S1-02 | server.js | Senaryoyu persona’ya enjekte et
+- Modül: buildPersonaInstruction, set_prefs
+- Açıklama: set_prefs ile gelen scenario/coach’u persona talimatına kat.
+- AC/DoD: set_prefs payload genişletildi; session.instructions güncelleniyor; turn guide kısa.
+- Tahmin: 0.5 gün
+
+S1-03 | public/realtime.html & public/app.js | Senaryo seçimi UI
+- Açıklama: Gelişmiş Kontroller’e “Senaryo” select; değişim set_prefs gönderir.
+- AC/DoD: Dropdown listelenir; seçim bağlamı değiştirir.
+- Tahmin: 0.5 gün
+
+S1-04 | public/realtime.html & public/app.js & server.js | Koç şapkaları
+- Açıklama: Koç seçimi (Gündelik/İş/Sınav/Seyahat) → set_prefs → persona tonu.
+- AC/DoD: UI + persona güncellenir; turn guide kısa kalır.
+- Tahmin: 0.5 gün
+
+S1-05 | public/app.js | Shadowing (Tekrar) modu
+- Açıklama: “Tekrar Et” → hedef cümle; kullanıcı tekrar; benzerlik % ve tempo skoru (istemci JS).
+- AC/DoD: Buton; % skor + tek cümle ipucu görünür.
+- Tahmin: 1 gün
+
+S1-06 | Ölçüm ve UX korumaları
+- Açıklama: Token/dk, tur/dk logları; 4 sn delay, 1 sn suppress, 200 ms barge‑in doğrulanır.
+- AC/DoD: Loglarda ölçümler ve barge‑in mesajı görülür.
+- Tahmin: 0.5 gün
+
+Sprint 2 – Gamifikasyon + Placement + Quick Topics
+S2-01 | models.js & server.js | Streak/Rozet/Hedef
+- Açıklama: Streak, Achievement, Goal şemaları; usage akışında tetik.
+- AC/DoD: Streak güncellenir; 2–3 rozet koşulu çalışır.
+- Tahmin: 1 gün
+
+S2-02 | public/site.js | Hesabım’da gamifikasyon
+- AC/DoD: Streak/rozet/günlük hedef gösterimi; değerler doğru.
+- Tahmin: 0.5 gün
+
+S2-03 | levels/placement.json & UI | Mini yerleştirme (CEFR)
+- Açıklama: 5–7 soru; önerilen seviye/patika.
+- AC/DoD: Hızlı Başla akışında mini yerleştirme tamamlanır.
+- Tahmin: 1–1.5 gün
+
+S2-04 | public/realtime.html & public/app.js | Quick Topics (60 sn)
+- AC/DoD: 6–8 kısa konu butonu; tıklayınca akış başlar.
+- Tahmin: 0.5 gün
+
+Sprint 3 – Avatar MVP + Katalog + Ölçüm Panosu
+S3-01 | Avatar MVP (CSS/Canvas)
+- Açıklama: TTS dalgasına göre basit ağız/baş hareketi.
+- AC/DoD: Konuşmada hareket eden görsel; ek maliyetsiz.
+- Tahmin: 1 gün
+
+S3-02 | İçerik +50 mikro ders
+- AC/DoD: 50 yeni JSON; title/level/tags tutarlı.
+- Tahmin: 2–3 gün (içerik)
+
+S3-03 | Ölçüm panosu (minimal/admin)
+- Açıklama: tur/dk, token/dk, dak/ay maliyet kestirimi, barge‑in sayısı, placement dağılımı.
+- AC/DoD: CSV/JSON export veya basit tablo.
+- Tahmin: 1–1.5 gün

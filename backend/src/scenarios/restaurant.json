@@ -1,0 +1,12 @@
+{
+  "id": "restaurant",
+  "title": "Restoran Siparişi",
+  "level": "A2-B1",
+  "tags": ["restoran", "sipariş", "garson", "menü"],
+  "personaPrompt": "Bir restorandasın. Garson rolündesin. Kullanıcı müşteri. Doğal, kısa ve akıcı hizmet dili kullan. Menüden öneriler sun, içecek ve tatlı opsiyonlarını hatırlat.",
+  "successCriteria": [
+    "Kullanıcı ana yemeği ve içeceği net seçti",
+    "Fiyat veya içerik hakkında en az 1 soru sordu",
+    "Hesap isteme veya siparişi onaylama ile kapanış yapıldı"
+  ]
+}

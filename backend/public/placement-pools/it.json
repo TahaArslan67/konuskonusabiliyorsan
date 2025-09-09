@@ -1,0 +1,13 @@
+{
+  "lang": "it",
+  "questions": [
+    { "id": "it_q1", "level": "A1", "text": "Completa: \"Io ____ uno studente.\"", "options": ["sono", "sei", "è", "essere"], "answer": 0 },
+    { "id": "it_q2", "level": "A2", "text": "Scegli la frase corretta:", "options": ["Lui va ieri al lavoro.", "Lui è andato al lavoro ieri.", "Lui va al lavoro ieri.", "Ieri lui va lavoro."], "answer": 1 },
+    { "id": "it_q3", "level": "A2", "text": "Significato più vicino di 'abbordabile':", "options": ["costoso", "ragionevole", "casuale", "difficile"], "answer": 1 },
+    { "id": "it_q4", "level": "B1", "text": "Completa: \"La riunione è stata annullata ______ il tempo.\"", "options": ["perché", "a causa di", "con", "come"], "answer": 1 },
+    { "id": "it_q5", "level": "B1", "text": "Quale frase è più naturale?", "options": ["Potrei fare finire questo progetto.", "Sono riuscito a finire questo progetto.", "Gestisco finire questo progetto.", "Finisco gestire questo progetto."], "answer": 1 },
+    { "id": "it_q6", "level": "B2", "text": "Significato più vicino di 'raccomandare':", "options": ["vietare", "suggerire", "avvertire", "ordinare"], "answer": 1 },
+    { "id": "it_q7", "level": "C1", "text": "Completa: \"I risultati ______ in gran parte l'ipotesi.\"", "options": ["supportano", "supporta", "hanno supportato", "supportando"], "answer": 0 },
+    { "id": "it_q8", "level": "C1", "text": "Qual è più formale e fluida?", "options": ["Non sono venuto perché avevo cose da fare.", "A causa di un carico di lavoro pesante, non ho potuto partecipare alla riunione.", "Riunione non sono venuto lavoro molto.", "Non partecipare, lavori esistono."], "answer": 1 }
+  ]
+}

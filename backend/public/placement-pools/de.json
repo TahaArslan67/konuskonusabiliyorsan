@@ -1,0 +1,13 @@
+{
+  "lang": "de",
+  "questions": [
+    { "id": "de_q1", "level": "A1", "text": "Ergänzen Sie: \"Ich ____ Student.\"", "options": ["bin", "bist", "ist", "seid"], "answer": 0 },
+    { "id": "de_q2", "level": "A2", "text": "Wählen Sie den richtigen Satz:", "options": ["Er geht gestern zur Arbeit.", "Er ging gestern zur Arbeit.", "Er geht gestern Arbeit.", "Gestern er geht zur Arbeit."], "answer": 1 },
+    { "id": "de_q3", "level": "A2", "text": "Die nächstliegende Bedeutung von 'günstig':", "options": ["teuer", "preiswert", "zufällig", "schwierig"], "answer": 1 },
+    { "id": "de_q4", "level": "B1", "text": "Ergänzen Sie: \"Das Meeting wurde ______ des Wetters abgesagt.\"", "options": ["weil", "wegen", "mit", "als"], "answer": 1 },
+    { "id": "de_q5", "level": "B1", "text": "Welche Formulierung ist natürlicher?", "options": ["Ich konnte dieses Projekt tun beenden.", "Ich habe es geschafft, dieses Projekt zu beenden.", "Ich schaffe dieses Projekt beenden.", "Ich beenden schaffen dieses Projekt."], "answer": 1 },
+    { "id": "de_q6", "level": "B2", "text": "Nächstliegende Bedeutung von 'empfehlen':", "options": ["verbieten", "vorschlagen", "warnen", "befehlen"], "answer": 1 },
+    { "id": "de_q7", "level": "C1", "text": "Ergänzen Sie: \"Die Ergebnisse ______ weitgehend die Hypothese.\"", "options": ["stützen", "stützt", "stützten", "stützend"], "answer": 0 },
+    { "id": "de_q8", "level": "C1", "text": "Welche ist formeller und flüssiger?", "options": ["Ich kam nicht, weil ich zu tun hatte.", "Aufgrund der hohen Arbeitsbelastung konnte ich nicht teilnehmen.", "Meeting ich kam nicht Arbeit viel.", "Nicht teilnehmen, Arbeit existiert."], "answer": 1 }
+  ]
+}

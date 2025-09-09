@@ -1,0 +1,13 @@
+{
+  "lang": "tr",
+  "questions": [
+    { "id": "tr_q1", "level": "A1", "text": "Boşluğu doldurun: \"Ben ____ öğrenciyim.\"", "options": ["bir", "iki", "çok", "hiç"], "answer": 0 },
+    { "id": "tr_q2", "level": "A2", "text": "Doğru cümleyi seçin:", "options": ["O dün markete gidiyor.", "O dün markete gitti.", "O dün markete gider.", "O dün markete gidecek."], "answer": 1 },
+    { "id": "tr_q3", "level": "A2", "text": "'uygun' kelimesine en yakın anlam:", "options": ["pahalı", "elverişli", "rastgele", "zor"], "answer": 1 },
+    { "id": "tr_q4", "level": "B1", "text": "Boşluğu doldurun: \"Toplantı ______ iptal edildi.\"", "options": ["neden", "yüzünden", "ile", "gibi"], "answer": 1 },
+    { "id": "tr_q5", "level": "B1", "text": "Hangi cümle daha doğaldır?", "options": ["Ben bu projeyi yapabildim bitirmek.", "Bu projeyi bitirmeyi başardım.", "Bu proje bitirmek ben başardım.", "Ben bitirmek bu proje başardım."], "answer": 1 },
+    { "id": "tr_q6", "level": "B2", "text": "'tavsiye etmek' kelimesine en yakın anlam:", "options": ["yasaklamak", "önermek", "uyarmak", "emretmek"], "answer": 1 },
+    { "id": "tr_q7", "level": "C1", "text": "Boşluğu doldurun: \"Araştırmanın bulguları, hipotezi büyük ölçüde _______.\"", "options": ["kanıtlıyor", "kanıtla", "kanıtlandı", "kanıt"], "answer": 0 },
+    { "id": "tr_q8", "level": "C1", "text": "Hangi cümle daha resmî ve akıcıdır?", "options": ["Toplantıya gelmedim çünkü işlerim vardı.", "Yoğun iş yüküm nedeniyle toplantıya katılamadım.", "Toplantı ben gelmedim iş yoğun.", "Toplantıya katılma yok işler var."], "answer": 1 }
+  ]
+}

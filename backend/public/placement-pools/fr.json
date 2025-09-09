@@ -1,0 +1,13 @@
+{
+  "lang": "fr",
+  "questions": [
+    { "id": "fr_q1", "level": "A1", "text": "Complétez : \"Je ____ étudiant.\"", "options": ["suis", "es", "est", "être"], "answer": 0 },
+    { "id": "fr_q2", "level": "A2", "text": "Choisissez la phrase correcte :", "options": ["Il va hier au travail.", "Il est allé au travail hier.", "Il va au travail hier.", "Hier, il va travail."], "answer": 1 },
+    { "id": "fr_q3", "level": "A2", "text": "Le synonyme le plus proche de 'abordable' :", "options": ["cher", "raisonnable", "aléatoire", "difficile"], "answer": 1 },
+    { "id": "fr_q4", "level": "B1", "text": "Complétez : \"La réunion a été annulée ______ la météo.\"", "options": ["parce que", "à cause de", "avec", "comme"], "answer": 1 },
+    { "id": "fr_q5", "level": "B1", "text": "Quelle phrase est plus naturelle ?", "options": ["J'ai pu faire finir ce projet.", "J'ai réussi à terminer ce projet.", "Je réussir finir ce projet.", "Je finir réussir ce projet."], "answer": 1 },
+    { "id": "fr_q6", "level": "B2", "text": "Le synonyme le plus proche de 'recommander' :", "options": ["interdire", "suggérer", "avertir", "ordonner"], "answer": 1 },
+    { "id": "fr_q7", "level": "C1", "text": "Complétez : \"Les résultats ______ largement l'hypothèse.\"", "options": ["appuient", "appuie", "ont appuyé", "appuyant"], "answer": 0 },
+    { "id": "fr_q8", "level": "C1", "text": "Quelle formulation est plus formelle et fluide ?", "options": ["Je ne suis pas venu car j'avais des choses à faire.", "En raison d'une lourde charge de travail, je n'ai pas pu assister à la réunion.", "Réunion je pas venu travail beaucoup.", "Pas assister, travaux existent."], "answer": 1 }
+  ]
+}

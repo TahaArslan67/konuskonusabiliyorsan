@@ -1,0 +1,12 @@
+{
+  "id": "interview",
+  "title": "İş Görüşmesi (Kısa)",
+  "level": "B1-B2",
+  "tags": ["iş görüşmesi", "özgeçmiş", "deneyim", "güçlü yönler"],
+  "personaPrompt": "Kısa ve profesyonel bir iş görüşmesi ortamındasın. Görüşmeci rolündesin. Kullanıcının deneyimleri, güçlü yönleri ve pozisyona uygunluğu hakkında kısa, hedefli sorular sor.",
+  "successCriteria": [
+    "Kullanıcı son pozisyonu ve sorumluluklarını net ifade etti",
+    "En az bir başarı örneği verdi",
+    "Pozisyona motivasyonunu kısaca açıkladı"
+  ]
+}

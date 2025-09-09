@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Seviye Belirleme Testi · KonusKonusabilirsen</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .q { padding:14px; border:1px solid #243055; border-radius:12px; background:#0b1022; }
+    .q h4 { margin:0 0 8px; font-weight:600; color:#c7d2fe; }
+    .q .opt { display:block; margin:6px 0; }
+    .muted { color: var(--muted); font-size: 14px; }
+  </style>
+  <script>
+    try{
+      const token = localStorage.getItem('hk_token');
+      if (!token){
+        const redirect = encodeURIComponent('/placement.html');
+        window.location.replace(`/?auth=1&redirect=${redirect}`);
+      }
+    }catch{}
+  </script>
+</head>
+<body>
+  <header class="container header">
+    <a class="brand" href="/">KonusKonusabilirsen</a>
+    <nav class="nav">
+      <span class="pill">Seviye Testi</span>
+    </nav>
+  </header>
+
+  <main class="container" style="padding:28px 0 40px; max-width:900px;">
+    <h1 style="margin:0 0 8px;">Hızlı Seviye Belirleme</h1>
+    <p class="muted" style="margin:0 0 18px;">8 soruluk kısa test. Yaklaşık 2 dakika sürer. Sonuç: CEFR (A1–C2). Test zorunludur ve sohbet öncesi tamamlanmalıdır.</p>
+
+    <div class="card" style="padding:16px; margin-bottom:14px;">
+      <h3 class="section-title" style="margin:0 0 10px;">Öğrenmek İstediğiniz Dil</h3>
+      <div class="stack" style="gap:8px;">
+        <select id="placementLearnLang" style="max-width:420px; padding:10px 12px; border-radius:10px; background:#0b1022; border:1px solid #1b2442; color:var(--text);">
+          <option value="">(Seçiniz)</option>
+        </select>
+        <small class="muted">Bu seçim koçun hedef dilini ve test yaklaşımını şekillendirir. Zorunludur. <span id="suggestLang" style="color:#aab4c3"></span></small>
+      </div>
+    </div>
+
+    <div id="quiz" style="display:none"></div>
+
+    <div class="row" style="margin-top:16px; gap:12px;">
+      <button id="btnNext" class="btn btn-secondary" style="display:none;">Sonraki Soru</button>
+      <button id="btnSubmit" class="btn btn-primary" style="display:none;">Testi Bitir</button>
+      <a id="btnSkip" class="btn btn-secondary" href="#" style="display:none;">Daha sonra</a>
+      <span id="status" class="muted"></span>
+    </div>
+  </main>
+
+  <script type="module" src="/placement.js"></script>
+</body>
+</html>

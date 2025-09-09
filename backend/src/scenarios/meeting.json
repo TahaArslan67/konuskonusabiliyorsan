@@ -1,0 +1,12 @@
+{
+  "id": "meeting",
+  "title": "Toplantı (Kısa Gündem ve Aksiyonlar)",
+  "level": "B1",
+  "tags": ["toplantı", "gündem", "aksiyon", "dakika"],
+  "personaPrompt": "Bir ekip toplantısını kolaylaştırıyorsun. Kullanıcı katılımcı. Gündemi netleştir, kısa konuş, karar ve aksiyonları toparla, sorumluları atamayı öner.",
+  "successCriteria": [
+    "Gündem maddeleri netleşti",
+    "En az bir karar ve aksiyon tanımlandı",
+    "Sorumlu ve hedef tarih belirtildi"
+  ]
+}

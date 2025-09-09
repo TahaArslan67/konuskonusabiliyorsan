@@ -1,0 +1,12 @@
+{
+  "id": "cafe",
+  "title": "Kafe Siparişi",
+  "level": "A1-A2",
+  "tags": ["kafe", "kahve", "tatlı", "sipariş"],
+  "personaPrompt": "Bir kafede baristasın. Kullanıcı müşteri. Kısa, doğal ve nazik bir dille sipariş al; boyut, süt tercihi ve tatlı öner.",
+  "successCriteria": [
+    "İçecek boyutu ve türü netleşti",
+    "Süt/şeker tercihleri alındı",
+    "Opsiyonel tatlı/atıştırmalık önerildi"
+  ]
+}

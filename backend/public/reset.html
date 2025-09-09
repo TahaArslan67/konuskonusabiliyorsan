@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Şifre Sıfırla - KonusKonusabilirsen</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#0a0f2a; color:#e4e7f5; }
+    .container { max-width: 520px; margin: 60px auto; padding: 24px; background:#0b1022; border:1px solid #1b2442; border-radius:14px; }
+    input { width:100%; padding:10px 12px; border-radius:10px; background:#0b1022; border:1px solid #1b2442; color:#e4e7f5; }
+    .btn { padding:10px 14px; border-radius:10px; border:1px solid transparent; cursor:pointer; }
+    .btn-primary { background:#3b82f6; color:white; border-color:#2563eb; }
+    .row { display:flex; align-items:center; gap:8px; }
+    .stack { display:flex; flex-direction:column; gap:12px; }
+    .muted { color:#a2accd; font-size:14px; }
+  </style>
+</head>
+<body>
+  <div class="container stack">
+    <h2>Şifre Sıfırla</h2>
+    <div id="msg" class="muted">E‑postanıza gelen bağlantıyla geldiyseniz aşağıdan yeni şifrenizi belirleyin.</div>
+    <input id="password" type="password" placeholder="Yeni şifre (min 6)" minlength="6" required />
+    <button id="btn" class="btn btn-primary">Şifreyi Güncelle</button>
+    <div id="info" class="muted"></div>
+    <div><a href="/">Ana sayfaya dön</a></div>
+  </div>
+  <script>
+    (function(){
+      const params = new URLSearchParams(location.search);
+      const token = params.get('token');
+      const btn = document.getElementById('btn');
+      const info = document.getElementById('info');
+      if (!token){
+        info.textContent = 'Geçersiz bağlantı: token bulunamadı.';
+        btn.disabled = true;
+        return;
+      }
+      btn.addEventListener('click', async () => {
+        const password = document.getElementById('password').value;
+        info.textContent = 'İşleniyor...';
+        try{
+          const r = await fetch('/auth/reset', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ token, password })});
+          const j = await r.json();
+          if (!r.ok){ info.textContent = j?.error || 'Hata'; return; }
+          info.textContent = 'Şifreniz güncellendi. Giriş yap sayfasına dönüp oturum açabilirsiniz.';
+        }catch(e){ info.textContent = 'Bağlantı hatası'; }
+      });
+    })();
+  </script>
+</body>
+</html>

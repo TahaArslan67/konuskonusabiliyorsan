@@ -996,15 +996,16 @@ if (btnStartTalk){
         const preferredCorrectionMode = (document.getElementById('corrSelect')?.value) || 'gentle';
         await persistPrefs({ preferredVoice: voice, preferredLearningLanguage, preferredNativeLanguage, preferredCorrectionMode });
       } catch {}
-      // 2) WS açık değilse bağlan ve açılmasını bekle
+      // 2) Mikrofonu hemen başlat (kullanıcı jesti sırasında izin diyaloğu için en iyisi)
+      await wsStartMic();
+      // 3) WS bağlantısını başlat ve açık değilse bekle
       if (!ws || ws.readyState !== WebSocket.OPEN){
         await wsConnect();
         await waitWsOpen(5000);
       }
       if (!ws || ws.readyState !== WebSocket.OPEN){ throw new Error('WS açılamadı'); }
-      // 3) WS AÇIK: Önce tercihleri WS'ye ilet, sonra mikrofona başla
+      // 4) WS AÇIK: Tercihleri WS'ye ilet (hedef dil/ana dil/voice/correction)
       try { sendPrefsToWs(); } catch {}
-      await wsStartMic();
       updateStatus();
       if (btnStopTalk) btnStopTalk.disabled = false;
       log('Konuşma başlatıldı');

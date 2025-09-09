@@ -182,6 +182,17 @@ app.patch('/me/placement', authRequired, async (req, res) => {
   }
 });
 
+// Pretty URL for realtime (hide .html in address bar)
+app.get(['/realtime', '/realtime/'], (_req, res) => {
+  try {
+    return res.sendFile(path.join(publicDir, 'realtime.html'));
+  } catch {
+    return res.status(404).end();
+  }
+});
+// Redirect legacy .html path to pretty URL
+app.get('/realtime.html', (_req, res) => res.redirect(301, '/realtime'));
+
 // Route-bazlı ek limitler
 const strictLimiter = rateLimit({ windowMs: 60_000, max: 20, standardHeaders: true, legacyHeaders: false });
 const mediumLimiter = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true, legacyHeaders: false });

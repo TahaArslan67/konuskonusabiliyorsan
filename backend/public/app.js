@@ -565,6 +565,8 @@ async function wsConnect(){
       try { const el=$('#btnWsCommit'); if (el) el.disabled = false; } catch {}
       try { const el=$('#btnWsTts'); if (el) el.disabled = false; } catch {}
       updateStatus();
+      // Ensure playback context is ready upon connection
+      try { wsEnsurePlaybackCtx(); if (wsPlaybackCtx.state === 'suspended') await wsPlaybackCtx.resume(); } catch {}
       try {
         const voiceSel = document.getElementById('voiceSelect');
         const voice = voiceSel && voiceSel.value ? voiceSel.value : 'alloy';
@@ -610,6 +612,7 @@ async function wsConnect(){
         // Send full preferences first (voice, learnLang, nativeLang, correction, scenario)
         try { sendPrefsToWs(); } catch {}
         if (wsStartRequested){
+          try { wsEnsurePlaybackCtx(); if (wsPlaybackCtx.state === 'suspended') await wsPlaybackCtx.resume(); } catch {}
           await wsStartMic();
           const btnStopTalk = document.getElementById('btnStopTalk');
           if (btnStopTalk){ btnStopTalk.disabled = false; btnStopTalk.style.pointerEvents = 'auto'; }
@@ -764,6 +767,19 @@ async function wsStartMic(){
     wsMicStream = null;
     return;
   }
+  // Warm up playback context early (user gesture window) to avoid autoplay blocks
+  try {
+    wsEnsurePlaybackCtx();
+    // Play a very short silent buffer to unlock audio output
+    const silent = wsPlaybackCtx.createBuffer(1, 240, 24000);
+    const src = wsPlaybackCtx.createBufferSource();
+    src.buffer = silent;
+    const g = wsPlaybackCtx.createGain();
+    g.gain.value = 0.0001;
+    src.connect(g); g.connect(wsPlaybackCtx.destination);
+    try { if (wsPlaybackCtx.state === 'suspended') await wsPlaybackCtx.resume(); } catch {}
+    src.start(0);
+  } catch {}
   wsSource = wsAudioCtx.createMediaStreamSource(wsMicStream);
   // ScriptProcessor fallback (deprecated but widely supported)
   wsProcessor = wsAudioCtx.createScriptProcessor(4096, 1, 1);

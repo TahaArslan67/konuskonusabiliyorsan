@@ -60,9 +60,11 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
   const convo = 'Her turda sohbeti akıcı tut: 1 kısa ve doğal yanıt + tek bir kısa soru sor. Gereksiz tekrar ve şablon cümlelerden kaçın.';
   // Katı dil politikası: her zaman hedef (öğrenilen) dilde yanıt ver, diğer dillere kayma.
   const langPolicy = `YANIT DİLİ POLİTİKASI: Daima ${learnName} dilinde cevap ver. ${nativeName} sadece (gerekirse) tek cümlelik çok kısa açıklama için kullanılabilir. Asla ${nativeName} ya da başka bir dilde tam yanıt verme. Hiçbir koşulda Fransızca, İspanyolca vb. dillere kayma.`;
+  const format = `YANIT BİÇİMİ: (1) Önce ${learnName} dilinde 1 veya 2 kısa doğal öneri ver; her öneriyi çift tırnak içinde yaz (örn: "..."). (2) Ardından yeni satırda ${nativeName} dilinde tek cümlelik kısa bir ipucu ekle ve başına 'Tip:' veya 'Not:' yaz. (3) İpucunda basit bir dilbilgisi noktası (ör. zaman, fiil, kalıp) belirt.`;
+  const lengthPolicy = 'UZUNLUK: Varsayılan olarak en fazla 2-3 cümle kur. Kullanıcı özellikle daha detaylı isterse (ör. “daha uzun”, “detaylı açıkla”, “more detail”), 4-5 cümleye kadar çık.';
   const gentleLimits = 'Yumuşak (gentle) modda düzeltme sıklığı düşük olsun: anlam bozulmuyorsa düzeltme yapma. Düzeltme yaparsan: 1) Hatalı bölümü kısaca belirt, 2) Ana dilde tek cümlelik çok kısa açıklama yaz, 3) Öğrenilen dilde tek örnek ver ("Şöyle de diyebilirsin: …"). Kısa ve net ol.';
   const scenarioPart = scenarioText ? ` Senaryo bağlamı: ${scenarioText}` : '';
-  return `Markaya özel dil koçu asistan (“hemenkonus”). Kullanıcının ana dili: ${nativeName}. Öğrenilen dil: ${learnName}. ${tone} ${convo} ${langPolicy} ${fixStyle} ${gentleLimits} ${safety}${scenarioPart}`;
+  return `Markaya özel dil koçu asistan (“hemenkonus”). Kullanıcının ana dili: ${nativeName}. Öğrenilen dil: ${learnName}. ${tone} ${convo} ${langPolicy} ${lengthPolicy} ${format} ${fixStyle} ${gentleLimits} ${safety}${scenarioPart}`;
 }
 
 // OpenAI (public) envs
@@ -973,6 +975,7 @@ app.post('/realtime/ephemeral', async (req, res) => {
         modalities: ['audio','text'],
         voice: 'alloy',
         instructions: persona,
+        max_response_output_tokens: 30,
         turn_detection: {
           type: 'server_vad',
           // conservative defaults; can be tuned later
@@ -1460,7 +1463,7 @@ wss.on('connection', (clientWs, request) => {
             modalities: RESPONSE_TEXT_ENABLED ? ['audio', 'text'] : ['audio'],
             // Keep instructions short; session already has persona
             instructions: (obj?.instructions ? String(obj.instructions) : 'Kısa doğal yanıt + tek kısa soru. Gerekirse TR 1 cümle açıklama + EN tek örnek.'),
-            max_output_tokens: 40,
+            max_output_tokens: 30,
           }
         };
         if (usage.over) {
@@ -1505,7 +1508,7 @@ wss.on('connection', (clientWs, request) => {
           response: {
             modalities: RESPONSE_TEXT_ENABLED ? ['audio','text'] : ['audio'],
             instructions: `Kullanıcı talimatı: ${String(obj.text)}\nKısa doğal yanıt + tek kısa soru. Gerekirse TR 1 cümle açıklama + EN tek örnek.`,
-            max_output_tokens: wantsExplain ? 60 : 40,
+            max_output_tokens: 30,
           }
         };
         if (STRICT_REALTIME || !isResponding) {

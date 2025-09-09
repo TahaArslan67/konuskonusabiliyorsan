@@ -357,20 +357,20 @@ if (btnStart){
   btnStart.addEventListener('click', (ev) => {
     ev.preventDefault();
     const token = getToken();
-    if (!token){ setPostLoginRedirect('/realtime.html'); openAuth(); showLogin(); return; }
-    window.location.href = '/realtime.html';
+    if (!token){ setPostLoginRedirect('/konus'); openAuth(); showLogin(); return; }
+    window.location.href = '/konus';
   });
 }
 
 // Init UI
 updateHeader();
 
-// Intercept realtime demo links if not logged in
+// Intercept konus (realtime) links if not logged in
 try{
-  document.querySelectorAll('a[href="/realtime.html"]').forEach(a => {
+  document.querySelectorAll('a[href="/konus"]').forEach(a => {
     a.addEventListener('click', (ev) => {
       const token = getToken();
-      if (!token){ ev.preventDefault(); setPostLoginRedirect('/realtime.html'); openAuth(); showLogin(); }
+      if (!token){ ev.preventDefault(); setPostLoginRedirect('/konus'); openAuth(); showLogin(); }
     });
   });
 } catch {}

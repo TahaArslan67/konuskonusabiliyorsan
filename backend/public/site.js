@@ -358,6 +358,31 @@ try{
   });
 } catch {}
 
+// Mobile menu controls
+try{
+  const btnMenu = document.getElementById('btnMenu');
+  const mm = document.getElementById('mobileMenu');
+  const mmLogin = document.getElementById('mmLogin');
+  const mmAccount = document.getElementById('mmAccount');
+  const mmStart = document.getElementById('mmStart');
+  const token = getToken();
+  if (btnMenu && mm){
+    const open = () => { mm.style.display = 'block'; document.body.style.overflow = 'hidden'; };
+    const close = () => { mm.style.display = 'none'; document.body.style.overflow = ''; };
+    btnMenu.addEventListener('click', () => { mm.style.display === 'block' ? close() : open(); });
+    // Tap on links closes menu
+    mm.querySelectorAll('[data-mm-close]').forEach(el => el.addEventListener('click', close));
+    // Escape closes
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    // Auth buttons in mobile menu
+    if (mmLogin){ mmLogin.addEventListener('click', () => { close(); openAuth(); showLogin(); }); }
+    if (mmAccount){ mmAccount.addEventListener('click', () => { close(); window.location.href = '/account.html'; }); }
+    if (mmStart){ mmStart.addEventListener('click', (ev) => { ev.preventDefault(); close(); const t = getToken(); if (!t){ setPostLoginRedirect('/realtime.html'); openAuth(); showLogin(); } else { window.location.href = '/realtime.html'; } }); }
+    // Show correct auth buttons
+    if (token){ if (mmLogin) mmLogin.style.display = 'none'; if (mmAccount) mmAccount.style.display = 'inline-flex'; }
+  }
+} catch {}
+
 // If navigated with ?auth=1&redirect=...
 try{
   const usp = new URLSearchParams(window.location.search);

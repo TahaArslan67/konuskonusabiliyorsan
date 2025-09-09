@@ -162,11 +162,63 @@ a{ color:var(--text); text-decoration:none; }
 /* Footer */
 .footer{ display:flex; align-items:center; justify-content:space-between; padding:20px 0 36px; color:var(--muted); }
 .footer .nav.small a{ color:var(--muted); }
-.footer .nav.small a:hover{ color:var(--text); }
+.footer .nav.small a:hover{ color: var(--text); }
 
 /* Responsive */
 @media (max-width: 900px){
   .hero{ grid-template-columns:1fr; }
+}
+
+/* ===== Mobile-first polish (<640px) ===== */
+@media (max-width: 640px){
+  .container{ padding:0 14px; }
+  /* Header compaction */
+  .header{ padding:14px 0; gap:8px; }
+  .brand span{ font-size:16px; }
+  .nav{ gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+  /* Hide non-critical text links; keep primary actions */
+  .nav a:not(.btn){ display:none; }
+  .btn{ padding:10px 12px; font-size:14px; border-radius:12px; }
+  .btn.btn-primary{ font-weight:700; }
+
+  /* Hero */
+  .hero{ padding:28px 0 20px; gap:18px; }
+  .hero__content h1{ font-size:28px; line-height:1.2; }
+  .hero__content p{ font-size:15px; }
+  .hero__cta{ flex-direction:column; gap:10px; }
+  .hero__cta .btn{ width:100%; }
+  .demo-card{ max-width:100%; min-height:180px; }
+  .demo-text{ font-size:16px; }
+
+  /* Grids to single column */
+  .grid-3{ grid-template-columns:1fr; }
+  .grid{ gap:12px; }
+
+  /* Cards tighter padding */
+  .card{ padding:14px; border-radius:12px; }
+
+  /* Pricing scale */
+  .price-value{ font-size:24px; }
+  .price-features li{ margin:4px 0; }
+  .price-card .btn{ width:100%; }
+
+  /* Stats */
+  .stat__value{ font-size:24px; }
+  .stat__label{ font-size:13px; }
+
+  /* Pills & rows on realtime */
+  .row{ gap:6px; }
+  .pill{ font-size:11px; padding:3px 6px; }
+
+  /* Footer to column */
+  .footer{ flex-direction:column; gap:8px; align-items:flex-start; }
+}
+
+/* Ultra-small phones (<390px) */
+@media (max-width: 390px){
+  .hero__content h1{ font-size:24px; }
+  .btn{ padding:9px 11px; font-size:13px; }
+  .price-value{ font-size:22px; }
 }
 
 /* Micro-interactions */
@@ -257,3 +309,15 @@ a{ color:var(--text); text-decoration:none; }
 .slider__dots .dot{ width:8px; height:8px; border-radius:999px; background:#26335c; border:1px solid #3a4a7a; cursor:pointer; transition: background .2s ease; }
 .slider__dots .dot.active{ background: linear-gradient(135deg, var(--brand), var(--neon)); border-color: transparent; }
 @keyframes fadeIn{ from{ opacity:0; transform: translateY(4px); } to{ opacity:1; transform: translateY(0); } }
+
+/* Mobile menu small fade */
+#mobileMenu{ animation: mmFade .18s ease-out; }
+@keyframes mmFade{ from{ opacity:0; transform: translateY(-6px); } to{ opacity:1; transform: translateY(0); } }
+
+/* Reduce motion for users who prefer less animation */
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{ animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior:auto !important; }
+  body::before, body::after{ animation: none !important; }
+  .demo-wave{ animation: none !important; }
+  [data-reveal]{ transition: none !important; transform: none !important; opacity: 1 !important; }
+}

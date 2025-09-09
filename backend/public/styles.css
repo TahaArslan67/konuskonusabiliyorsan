@@ -195,6 +195,9 @@ a{ color:var(--text); text-decoration:none; }
   .demo-card{ max-width:100%; min-height:180px; }
   .demo-text{ font-size:16px; }
 
+  /* Realtime grid to single column */
+  .grid-rt{ grid-template-columns: 1fr !important; gap:12px !important; }
+
   /* Grids to single column */
   .grid-3{ grid-template-columns:1fr; }
   .grid{ gap:12px; }

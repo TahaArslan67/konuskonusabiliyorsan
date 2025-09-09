@@ -173,13 +173,17 @@ a{ color:var(--text); text-decoration:none; }
 @media (max-width: 640px){
   .container{ padding:0 14px; }
   /* Header compaction */
-  .header{ padding:14px 0; gap:8px; }
-  .brand span{ font-size:16px; }
+  .header{ padding:12px 0; gap:8px; }
+  .brand{ gap:8px; }
+  .brand img{ height:28px !important; }
+  .brand span{ font-size:15px; white-space:nowrap; }
   .nav{ gap:8px; flex-wrap:nowrap; justify-content:flex-end; }
   /* Mobile navbar: ONLY logo+brand and hamburger remain */
   .nav a{ display:none !important; }
   .nav .btn:not(#btnMenu){ display:none !important; }
-  #btnMenu{ display:inline-flex !important; margin-left:auto; }
+  #btnMenu{ display:inline-flex !important; margin-left:0; }
+  /* Explicitly hide header CTAs by id in case of cache */
+  #btnLogin, #btnAccount, #btnStart{ display:none !important; }
   .btn{ padding:10px 12px; font-size:14px; border-radius:12px; }
   .btn.btn-primary{ font-weight:700; }
 

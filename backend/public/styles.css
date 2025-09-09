@@ -202,6 +202,8 @@ a{ color:var(--text); text-decoration:none; }
   .grid-rt .card h3{ font-size:15px; margin:0 0 6px; }
   .grid-rt .card p{ font-size:12px; }
   .grid-rt .card .row{ margin:6px 0 !important; gap:8px !important; }
+  /* Realtime card horizontal size: slightly narrower than container */
+  .grid-rt .card, .grid-rt .demo-card{ width:85% !important; max-width:85% !important; margin-left:auto; margin-right:auto; }
   #btnStartTalk, #btnStopTalk, #btnToggleMic, #btnReplay{ padding:10px 12px !important; font-size:14px !important; }
   main.container h1{ font-size:24px; line-height:1.25; }
 
@@ -222,6 +224,12 @@ a{ color:var(--text); text-decoration:none; }
   .demo-card{ width:100%; max-width:100%; box-sizing:border-box; }
   /* Realtime top cards override inline paddings */
   .grid-rt .card{ padding:14px !important; }
+
+  /* Section headings extra top padding on mobile */
+  .features h2,
+  .pricing h2,
+  .timeline h2,
+  .testimonials h2{ padding-top: 12px; }
 
   /* Pricing scale */
   .price-value{ font-size:24px; }

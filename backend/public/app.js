@@ -26,6 +26,7 @@ let wsNoStartUntil = 0; // cooldown timestamp (ms since epoch) preventing immedi
 let wsStartRequested = false; // if user pressed big start button
 let micToggleOn = false; // state of mic toggle button
 let wsForceSilence = false; // when true, ignore/stop any bot audio
+let wsAutoEndTimer = null; // inactivity-based synthetic audio_end timer
 
 // ---- Bot visualization (canvas + analyser) ----
 let vizCanvas = null, vizCtx = null, vizAnalyser = null, vizTimeData = null, vizAnimId = null;
@@ -723,7 +724,30 @@ async function wsConnect(){
         } catch {}
       } else {
         // binary PCM from server -> buffer until audio_end
-        if (!wsForceSilence) wsAudioChunks.push(ev.data);
+        if (!wsForceSilence) {
+          wsAudioChunks.push(ev.data);
+          // Auto finalize after short inactivity window if server doesn't send audio_end
+          try { if (wsAutoEndTimer) clearTimeout(wsAutoEndTimer); } catch {}
+          wsAutoEndTimer = setTimeout(() => {
+            try {
+              if (wsAudioChunks.length === 0) return;
+              // Merge chunks into a single Int16 buffer
+              let totalSamples = 0;
+              const parts = wsAudioChunks.map((ab) => new Int16Array(ab));
+              for (const p of parts) totalSamples += p.length;
+              const merged = new Int16Array(totalSamples);
+              let off = 0;
+              for (const p of parts) { merged.set(p, off); off += p.length; }
+              lastResponseBuffer = merged.buffer;
+              try{ const btnReplay = document.getElementById('btnReplay'); if (btnReplay) btnReplay.disabled = false; }catch{}
+              if (!wsForceSilence) wsPlayPcm(lastResponseBuffer);
+              wsAudioChunks = [];
+              wsBotSpeaking = false;
+              try{ vizStop(); }catch{}
+              log('Auto-finalize: audio_end (synthetic)');
+            } catch {}
+          }, 900);
+        }
       }
     };
   } catch (e){ log('WS connect error: '+(e.message||e)); }

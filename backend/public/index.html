@@ -9,6 +9,17 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.png" type="image/png" />
+  <!-- Critical mobile overrides to defeat stale cache -->
+  <style>
+    @media (max-width:640px){
+      .header .nav > *:not(#btnMenu){ display:none !important; }
+      #btnMenu{ display:inline-flex !important; width:36px; height:36px; padding:0; align-items:center; justify-content:center; }
+      .brand{ min-width:0; gap:8px; }
+      .brand img{ height:24px !important; }
+      .brand span{ font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width: calc(100vw - 110px); }
+      .hero{ grid-template-columns: 1fr !important; gap:16px !important; }
+    }
+  </style>
 </head>
 <body>
   <header class="container header">

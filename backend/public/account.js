@@ -1,4 +1,4 @@
-const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : location.origin;
+const backendBase = location.origin;
 
 function $(s){ return document.querySelector(s); }
 
@@ -23,13 +23,8 @@ function fillLangSelect(el, def){
 
 async function loadMe(){
   const token = getToken();
-  let r;
-  try{
-    r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }});
-  } catch(e){
-    const err = new Error('me_network'); err.code = 'network'; throw err;
-  }
-  if (!r.ok){ const err = new Error('me_error'); err.status = r.status; throw err; }
+  const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }});
+  if (!r.ok) throw new Error('me_error');
   return r.json();
 }
 
@@ -150,15 +145,7 @@ async function init(){
       }
     } catch {}
   } catch (e) {
-    // Sadece yetki hatasında çıkış yap; diğer hatalarda sayfada kal ve mesaj göster
-    const status = e && e.status;
-    if (status === 401 || status === 403){
-      try { localStorage.removeItem('hk_token'); } catch {}
-      const redirect = encodeURIComponent('/account.html');
-      window.location.replace(`/?auth=1&redirect=${redirect}`);
-      return;
-    }
-    alert('Hesap verileri şu anda yüklenemedi. Lütfen daha sonra tekrar deneyin.');
+    alert('Hesap verileri yüklenemedi.');
   }
 }
 

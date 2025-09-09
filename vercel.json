@@ -4,8 +4,6 @@
     { "src": "backend/public/**", "use": "@vercel/static" }
   ],
   "routes": [
-    { "src": "/konus", "dest": "/backend/public/realtime.html" },
-    { "src": "/realtime(\\.html)?", "status": 301, "headers": { "Location": "/konus" } },
     { "src": "/(.*)", "dest": "/backend/public/$1" }
   ]
 }

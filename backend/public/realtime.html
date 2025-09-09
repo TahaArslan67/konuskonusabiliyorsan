@@ -6,49 +6,26 @@
   <title>KonusKonusabilirsen – Canlı Sesli Koç</title>
   <script>
     try {
-      const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : location.origin;
       const token = localStorage.getItem('hk_token');
-      const usp = new URLSearchParams(location.search);
-      const authOk = usp.get('authok') === '1';
       if (!token) {
-        const redirect = encodeURIComponent('/konus');
+        const redirect = encodeURIComponent('/realtime.html');
         window.location.replace(`/?auth=1&redirect=${redirect}`);
       }
       // If logged in, enforce placement test completion
       (async () => {
-        // If coming right after login with authok=1, bypass guard once and clean URL
-        if (authOk){ try { history.replaceState(null, '', '/konus'); } catch {} return; }
         try{
-          const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }});
+          const r = await fetch('/me', { headers: { Authorization: `Bearer ${token}` }});
           if (r.ok){
             const me = await r.json();
             if (!me.placementLevel){
-              const redirect = encodeURIComponent('/konus');
+              const redirect = encodeURIComponent('/realtime.html');
               window.location.replace(`/placement.html?redirect=${redirect}`);
             }
-            // Basic sanity: if essential fields missing, force re-login
-            if (!me || !me.email){
-              localStorage.removeItem('hk_token');
-              const redirect = encodeURIComponent('/konus');
-              window.location.replace(`/?auth=1&redirect=${redirect}`);
-              return;
-            }
-          } else {
-            // Token invalid or server rejected — logout and go to login
-            localStorage.removeItem('hk_token');
-            const redirect = encodeURIComponent('/konus');
-            window.location.replace(`/?auth=1&redirect=${redirect}`);
-            return;
           }
-        } catch {
-          // Network error — safe logout and login redirect
-          try { localStorage.removeItem('hk_token'); } catch {}
-          const redirect = encodeURIComponent('/konus');
-          window.location.replace(`/?auth=1&redirect=${redirect}`);
-        }
+        } catch {}
       })();
       // Hide the realtime path from the address bar
-      try { history.replaceState(null, '', '/konus'); } catch {}
+      try { history.replaceState(null, '', '/'); } catch {}
     } catch {}
   </script>
   <link rel="stylesheet" href="/styles.css?v=2" />

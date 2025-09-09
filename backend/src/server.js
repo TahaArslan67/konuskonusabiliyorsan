@@ -21,6 +21,9 @@ import fs from 'fs';
 
 const app = express();
 const server = createServer(app);
+// Trust proxy headers (Render/Heroku/Nginx vb.) so rate-limit and req.ip work correctly
+// This fixes ERR_ERL_UNEXPECTED_X_FORWARDED_FOR from express-rate-limit
+app.set('trust proxy', 1);
 
 // Env
 const PORT = process.env.PORT || 8080;

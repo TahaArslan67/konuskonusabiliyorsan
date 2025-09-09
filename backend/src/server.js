@@ -24,6 +24,8 @@ const server = createServer(app);
 // Trust proxy headers (Render/Heroku/Nginx vb.) so rate-limit and req.ip work correctly
 // This fixes ERR_ERL_UNEXPECTED_X_FORWARDED_FOR from express-rate-limit
 app.set('trust proxy', 1);
+// Remove X-Powered-By header
+app.disable('x-powered-by');
 
 // Env
 const PORT = process.env.PORT || 8080;
@@ -97,8 +99,11 @@ if (RESEND_API_KEY && !MAIL_FROM) {
 // Middleware
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
-// HTTP compression for text-based responses
-app.use(compression());
+// HTTP compression for text-based responses (tune level for balance)
+app.use(compression({
+  level: 6,
+  threshold: '1kb'
+}));
 // Security headers (CSP tuned for this app)
 app.use(helmet({
   contentSecurityPolicy: {

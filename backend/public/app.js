@@ -325,24 +325,60 @@ if (corrSelect){
   });
 }
 
-// Populate scenarios
+// Populate scenarios (with localStorage cache and lazy load)
 async function populateScenarios(){
   try{
     if (!scenarioSelect) return;
-    // Only fetch once if already populated beyond placeholder
+    // If already populated beyond placeholder, skip
     if (scenarioSelect.options && scenarioSelect.options.length > 1) return;
+    // Try cache first
+    const CACHE_KEY = 'hk_scenarios_cache_v1';
+    const TTL = 6 * 60 * 60 * 1000; // 6 saat
+    try{
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (raw){
+        const obj = JSON.parse(raw);
+        if (obj && Array.isArray(obj.items) && obj.ts && (Date.now() - obj.ts < TTL)){
+          // Clear existing beyond placeholder
+          while (scenarioSelect.options.length > 1) scenarioSelect.remove(1);
+          obj.items.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id; opt.textContent = `${s.title} ${s.level ? '('+s.level+')' : ''}`;
+            scenarioSelect.appendChild(opt);
+          });
+          return;
+        }
+      }
+    } catch {}
+    // Fetch fresh
     const r = await fetch(`${backendBase}/scenarios`);
     if (!r.ok) return;
     const j = await r.json();
     const items = Array.isArray(j.items) ? j.items : [];
+    // Clear existing beyond placeholder
+    while (scenarioSelect.options.length > 1) scenarioSelect.remove(1);
     items.forEach(s => {
       const opt = document.createElement('option');
       opt.value = s.id; opt.textContent = `${s.title} ${s.level ? '('+s.level+')' : ''}`;
       scenarioSelect.appendChild(opt);
     });
+    // Save cache
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), items })); } catch {}
   } catch {}
 }
-try { populateScenarios(); } catch {}
+
+// Lazy-load scenarios only when Advanced Controls are opened
+try{
+  const adv = document.getElementById('advControls');
+  if (adv){
+    let scenariosLoaded = false;
+    adv.addEventListener('toggle', async () => {
+      if (adv.open && !scenariosLoaded){
+        try { await populateScenarios(); scenariosLoaded = true; } catch {}
+      }
+    });
+  }
+}catch{}
 
 if (scenarioSelect){
   scenarioSelect.addEventListener('change', async () => {

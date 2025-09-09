@@ -171,7 +171,7 @@ a{ color:var(--text); text-decoration:none; }
 
 /* ===== Mobile-first polish (<640px) ===== */
 @media (max-width: 640px){
-  .container{ padding:0 10px; width:100%; max-width:100%; box-sizing:border-box; }
+  .container{ padding:0 14px; width:100%; max-width:100%; box-sizing:border-box; }
   /* Header compaction */
   .header{ padding:12px 0; gap:8px; min-height:56px; }
   .brand{ gap:8px; min-width:0; flex:1 1 auto; }
@@ -190,17 +190,17 @@ a{ color:var(--text); text-decoration:none; }
   .hero{ padding:28px 0 20px; gap:18px; grid-template-columns:1fr !important; }
   .hero__content h1{ font-size:28px; line-height:1.2; }
   .hero__content p{ font-size:15px; }
-  .hero__cta{ flex-direction:column; gap:10px; }
+  .hero__cta{ flex-direction:column; gap:12px; }
   .hero__cta .btn{ width:100%; }
-  .demo-card{ max-width:100%; min-height:180px; }
-  .demo-text{ font-size:16px; }
+  .demo-card{ max-width:100%; min-height:170px !important; }
+  .demo-text{ font-size:15px; }
 
   /* Realtime grid to single column */
-  .grid-rt{ grid-template-columns: 1fr !important; gap:12px !important; }
+  .grid-rt{ grid-template-columns: 1fr !important; gap:14px !important; }
 
   /* Grids to single column */
   .grid-3{ grid-template-columns:1fr; }
-  .grid{ gap:12px; }
+  .grid{ gap:14px; }
 
   /* Homepage stats: 2 columns on mobile (override inline style) */
   .stats .grid{ grid-template-columns: 1fr 1fr !important; gap:10px !important; }
@@ -226,7 +226,7 @@ a{ color:var(--text); text-decoration:none; }
   .stat__label{ font-size:13px; }
 
   /* Pills & rows on realtime */
-  .row{ gap:6px; }
+  .row{ gap:10px; }
   .pill{ font-size:11px; padding:3px 6px; }
 
   /* Footer to column */

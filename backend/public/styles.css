@@ -197,7 +197,7 @@ a{ color:var(--text); text-decoration:none; }
   .demo-card{ max-width:100%; min-height:140px !important; }
   .demo-text{ font-size:14px; }
   /* Move demo text slightly away from right/bottom edges */
-  .demo-card .demo-text{ padding-right: 24px !important; padding-bottom: 6px; }
+  .demo-card .demo-text{ padding-right: 32px !important; padding-bottom: 6px; }
 
   /* Realtime grid to single column */
   .grid-rt{ grid-template-columns: 1fr !important; gap:14px !important; }

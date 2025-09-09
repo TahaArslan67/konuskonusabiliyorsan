@@ -344,6 +344,14 @@ function loadScenarios(){
   }
 }
 loadScenarios();
+// Pretty URL for realtime (hide .html in address bar) — must be BEFORE static middleware
+try {
+  app.get(['/realtime', '/realtime/'], (_req, res) => {
+    return res.sendFile(path.join(publicDir, 'realtime.html'));
+  });
+  // Redirect legacy .html path to pretty URL
+  app.get('/realtime.html', (_req, res) => res.redirect(301, '/realtime'));
+} catch {}
 // Static with Cache-Control
 app.use(express.static(publicDir, {
   etag: true,

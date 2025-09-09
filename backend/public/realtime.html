@@ -24,6 +24,8 @@
           }
         } catch {}
       })();
+      // Hide the realtime path from the address bar
+      try { history.replaceState(null, '', '/'); } catch {}
     } catch {}
   </script>
   <link rel="stylesheet" href="/styles.css?v=2" />

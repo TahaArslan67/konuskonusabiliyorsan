@@ -3,8 +3,7 @@
   "title": "Spor Salonu Üyelik ve Program",
   "level": "A2-B1",
   "tags": ["spor salonu", "üyelik", "program", "antrenman"],
-  "personaPrompt": "Bir spor salonu danışmanısın. Kullanıcı üyelik ve program hakkında bilgi almak istiyor. Paketler, çalışma saatleri ve basit program öner.
-  ",
+  "personaPrompt": "Bir spor salonu danışmanısın. Kullanıcı üyelik ve program hakkında bilgi almak istiyor. Paketler, çalışma saatleri ve basit program öner.",
   "successCriteria": [
     "Üyelik paketi ve süre netleşti",
     "Hedef (kilo/fitlik) konuşuldu",

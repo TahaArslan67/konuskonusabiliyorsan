@@ -171,10 +171,10 @@ a{ color:var(--text); text-decoration:none; }
 
 /* ===== Mobile-first polish (<640px) ===== */
 @media (max-width: 640px){
-  .container{ padding:0 14px; width:100%; max-width:100%; box-sizing:border-box; }
+  .container{ padding:0 16px; width:100%; max-width:100%; box-sizing:border-box; }
   /* Header compaction */
   .header{ padding:12px 0; gap:8px; min-height:56px; }
-  .brand{ gap:8px; min-width:0; flex:1 1 auto; }
+  .brand{ gap:12px; min-width:0; flex:1 1 auto; }
   .brand img{ height:26px !important; flex:0 0 auto; }
   .brand span{ font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:inline-block; max-width: calc(100vw - 110px); }
   .nav{ gap:8px; flex-wrap:nowrap; justify-content:flex-end; flex:0 0 auto; }
@@ -192,15 +192,22 @@ a{ color:var(--text); text-decoration:none; }
   .hero__content p{ font-size:15px; }
   .hero__cta{ flex-direction:column; gap:12px; }
   .hero__cta .btn{ width:100%; }
-  .demo-card{ max-width:100%; min-height:170px !important; }
-  .demo-text{ font-size:15px; }
+  .demo-card{ max-width:100%; min-height:140px !important; }
+  .demo-text{ font-size:14px; }
 
   /* Realtime grid to single column */
   .grid-rt{ grid-template-columns: 1fr !important; gap:14px !important; }
+  /* Realtime top card content compaction */
+  .grid-rt .card{ padding:8px !important; }
+  .grid-rt .card h3{ font-size:15px; margin:0 0 6px; }
+  .grid-rt .card p{ font-size:12px; }
+  .grid-rt .card .row{ margin:6px 0 !important; gap:8px !important; }
+  #btnStartTalk, #btnStopTalk, #btnToggleMic, #btnReplay{ padding:10px 12px !important; font-size:14px !important; }
+  main.container h1{ font-size:24px; line-height:1.25; }
 
   /* Grids to single column */
   .grid-3{ grid-template-columns:1fr; }
-  .grid{ gap:14px; }
+  .grid{ gap:16px; }
 
   /* Homepage stats: 2 columns on mobile (override inline style) */
   .stats .grid{ grid-template-columns: 1fr 1fr !important; gap:10px !important; }
@@ -226,7 +233,7 @@ a{ color:var(--text); text-decoration:none; }
   .stat__label{ font-size:13px; }
 
   /* Pills & rows on realtime */
-  .row{ gap:10px; }
+  .row{ gap:12px; }
   .pill{ font-size:11px; padding:3px 6px; }
 
   /* Footer to column */

@@ -8,7 +8,7 @@
     try {
       const token = localStorage.getItem('hk_token');
       if (!token) {
-        const redirect = encodeURIComponent('/realtime');
+        const redirect = encodeURIComponent('/konus');
         window.location.replace(`/?auth=1&redirect=${redirect}`);
       }
       // If logged in, enforce placement test completion
@@ -18,32 +18,32 @@
           if (r.ok){
             const me = await r.json();
             if (!me.placementLevel){
-              const redirect = encodeURIComponent('/realtime');
+              const redirect = encodeURIComponent('/konus');
               window.location.replace(`/placement.html?redirect=${redirect}`);
             }
             // Basic sanity: if essential fields missing, force re-login
             if (!me || !me.email){
               localStorage.removeItem('hk_token');
-              const redirect = encodeURIComponent('/realtime');
+              const redirect = encodeURIComponent('/konus');
               window.location.replace(`/?auth=1&redirect=${redirect}`);
               return;
             }
           } else {
             // Token invalid or server rejected — logout and go to login
             localStorage.removeItem('hk_token');
-            const redirect = encodeURIComponent('/realtime');
+            const redirect = encodeURIComponent('/konus');
             window.location.replace(`/?auth=1&redirect=${redirect}`);
             return;
           }
         } catch {
           // Network error — safe logout and login redirect
           try { localStorage.removeItem('hk_token'); } catch {}
-          const redirect = encodeURIComponent('/realtime');
+          const redirect = encodeURIComponent('/konus');
           window.location.replace(`/?auth=1&redirect=${redirect}`);
         }
       })();
       // Hide the realtime path from the address bar
-      try { history.replaceState(null, '', '/'); } catch {}
+      try { history.replaceState(null, '', '/konus'); } catch {}
     } catch {}
   </script>
   <link rel="stylesheet" href="/styles.css?v=2" />

@@ -171,7 +171,7 @@ a{ color:var(--text); text-decoration:none; }
 
 /* ===== Mobile-first polish (<640px) ===== */
 @media (max-width: 640px){
-  .container{ padding:0 12px; width:100%; max-width:100%; }
+  .container{ padding:0 10px; width:100%; max-width:100%; box-sizing:border-box; }
   /* Header compaction */
   .header{ padding:12px 0; gap:8px; min-height:56px; }
   .brand{ gap:8px; min-width:0; flex:1 1 auto; }
@@ -202,8 +202,19 @@ a{ color:var(--text); text-decoration:none; }
   .grid-3{ grid-template-columns:1fr; }
   .grid{ gap:12px; }
 
-  /* Cards tighter padding */
-  .card{ padding:14px; border-radius:12px; }
+  /* Homepage stats: 2 columns on mobile (override inline style) */
+  .stats .grid{ grid-template-columns: 1fr 1fr !important; gap:10px !important; }
+  .stat{ width:100%; box-sizing:border-box; }
+
+  /* Pricing grid: 1 column on mobile (override inline style) */
+  .pricing .grid{ grid-template-columns: 1fr !important; gap:12px !important; }
+  .price-card{ width:100%; box-sizing:border-box; }
+
+  /* Cards tighter padding and full width */
+  .card{ padding:14px; border-radius:12px; width:100%; max-width:100%; box-sizing:border-box; }
+  .demo-card{ width:100%; max-width:100%; box-sizing:border-box; }
+  /* Realtime top cards override inline paddings */
+  .grid-rt .card{ padding:14px !important; }
 
   /* Pricing scale */
   .price-value{ font-size:24px; }

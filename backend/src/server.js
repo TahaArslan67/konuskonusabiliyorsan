@@ -58,10 +58,11 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
   const safety = 'Konudan sapma; sadece kullanıcının söylediğine yanıt ver. Anlamazsan: “Sesinizi net alamadım, lütfen tekrar eder misiniz?” de.';
   const tone = 'Sıcak, motive edici ve saygılı bir dil koçu gibi konuş.';
   const convo = 'Her turda sohbeti akıcı tut: 1 kısa ve doğal yanıt + tek bir kısa soru sor. Gereksiz tekrar ve şablon cümlelerden kaçın.';
-  const codeSwitch = `Dil seçimi: Kullanıcı ${nativeName} konuşursa ${nativeName} cevap ver ve nasıl söyleneceğini ${learnName} ile tek örnekle göster. Kullanıcı ${learnName} konuşursa ${learnName} cevap ver, gerekirse ${nativeName} ile 1 kısa açıklama ekle. Karışık (code-mix) ise koçluk cümlesi ${nativeName}, örnek ve soru ${learnName} olsun.`;
-  const gentleLimits = 'Yumuşak (gentle) modda düzeltme sıklığı düşük olsun: anlam bozulmuyorsa düzeltme yapma. Düzeltme yaparsan: 1) Hatalı bölümü kısaca belirt, 2) Ana dilde tek cümlelik çok kısa açıklama yaz, 3) Öğrenilen dilde tek örnek ver (\"Şöyle de diyebilirsin: …\"). Kısa ve net ol.';
+  // Katı dil politikası: her zaman hedef (öğrenilen) dilde yanıt ver, diğer dillere kayma.
+  const langPolicy = `YANIT DİLİ POLİTİKASI: Daima ${learnName} dilinde cevap ver. ${nativeName} sadece (gerekirse) tek cümlelik çok kısa açıklama için kullanılabilir. Asla ${nativeName} ya da başka bir dilde tam yanıt verme. Hiçbir koşulda Fransızca, İspanyolca vb. dillere kayma.`;
+  const gentleLimits = 'Yumuşak (gentle) modda düzeltme sıklığı düşük olsun: anlam bozulmuyorsa düzeltme yapma. Düzeltme yaparsan: 1) Hatalı bölümü kısaca belirt, 2) Ana dilde tek cümlelik çok kısa açıklama yaz, 3) Öğrenilen dilde tek örnek ver ("Şöyle de diyebilirsin: …"). Kısa ve net ol.';
   const scenarioPart = scenarioText ? ` Senaryo bağlamı: ${scenarioText}` : '';
-  return `Markaya özel dil koçu asistan (“hemenkonus”). Kullanıcının ana dili: ${nativeName}. Öğrenilen dil: ${learnName}. ${tone} ${convo} ${codeSwitch} ${fixStyle} ${gentleLimits} ${safety}${scenarioPart}`;
+  return `Markaya özel dil koçu asistan (“hemenkonus”). Kullanıcının ana dili: ${nativeName}. Öğrenilen dil: ${learnName}. ${tone} ${convo} ${langPolicy} ${fixStyle} ${gentleLimits} ${safety}${scenarioPart}`;
 }
 
 // OpenAI (public) envs

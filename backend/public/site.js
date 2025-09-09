@@ -274,12 +274,29 @@ function openAccount(){
     }
   }, 50);
 }
-if (btnAccount) btnAccount.addEventListener('click', (ev) => {
-  ev.preventDefault();
+// Navigate to account page, but if /me fetch başarısızsa güvenli şekilde çıkış ve login'e yönlendir
+async function navigateAccountSafe(){
   const token = getToken();
   if (!token){ setPostLoginRedirect('/account.html'); openAuth(); showLogin(); return; }
-  window.location.href = '/account.html';
-});
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 4000);
+    const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal });
+    clearTimeout(t);
+    if (!r.ok){ throw new Error(`me ${r.status}`); }
+    const me = await r.json();
+    if (!me || !me.email){ throw new Error('invalid_me'); }
+    window.location.href = '/account.html';
+  } catch (e){
+    // token bozuk/expire ya da ağ hatası: güvenli çıkış ve login modal
+    clearToken();
+    updateHeader();
+    setPostLoginRedirect('/account.html');
+    openAuth();
+    showLogin();
+  }
+}
+if (btnAccount) btnAccount.addEventListener('click', (ev) => { ev.preventDefault(); navigateAccountSafe(); });
 
 if (formLogin){
   formLogin.addEventListener('submit', async (e) => {
@@ -376,7 +393,7 @@ try{
     window.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
     // Auth buttons in mobile menu
     if (mmLogin){ mmLogin.addEventListener('click', () => { close(); openAuth(); showLogin(); }); }
-    if (mmAccount){ mmAccount.addEventListener('click', () => { close(); window.location.href = '/account.html'; }); }
+    if (mmAccount){ mmAccount.addEventListener('click', async () => { close(); await navigateAccountSafe(); }); }
     if (mmStart){ mmStart.addEventListener('click', (ev) => { ev.preventDefault(); close(); const t = getToken(); if (!t){ setPostLoginRedirect('/realtime.html'); openAuth(); showLogin(); } else { window.location.href = '/realtime.html'; } }); }
     // Show correct auth buttons
     if (token){ if (mmLogin) mmLogin.style.display = 'none'; if (mmAccount) mmAccount.style.display = 'inline-flex'; }

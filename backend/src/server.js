@@ -344,13 +344,15 @@ function loadScenarios(){
   }
 }
 loadScenarios();
-// Pretty URL for realtime (hide .html in address bar) — must be BEFORE static middleware
+// Pretty URL for realtime (hide .html) — primary path: /konus
 try {
-  app.get(['/realtime', '/realtime/'], (_req, res) => {
+  // Serve realtime at /konus
+  app.get(['/konus', '/konus/'], (_req, res) => {
     return res.sendFile(path.join(publicDir, 'realtime.html'));
   });
-  // Redirect legacy .html path to pretty URL
-  app.get('/realtime.html', (_req, res) => res.redirect(301, '/realtime'));
+  // Backward-compat: /realtime and /realtime.html redirect to /konus
+  app.get(['/realtime', '/realtime/'], (_req, res) => res.redirect(301, '/konus'));
+  app.get('/realtime.html', (_req, res) => res.redirect(301, '/konus'));
 } catch {}
 // Static with Cache-Control
 app.use(express.static(publicDir, {

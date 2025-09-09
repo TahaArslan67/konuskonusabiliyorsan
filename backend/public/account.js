@@ -23,8 +23,14 @@ function fillLangSelect(el, def){
 
 async function loadMe(){
   const token = getToken();
+  if (!token) throw new Error('missing_token');
   const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }});
-  if (!r.ok) throw new Error('me_error');
+  if (!r.ok){
+    let detail = '';
+    try{ detail = (await r.json())?.error || String(r.status); }catch{}
+    const err = new Error(`me_error_${r.status}_${detail}`);
+    err.status = r.status; err.detail = detail; throw err;
+  }
   return r.json();
 }
 
@@ -145,7 +151,14 @@ async function init(){
       }
     } catch {}
   } catch (e) {
-    alert('Hesap verileri yüklenemedi.');
+    console.error('[account] load error:', e?.message || e);
+    // Oturum yok veya token geçersiz ise login akışına yönlendir
+    if (e?.status === 401 || String(e?.message||'').includes('missing_token')){
+      const redirect = encodeURIComponent('/account.html');
+      window.location.replace(`/?auth=1&redirect=${redirect}`);
+      return;
+    }
+    alert('Hesap verileri yüklenemedi. Lütfen tekrar giriş yapın.');
   }
 }
 

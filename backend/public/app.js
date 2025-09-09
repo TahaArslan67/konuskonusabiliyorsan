@@ -556,6 +556,11 @@ async function wsConnect(){
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const r = await fetch(`${backendBase}/session/start`, { method: 'POST', headers, body: JSON.stringify({ plan: planToUse }) });
     if (!r.ok){
+      if (r.status === 401){
+        const redirect = encodeURIComponent('/realtime');
+        window.location.replace(`/?auth=1&redirect=${redirect}`);
+        return;
+      }
       if (r.status === 403){
         try {
           const j = await r.json();

@@ -150,3 +150,16 @@ async function init(){
 }
 
 init();
+
+// Logout handler
+document.addEventListener('DOMContentLoaded', () => {
+  try{
+    const btn = document.getElementById('btnLogoutAccount');
+    if (btn){
+      btn.addEventListener('click', () => {
+        try{ localStorage.removeItem('hk_token'); }catch{}
+        window.location.href = '/';
+      });
+    }
+  } catch {}
+});

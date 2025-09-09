@@ -620,11 +620,18 @@ async function wsConnect(){
     };
     ws.onclose = () => {
       log('WS: close');
-      $('#btnWsDisconnect').disabled = true; $('#btnWsMicOn').disabled = true; $('#btnWsMicOff').disabled = true; $('#btnWsCommit').disabled = true; $('#btnWsTts').disabled = true; ws = null; wsStopMic(); updateStatus();
-      if ($('#btnStopTalk')) $('#btnStopTalk').disabled = true;
+      try { const el = $('#btnWsDisconnect'); if (el) el.disabled = true; } catch {}
+      try { const el = $('#btnWsMicOn'); if (el) el.disabled = true; } catch {}
+      try { const el = $('#btnWsMicOff'); if (el) el.disabled = true; } catch {}
+      try { const el = $('#btnWsCommit'); if (el) el.disabled = true; } catch {}
+      try { const el = $('#btnWsTts'); if (el) el.disabled = true; } catch {}
+      ws = null;
+      try { wsStopMic(); } catch {}
+      try { updateStatus(); } catch {}
+      try { const el = $('#btnStopTalk'); if (el) el.disabled = true; } catch {}
       const btnToggleMic = document.getElementById('btnToggleMic');
       if (btnToggleMic){ btnToggleMic.disabled = true; btnToggleMic.textContent = 'Mikrofon Aç'; }
-      if ($('#btnStartTalk')) $('#btnStartTalk').disabled = false;
+      try { const el = $('#btnStartTalk'); if (el) el.disabled = false; } catch {}
       wsStartRequested = false;
     };
     ws.onerror = (e) => log('WS error');

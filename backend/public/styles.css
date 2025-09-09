@@ -171,16 +171,15 @@ a{ color:var(--text); text-decoration:none; }
 
 /* ===== Mobile-first polish (<640px) ===== */
 @media (max-width: 640px){
-  .container{ padding:0 14px; }
+  .container{ padding:0 12px; }
   /* Header compaction */
   .header{ padding:12px 0; gap:8px; }
-  .brand{ gap:8px; }
-  .brand img{ height:28px !important; }
-  .brand span{ font-size:15px; white-space:nowrap; }
-  .nav{ gap:8px; flex-wrap:nowrap; justify-content:flex-end; }
+  .brand{ gap:8px; min-width:0; flex:1 1 auto; }
+  .brand img{ height:26px !important; flex:0 0 auto; }
+  .brand span{ font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:inline-block; max-width: calc(100vw - 120px); }
+  .nav{ gap:8px; flex-wrap:nowrap; justify-content:flex-end; flex:0 0 auto; }
   /* Mobile navbar: ONLY logo+brand and hamburger remain */
-  .nav a{ display:none !important; }
-  .nav .btn:not(#btnMenu){ display:none !important; }
+  .header .nav > *:not(#btnMenu){ display:none !important; }
   #btnMenu{ display:inline-flex !important; margin-left:0; }
   /* Explicitly hide header CTAs by id in case of cache */
   #btnLogin, #btnAccount, #btnStart{ display:none !important; }

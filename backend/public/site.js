@@ -4,7 +4,7 @@ if (yearEl) yearEl.textContent = new Date().getFullYear();
 
 // Util
 const $ = (s) => document.querySelector(s);
-const backendBase = location.origin;
+const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : location.origin;
 
 function setToken(token){
   if (token) localStorage.setItem('hk_token', token);

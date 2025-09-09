@@ -1,4 +1,4 @@
-const backendBase = location.origin;
+const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : location.origin;
 
 function $(s){ return document.querySelector(s); }
 
@@ -145,7 +145,10 @@ async function init(){
       }
     } catch {}
   } catch (e) {
-    alert('Hesap verileri yüklenemedi.');
+    // Güvenli çıkış ve login'e yönlendirme
+    try { localStorage.removeItem('hk_token'); } catch {}
+    const redirect = encodeURIComponent('/account.html');
+    window.location.replace(`/?auth=1&redirect=${redirect}`);
   }
 }
 

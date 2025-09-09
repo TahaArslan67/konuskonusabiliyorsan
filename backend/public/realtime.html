@@ -8,12 +8,16 @@
     try {
       const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : location.origin;
       const token = localStorage.getItem('hk_token');
+      const usp = new URLSearchParams(location.search);
+      const authOk = usp.get('authok') === '1';
       if (!token) {
         const redirect = encodeURIComponent('/konus');
         window.location.replace(`/?auth=1&redirect=${redirect}`);
       }
       // If logged in, enforce placement test completion
       (async () => {
+        // If coming right after login with authok=1, bypass guard once and clean URL
+        if (authOk){ try { history.replaceState(null, '', '/konus'); } catch {} return; }
         try{
           const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }});
           if (r.ok){

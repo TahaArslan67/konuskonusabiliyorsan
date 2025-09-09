@@ -329,7 +329,16 @@ if (formLogin){
       setToken(j.token); updateHeader();
       // post-login redirect if requested
       const dest = consumePostLoginRedirect();
-      if (dest){ window.location.href = dest; return; }
+      if (dest){
+        // If returning to /konus, mark authok to bypass first-visit guard
+        if (dest.startsWith('/konus')){
+          const u = new URL(dest, location.origin);
+          u.searchParams.set('authok','1');
+          window.location.href = u.pathname + u.search;
+          return;
+        }
+        window.location.href = dest; return;
+      }
       closeAuth();
     } catch (e){ authMsg.textContent = 'Bağlantı hatası'; }
   });

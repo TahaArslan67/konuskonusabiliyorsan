@@ -1239,6 +1239,7 @@ wss.on('connection', (clientWs, request) => {
           voice: voicePref,
           temperature: 0.3,
           input_audio_transcription: { language: nlang },
+          max_response_output_tokens: 30,
           turn_detection: {
             type: 'server_vad',
             threshold: 0.3,
@@ -1251,6 +1252,18 @@ wss.on('connection', (clientWs, request) => {
         },
       };
       openaiWs.send(JSON.stringify(sessionUpdate));
+      // Ek güvence: konuşma başında dilleri ve politika özetini sistem mesajı olarak ekle
+      try {
+        const langNotice = `System notice: User native=${nlang}, target=${lang}. Always answer in target language; optionally add one short ${nlang} tip line if needed.`;
+        openaiWs.send(JSON.stringify({
+          type: 'conversation.item.create',
+          item: {
+            type: 'message',
+            role: 'system',
+            content: [{ type: 'input_text', text: langNotice }]
+          }
+        }));
+      } catch {}
       console.log('[proxy] Sent session.update to OpenAI.');
       // Persona is already set in session.instructions; avoid extra system item to reduce tokens
       console.log('[proxy] Session instructions set for OpenAI.');
@@ -1462,7 +1475,7 @@ wss.on('connection', (clientWs, request) => {
           response: {
             modalities: RESPONSE_TEXT_ENABLED ? ['audio', 'text'] : ['audio'],
             // Keep instructions short; session already has persona
-            instructions: (obj?.instructions ? String(obj.instructions) : 'Kısa doğal yanıt + tek kısa soru. Gerekirse TR 1 cümle açıklama + EN tek örnek.'),
+            instructions: (obj?.instructions ? String(obj.instructions) : `Hedef dilde cevap ver. Target language: ${lang}. Native: ${nlang}. Asla başka dile kayma. 1-2 kısa öneri ver, ardından ${nlang} tek cümle 'Tip:' ekle.`),
             max_output_tokens: 30,
           }
         };
@@ -1507,7 +1520,7 @@ wss.on('connection', (clientWs, request) => {
           type: 'response.create',
           response: {
             modalities: RESPONSE_TEXT_ENABLED ? ['audio','text'] : ['audio'],
-            instructions: `Kullanıcı talimatı: ${String(obj.text)}\nKısa doğal yanıt + tek kısa soru. Gerekirse TR 1 cümle açıklama + EN tek örnek.`,
+            instructions: `Target language: ${lang}. Native: ${nlang}. Asla başka dile kayma. Kullanıcı: ${String(obj.text)}\n1-2 kısa öneri ver (hedef dilde), yeni satırda ${nlang} tek cümle 'Tip:' ekle.`,
             max_output_tokens: 30,
           }
         };

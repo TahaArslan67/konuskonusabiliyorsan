@@ -951,12 +951,11 @@ if (btnStartTalk){
         const sbtn = document.getElementById('btnStopTalk');
         if (sbtn){ sbtn.disabled = false; sbtn.style.pointerEvents = 'auto'; }
       } catch {}
-      // 1) Mikrofonu hemen başlat (user gesture anında) — izin diyaloğu vs. bu aşamada açılır
-      await wsStartMic();
-      // 1.5) Tercihleri hemen kaydet (server /session/start kişiselleştirmesi için)
-      try{
-        const voice = (document.getElementById('voiceSelect')?.value) || 'alloy';
-        const preferredLearningLanguage = (document.getElementById('learnLangSelect')?.value) || 'en';
+      // 1) Tercihleri hemen kaydet (server /me/preferences için)
+      try {
+        const voiceSel = document.getElementById('voiceSelect');
+        const voice = voiceSel && voiceSel.value ? voiceSel.value : 'alloy';
+        const preferredLearningLanguage = (document.getElementById('learnLangSelect')?.value) || 'tr';
         const preferredNativeLanguage = (document.getElementById('nativeLangSelect')?.value) || 'tr';
         const preferredCorrectionMode = (document.getElementById('corrSelect')?.value) || 'gentle';
         await persistPrefs({ preferredVoice: voice, preferredLearningLanguage, preferredNativeLanguage, preferredCorrectionMode });
@@ -967,6 +966,9 @@ if (btnStartTalk){
         await waitWsOpen(5000);
       }
       if (!ws || ws.readyState !== WebSocket.OPEN){ throw new Error('WS açılamadı'); }
+      // 3) WS AÇIK: Önce tercihleri WS'ye ilet, sonra mikrofona başla
+      try { sendPrefsToWs(); } catch {}
+      await wsStartMic();
       updateStatus();
       if (btnStopTalk) btnStopTalk.disabled = false;
       log('Konuşma başlatıldı');

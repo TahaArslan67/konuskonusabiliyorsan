@@ -147,6 +147,31 @@ try {
 // Signal UI readiness
 try { log('UI hazır'); } catch {}
 try { const t = document.getElementById('btnToggleMic'); if (t){ t.disabled = false; log('Mikrofon toggle hazır'); } } catch {}
+// Test Beep button
+try {
+  const btnBeep = document.getElementById('btnBeep');
+  if (btnBeep){
+    btnBeep.addEventListener('click', async () => {
+      try {
+        wsEnsurePlaybackCtx();
+        if (wsPlaybackCtx.state === 'suspended') await wsPlaybackCtx.resume();
+        const duration = 0.25; // seconds
+        const freq = 440; // Hz
+        const osc = wsPlaybackCtx.createOscillator();
+        const gain = wsPlaybackCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.value = 0.1; // low volume
+        osc.connect(gain);
+        gain.connect(wsPlaybackCtx.destination);
+        const now = wsPlaybackCtx.currentTime;
+        osc.start(now);
+        osc.stop(now + duration);
+        log('Beep çalındı');
+      } catch (e){ log('Beep hatası: '+(e.message||e)); }
+    });
+  }
+} catch {}
 
 // Replay last response handler will be attached after btnReplay is declared
 

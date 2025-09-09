@@ -404,7 +404,7 @@ try{
 try{
   const usp = new URLSearchParams(window.location.search);
   if (usp.get('auth') === '1'){
-    const redirect = usp.get('redirect') || '/realtime.html';
+    const redirect = usp.get('redirect') || '/konus';
     setPostLoginRedirect(redirect);
     openAuth();
     showLogin();

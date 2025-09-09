@@ -6,6 +6,7 @@
   <title>KonusKonusabilirsen – Canlı Sesli Koç</title>
   <script>
     try {
+      const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : location.origin;
       const token = localStorage.getItem('hk_token');
       if (!token) {
         const redirect = encodeURIComponent('/konus');
@@ -14,7 +15,7 @@
       // If logged in, enforce placement test completion
       (async () => {
         try{
-          const r = await fetch('/me', { headers: { Authorization: `Bearer ${token}` }});
+          const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }});
           if (r.ok){
             const me = await r.json();
             if (!me.placementLevel){

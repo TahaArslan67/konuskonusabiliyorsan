@@ -385,6 +385,15 @@ app.get('/favicon.ico', (_req, res) => {
     return res.status(404).end();
   }
 });
+// Ensure /favicon.png also works (some UAs use the PNG link directly)
+app.get('/favicon.png', (_req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    return res.sendFile(path.join(publicDir, 'favicon.png'));
+  } catch {
+    return res.status(404).end();
+  }
+});
 
 // ---- Admin: set plan for a user (no payment) ----
 app.post('/admin/set-plan', authRequired, async (req, res) => {

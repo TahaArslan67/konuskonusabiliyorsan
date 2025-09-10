@@ -254,13 +254,30 @@ async function preloadPills(){
         const u = await ur.json();
         const d = document.getElementById('limitDaily');
         const m = document.getElementById('limitMonthly');
-        if (d) d.textContent = `Günlük: ${(u.usedDaily||0).toFixed(1)}/${u.limits?.daily ?? '-'} dk`;
-        if (m) m.textContent = `Aylık: ${(u.usedMonthly||0).toFixed(1)}/${u.limits?.monthly ?? '-'} dk`;
+        if (d) d.textContent = `Günlük: ${(u.usedDaily||0).toFixed(1)}/${u.limits?.daily ?? '-' } dk`;
+        if (m) m.textContent = `Aylık: ${(u.usedMonthly||0).toFixed(1)}/${u.limits?.monthly ?? '-' } dk`;
       }
     } catch {}
   } catch {}
 }
 try { preloadPills(); } catch {}
+
+// Reusable helper: fetch /usage and update pills on realtime page
+async function updateUsageFromApi(explicitLimits){
+  try {
+    const d = document.getElementById('limitDaily');
+    const m = document.getElementById('limitMonthly');
+    const token = localStorage.getItem('hk_token');
+    const ur = await fetch(`${backendBase}/usage`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (ur.ok){
+      const u = await ur.json();
+      const dailyLimit = explicitLimits?.daily ?? (u.limits?.daily ?? '-');
+      const monthlyLimit = explicitLimits?.monthly ?? (u.limits?.monthly ?? '-');
+      if (d) d.textContent = `Günlük: ${(u.usedDaily||0).toFixed(1)}/${dailyLimit} dk`;
+      if (m) m.textContent = `Aylık: ${(u.usedMonthly||0).toFixed(1)}/${monthlyLimit} dk`;
+    }
+  } catch {}
+}
 
 async function persistPrefs(partial){
   try{
@@ -595,21 +612,7 @@ async function wsConnect(){
     const m = document.getElementById('limitMonthly');
     if (p) p.textContent = `Plan: ${plan || 'free'}`;
     // Kullanım değerlerini /usage üzerinden al (daha doğru ve tutarlı)
-    try {
-      const token = localStorage.getItem('hk_token');
-      const ur = await fetch(`${backendBase}/usage`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-      if (ur.ok){
-        const u = await ur.json();
-        if (d) d.textContent = `Günlük: ${(u.usedDaily||0).toFixed(1)}/${minutesLimitDaily ?? (u.limits?.daily ?? '-') } dk`;
-        if (m) m.textContent = `Aylık: ${(u.usedMonthly||0).toFixed(1)}/${minutesLimitMonthly ?? (u.limits?.monthly ?? '-') } dk`;
-      } else {
-        if (d) d.textContent = `Günlük: -/${minutesLimitDaily ?? '-'} dk`;
-        if (m) m.textContent = `Aylık: -/${minutesLimitMonthly ?? '-'} dk`;
-      }
-    } catch {
-      if (d) d.textContent = `Günlük: -/${minutesLimitDaily ?? '-'} dk`;
-      if (m) m.textContent = `Aylık: -/${minutesLimitMonthly ?? '-'} dk`;
-    }
+    await updateUsageFromApi({ daily: minutesLimitDaily, monthly: minutesLimitMonthly });
     const url = wsUrl.startsWith('ws') ? wsUrl : `${backendBase.replace('http','ws')}${wsUrl}`;
     ws = new WebSocket(url);
     ws.binaryType = 'arraybuffer';
@@ -620,6 +623,10 @@ async function wsConnect(){
       try { const el=$('#btnWsCommit'); if (el) el.disabled = false; } catch {}
       try { const el=$('#btnWsTts'); if (el) el.disabled = false; } catch {}
       updateStatus();
+      // WS açıldıktan sonra da tekrar /usage ile tazele (eventual consistency için)
+      try { await updateUsageFromApi({ daily: minutesLimitDaily, monthly: minutesLimitMonthly }); } catch {}
+      // Kısa bir gecikmeyle bir kez daha tazele
+      try { setTimeout(() => { updateUsageFromApi({ daily: minutesLimitDaily, monthly: minutesLimitMonthly }); }, 1200); } catch {}
       try {
         const voiceSel = document.getElementById('voiceSelect');
         const voice = voiceSel && voiceSel.value ? voiceSel.value : 'alloy';
@@ -641,9 +648,6 @@ async function wsConnect(){
           micToggleOn = true;
           const btnToggleMicAuto = document.getElementById('btnToggleMic');
           if (btnToggleMicAuto){ btnToggleMicAuto.textContent = 'Mikrofon Kapat'; }
-          // Küçük WS mic butonlarını da güncelle
-          try { const bOn = document.getElementById('btnWsMicOn'); if (bOn) bOn.disabled = true; } catch {}
-          try { const bOff = document.getElementById('btnWsMicOff'); if (bOff) bOff.disabled = false; } catch {}
           updateStatus();
           $('#btnStopTalk') && ($('#btnStopTalk').disabled = false);
         } catch{}
@@ -675,23 +679,6 @@ async function wsConnect(){
           log('WS open -> mic başlatıldı (auto)');
         }
       } catch (e){ log('Auto mic hata: '+(e.message||e)); }
-
-      // İlk değerlerde yarış durumunu önlemek için kısa gecikmeli /usage yenilemesi
-      try {
-        setTimeout(async () => {
-          try {
-            const token2 = localStorage.getItem('hk_token');
-            const d2 = document.getElementById('limitDaily');
-            const m2 = document.getElementById('limitMonthly');
-            const ur2 = await fetch(`${backendBase}/usage`, { headers: token2 ? { Authorization: `Bearer ${token2}` } : {} });
-            if (ur2.ok){
-              const u2 = await ur2.json();
-              if (d2) d2.textContent = `Günlük: ${(u2.usedDaily||0).toFixed(1)}/${u2.limits?.daily ?? '-' } dk`;
-              if (m2) m2.textContent = `Aylık: ${(u2.usedMonthly||0).toFixed(1)}/${u2.limits?.monthly ?? '-' } dk`;
-            }
-          } catch {}
-        }, 700);
-      } catch {}
     };
     ws.onclose = () => {
       log('WS: close');
@@ -811,10 +798,6 @@ async function wsMicOn(){
   try {
     await wsStartMic();
     $('#btnWsMicOn').disabled = true; $('#btnWsMicOff').disabled = false;
-    // Büyük toggle butonunu da senkronize et
-    const btnToggleMic = document.getElementById('btnToggleMic');
-    if (btnToggleMic){ btnToggleMic.textContent = 'Mikrofon Kapat'; }
-    micToggleOn = true;
     updateStatus();
   } catch (e){ log('WS mic error: '+(e.message||e)); }
 }

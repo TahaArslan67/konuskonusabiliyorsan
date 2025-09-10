@@ -75,6 +75,7 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const REALTIME_MODEL = process.env.OPENAI_REALTIME_MODEL || 'gpt-4o-realtime-preview-2025-08-28';
 const RESPONSE_TEXT_ENABLED = (process.env.RESPONSE_TEXT_ENABLED ?? 'true').toLowerCase() !== 'false';
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || '';
 
 // Azure OpenAI envs
 const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || '';

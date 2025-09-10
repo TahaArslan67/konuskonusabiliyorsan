@@ -92,7 +92,12 @@
         const qs = new URLSearchParams({ limit: String(l) });
         if (f) qs.set('from', f); if (t) qs.set('to', t);
         const r = await fetch(`${backendBase}/admin/analytics/summary?${qs.toString()}`, { headers: { Authorization: `Bearer ${token()}` } });
-        if (!r.ok){ setStatus('Yetkisiz veya hata'); return; }
+        if (!r.ok){
+          let detail='';
+          try{ detail = await r.text(); }catch{}
+          setStatus(`Hata: ${r.status} ${detail||''}`.trim());
+          return;
+        }
         const j = await r.json();
         $('#total').textContent = `Toplam: ${j.total ?? '-'}`;
         fillTable($('#tblDays tbody'), j.byDay, { key: (r)=>r._id||'-', count: (r)=>r.count||0 });

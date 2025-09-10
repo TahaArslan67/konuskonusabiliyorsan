@@ -208,8 +208,8 @@ a{ color:var(--text); text-decoration:none; }
   .grid-rt .card .row{ margin:6px 0 !important; gap:8px !important; }
   /* Realtime cards: rely on grid padding for side spacing */
   .grid-rt .card, .grid-rt .demo-card{
-    width:100% !important;
-    max-width:100% !important;
+    width:90% !important;
+    max-width:95% !important;
     margin-left:0 !important;
     margin-right:0 !important;
   }

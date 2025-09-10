@@ -290,11 +290,11 @@ a{ color:var(--text); text-decoration:none; }
   .grid-rt .card p{ font-size:12px; }
   .grid-rt .card .row{ gap:6px !important; }
   .grid-rt .card, .grid-rt .demo-card{
-    width:92% !important;
+    width:100% !important;
     max-width:520px !important;
   }
-  /* Bottom-center, slightly pushed to right on ultra-narrow */
-  .demo-card .demo-text{ left: 58%; transform: translateX(-50%); padding-right: 0 !important; }
+  /* Bottom-center on ultra-narrow as well */
+  .demo-card .demo-text{ left: 50%; transform: translateX(-50%); padding-right: 0 !important; width: 100%; text-align: center; z-index: 1; }
   #btnStartTalk, #btnStopTalk, #btnToggleMic, #btnReplay{ padding:8px 10px !important; font-size:13px !important; }
   .pill{ font-size:10px; padding:2px 6px; }
 }

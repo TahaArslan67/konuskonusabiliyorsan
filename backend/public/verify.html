@@ -26,11 +26,23 @@
       const msg = document.getElementById('msg');
       if (!token){ msg.textContent = 'Geçersiz bağlantı: token bulunamadı.'; return; }
       try{
-        const r = await fetch('/auth/verify', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ token }) });
-        const j = await r.json();
+        // Try POST first
+        let r = await fetch('/auth/verify', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ token }) });
+        if (!r.ok){
+          // Read error for diagnostics
+          let txt = '';
+          try { txt = await r.text(); } catch {}
+          console.warn('POST /auth/verify failed:', r.status, txt);
+          // Fallback to GET /auth/verify?token=...
+          r = await fetch(`/auth/verify?token=${encodeURIComponent(token)}`);
+        }
+        const j = await r.json().catch(()=>({}));
         if (!r.ok){ msg.textContent = j?.error || 'Doğrulama başarısız'; return; }
         msg.textContent = 'E‑posta başarıyla doğrulandı. Giriş yaparak devam edebilirsiniz.';
-      }catch(e){ msg.textContent = 'Bağlantı hatası'; }
+      }catch(e){
+        console.error('verify flow error:', e);
+        msg.textContent = 'Bağlantı hatası';
+      }
     })();
   </script>
 </body>

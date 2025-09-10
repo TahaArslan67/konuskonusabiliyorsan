@@ -586,7 +586,7 @@ async function wsConnect(){
       throw new Error(`session start failed: ${r.status}`);
     }
     const j = await r.json();
-    const { sessionId, wsUrl, plan, minutesLimitDaily, minutesLimitMonthly, minutesUsedDaily, minutesUsedMonthly } = j;
+    const { sessionId, wsUrl, plan, minutesLimitDaily, minutesLimitMonthly } = j;
     // remember plan for CTAs
     window.__hk_current_plan = plan || 'free';
     // Update UI pills
@@ -594,8 +594,22 @@ async function wsConnect(){
     const d = document.getElementById('limitDaily');
     const m = document.getElementById('limitMonthly');
     if (p) p.textContent = `Plan: ${plan || 'free'}`;
-    if (d) d.textContent = `Günlük: ${minutesUsedDaily ?? 0}/${minutesLimitDaily ?? '-'} dk`;
-    if (m) m.textContent = `Aylık: ${minutesUsedMonthly ?? 0}/${minutesLimitMonthly ?? '-'} dk`;
+    // Kullanım değerlerini /usage üzerinden al (daha doğru ve tutarlı)
+    try {
+      const token = localStorage.getItem('hk_token');
+      const ur = await fetch(`${backendBase}/usage`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (ur.ok){
+        const u = await ur.json();
+        if (d) d.textContent = `Günlük: ${(u.usedDaily||0).toFixed(1)}/${minutesLimitDaily ?? (u.limits?.daily ?? '-') } dk`;
+        if (m) m.textContent = `Aylık: ${(u.usedMonthly||0).toFixed(1)}/${minutesLimitMonthly ?? (u.limits?.monthly ?? '-') } dk`;
+      } else {
+        if (d) d.textContent = `Günlük: -/${minutesLimitDaily ?? '-'} dk`;
+        if (m) m.textContent = `Aylık: -/${minutesLimitMonthly ?? '-'} dk`;
+      }
+    } catch {
+      if (d) d.textContent = `Günlük: -/${minutesLimitDaily ?? '-'} dk`;
+      if (m) m.textContent = `Aylık: -/${minutesLimitMonthly ?? '-'} dk`;
+    }
     const url = wsUrl.startsWith('ws') ? wsUrl : `${backendBase.replace('http','ws')}${wsUrl}`;
     ws = new WebSocket(url);
     ws.binaryType = 'arraybuffer';

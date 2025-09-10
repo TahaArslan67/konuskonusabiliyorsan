@@ -1,4 +1,4 @@
-const backendBase = location.origin;
+const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : location.origin;
 
 function $(s){ return document.querySelector(s); }
 

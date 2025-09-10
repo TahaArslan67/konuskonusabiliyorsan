@@ -250,6 +250,17 @@ a{ color:var(--text); text-decoration:none; }
 
   /* Footer to column */
   .footer{ flex-direction:column; gap:8px; align-items:flex-start; }
+  /* Disable animations/transitions on mobile to prevent jank */
+  body::before,
+  body::after,
+  .demo-wave,
+  .price-card.featured,
+  .pulse,
+  .slide.active,
+  #mobileMenu{
+    animation: none !important;
+  }
+  [data-reveal]{ opacity:1 !important; transform:none !important; transition:none !important; }
 }
 
 /* Ultra-small phones (<390px) */

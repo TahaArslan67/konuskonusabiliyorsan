@@ -284,7 +284,7 @@ a{ color:var(--text); text-decoration:none; }
 /* Ultra-narrow landscape phones (<=380px) */
 @media (max-width: 380px){
   /* Tighten realtime layout further */
-  .grid-rt{ padding-left:12px; padding-right:12px; gap:12px !important; }
+
   .grid-rt .card{ padding:8px !important; }
   .grid-rt .card h3{ font-size:14px; }
   .grid-rt .card p{ font-size:12px; }

@@ -733,6 +733,15 @@ function randToken(len = 16){
   return crypto.randomBytes(len).toString('hex');
 }
 
+// Mask sensitive tokens in logs
+function maskToken(t){
+  try{
+    const s = String(t||'');
+    if (s.length <= 8) return '****';
+    return `${s.slice(0,4)}…${s.slice(-4)}`;
+  } catch { return '****'; }
+}
+
 // Request password reset link
 app.post('/auth/forgot', [body('email').isEmail()], async (req, res) => {
   try {
@@ -811,16 +820,45 @@ app.post('/auth/verify/request', authRequired, async (req, res) => {
 app.post('/auth/verify', async (req, res) => {
   try {
     const { token } = req.body || {};
-    if (!token) return res.status(400).json({ error: 'invalid_input' });
-    const user = await User.findOne({ verifyToken: token, verifyExpires: { $gt: new Date() } });
-    if (!user) return res.status(400).json({ error: 'invalid_or_expired' });
+    if (typeof token !== 'string' || !/^[a-f0-9]{16,64}$/i.test(token)){
+      return res.status(400).json({ error: 'invalid_input' });
+    }
+    const now = new Date();
+    const user = await User.findOne({ verifyToken: token, verifyExpires: { $gt: now } });
+    if (!user){
+      console.warn('[auth/verify] token not found or expired:', maskToken(token));
+      return res.status(400).json({ error: 'invalid_or_expired' });
+    }
     user.emailVerified = true;
     user.verifyToken = null; user.verifyExpires = null;
     await user.save();
-    // Doğrulama sonrası kolay giriş için JWT döndürelim
     const jwtToken = jwt.sign({ uid: String(user._id), email: user.email }, JWT_SECRET, { expiresIn: '7d' });
     return res.json({ ok: true, token: jwtToken, user: { id: String(user._id), email: user.email } });
   } catch (e) {
+    console.error('[auth/verify] error:', e);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// Also support GET /auth/verify?token=... for direct link flows
+app.get('/auth/verify', async (req, res) => {
+  try {
+    const token = String(req.query?.token || '');
+    if (!/^[a-f0-9]{16,64}$/i.test(token)){
+      return res.status(400).json({ error: 'invalid_input' });
+    }
+    const user = await User.findOne({ verifyToken: token, verifyExpires: { $gt: new Date() } });
+    if (!user){
+      console.warn('[auth/verify GET] token not found or expired:', maskToken(token));
+      return res.status(400).json({ error: 'invalid_or_expired' });
+    }
+    user.emailVerified = true;
+    user.verifyToken = null; user.verifyExpires = null;
+    await user.save();
+    const jwtToken = jwt.sign({ uid: String(user._id), email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    return res.json({ ok: true, token: jwtToken, user: { id: String(user._id), email: user.email } });
+  } catch (e) {
+    console.error('[auth/verify GET] error:', e);
     return res.status(500).json({ error: 'server_error' });
   }
 });

@@ -57,16 +57,18 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
     c === 'strict' ? 'Dil hatalarını tespit et ve nazik ama net şekilde düzelt. Önce kısa yanıt ver, ardından bir cümle içinde düzeltmeyi açıkla ve bir örnek ver. Örnek formatı: “Şöyle de diyebilirsin: …”.' :
     'Gerekirse hataları nazikçe düzelt. Kısa yanıt ver; en fazla bir cümlelik açıklama ve küçük bir örnek ekle. Örnek formatı: “Şöyle de diyebilirsin: …”.'
   );
-  const safety = 'Konudan sapma; sadece kullanıcının söylediğine yanıt ver. Anlamazsan: “Sesinizi net alamadım, lütfen tekrar eder misiniz?” de.';
+  const safety = 'Konudan sapma; sadece kullanıcının söylediğine yanıt ver. Anlamazsan kibarca tekrar iste.';
   const tone = 'Sıcak, motive edici ve saygılı bir dil koçu gibi konuş.';
-  const convo = 'Her turda sohbeti akıcı tut: 1 kısa ve doğal yanıt + tek bir kısa soru sor. Gereksiz tekrar ve şablon cümlelerden kaçın.';
-  // Katı dil politikası: her zaman hedef (öğrenilen) dilde yanıt ver, diğer dillere kayma.
-  const langPolicy = `YANIT DİLİ POLİTİKASI: Daima ${learnName} dilinde cevap ver. ${nativeName} sadece (gerekirse) tek cümlelik çok kısa açıklama için kullanılabilir. Asla ${nativeName} ya da başka bir dilde tam yanıt verme. Hiçbir koşulda Fransızca, İspanyolca vb. dillere kayma.`;
-  const format = `YANIT BİÇİMİ: (1) Önce ${learnName} dilinde 1 veya 2 kısa doğal öneri ver; her öneriyi çift tırnak içinde yaz (örn: "..."). (2) Ardından yeni satırda ${nativeName} dilinde tek cümlelik kısa bir ipucu ekle ve başına 'Tip:' veya 'Not:' yaz. (3) İpucunda basit bir dilbilgisi noktası (ör. zaman, fiil, kalıp) belirt.`;
-  const lengthPolicy = 'UZUNLUK: Varsayılan olarak en fazla 2-3 cümle kur. Kullanıcı özellikle daha detaylı isterse (ör. “daha uzun”, “detaylı açıkla”, “more detail”), 4-5 cümleye kadar çık.';
-  const gentleLimits = 'Yumuşak (gentle) modda düzeltme sıklığı düşük olsun: anlam bozulmuyorsa düzeltme yapma. Düzeltme yaparsan: 1) Hatalı bölümü kısaca belirt, 2) Ana dilde tek cümlelik çok kısa açıklama yaz, 3) Öğrenilen dilde tek örnek ver ("Şöyle de diyebilirsin: …"). Kısa ve net ol.';
+  const convo = 'Her turda: 1 kısa doğal yanıt + kullanıcıyı konuşturan tek bir kısa soru.';
+  // Dil politikası: daima hedef dilde; ana dil sadece gerekirse 1 çok kısa ipucu için
+  const langPolicy = `YANIT DİLİ: Daima ${learnName}. ${nativeName} en fazla tek cümlelik çok kısa ipucu için (gerekirse). Başka dillere kayma.`;
+  // Sesli çıktı için sade biçim
+  const format = `BİÇİM: (1) ${learnName} dilinde 1-2 kısa öneri söyle. (2) Gerekirse ${nativeName} dilinde 1 cümlelik çok kısa ipucu ekle ("Tip:" ile başlat). (3) Mümkünse tek basit dilbilgisi noktası vurgula.`;
+  const lengthPolicy = 'UZUNLUK: Varsayılan 1-2 cümle. Kullanıcı açıkça daha detay isterse 3-4 cümleye çık.';
+  const gentleLimits = 'Gentle modda: Anlam bozulmuyorsa düzeltme yapma. Düzeltirsen: hatayı çok kısa belirt + ana dilde 1 cümlelik ipucu + hedef dilde tek örnek.';
   const scenarioPart = scenarioText ? ` Senaryo bağlamı: ${scenarioText}` : '';
-  return `Markaya özel dil koçu asistan (“hemenkonus”). Kullanıcının ana dili: ${nativeName}. Öğrenilen dil: ${learnName}. ${tone} ${convo} ${langPolicy} ${lengthPolicy} ${format} ${fixStyle} ${gentleLimits} ${safety}${scenarioPart}`;
+  const pacing = 'Konuşma hızını biraz yavaş tut. 1-2 kısa cümleyle konuş. Kullanıcıyı konuşturan kısa sorular sor.';
+  return `Markaya özel dil koçu asistan (“hemenkonus”). Kullanıcının ana dili: ${nativeName}. Öğrenilen dil: ${learnName}. ${tone} ${convo} ${langPolicy} ${lengthPolicy} ${format} ${fixStyle} ${gentleLimits} ${safety} ${pacing}${scenarioPart}`;
 }
 
 // OpenAI (public) envs
@@ -1104,9 +1106,12 @@ app.post('/session/start', async (req, res) => {
     const dateBucket = `${y}-${m}-${d}`;
     const monthBucket = `${y}-${m}`;
     const dailyDoc = await Usage.findOne({ userId: uid, dateBucket }).lean();
-    const monthlyDoc = await Usage.findOne({ userId: uid, monthBucket }).lean();
+    const monthAgg = await Usage.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(uid), monthBucket } },
+      { $group: { _id: null, minutes: { $sum: '$minutes' } } }
+    ]);
     minutesUsedDaily = Number(dailyDoc?.minutes || 0);
-    minutesUsedMonthly = Number(monthlyDoc?.minutes || 0);
+    minutesUsedMonthly = Number(monthAgg?.[0]?.minutes || 0);
   } catch (e) {
     console.warn('[session] usage preload error:', e?.message || e);
   }
@@ -1162,6 +1167,12 @@ wss.on('connection', (clientWs, request) => {
   // Realtime duration tracking (from first audio_start)
   let realtimeTimer = null;
   let realtimeStartedAt = null;
+  // Immediately inform client about current persisted usage to avoid showing 0/x on load
+  try {
+    if (sess) {
+      clientWs.send(JSON.stringify({ type: 'usage_update', usage: { usedDaily: sess.minutesUsedDaily || 0, usedMonthly: sess.minutesUsedMonthly || 0, limits: sess.limits } }));
+    }
+  } catch {}
   // Safely add usage and persist + trigger gamification
   function addUsageFromSeconds(seconds){
     try {
@@ -1180,7 +1191,7 @@ wss.on('connection', (clientWs, request) => {
         const dateBucket = `${y}-${mth}-${d}`;
         const monthBucket = `${y}-${mth}`;
         Usage.updateOne(
-          { userId: sess.userId, dateBucket, monthBucket },
+          { userId: new mongoose.Types.ObjectId(sess.userId), dateBucket, monthBucket },
           { $inc: { minutes } },
           { upsert: true }
         ).catch(()=>{});
@@ -1266,18 +1277,18 @@ wss.on('connection', (clientWs, request) => {
       const sessionUpdate = {
         type: 'session.update',
         session: {
-          modalities: ['audio', 'text'],
+          modalities: ['audio'],
           input_audio_format: 'pcm16',
           output_audio_format: 'pcm16',
           voice: voicePref,
-          temperature: 0.3,
+          temperature: 0.2,
           input_audio_transcription: { language: nlang },
-          max_response_output_tokens: 30,
+          max_response_output_tokens: 20,
           turn_detection: {
             type: 'server_vad',
-            threshold: 0.3,
+            threshold: 0.35,
             prefix_padding_ms: 300,
-            silence_duration_ms: 800,
+            silence_duration_ms: 900,
             create_response: false,
             interrupt_response: true,
           },
@@ -1470,8 +1481,8 @@ wss.on('connection', (clientWs, request) => {
           }
           const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText);
           // Push updated session settings (voice/language hints) and a fresh system message
-          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, input_audio_transcription: { language: nlang }, instructions: persona, temperature: 0.3 } }));
-          openaiWs.send(JSON.stringify({ type: 'conversation.item.create', item: { type: 'message', role: 'system', content: [{ type: 'input_text', text: persona }] } }));
+          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, input_audio_transcription: { language: nlang }, instructions: persona, temperature: 0.2 } }));
+          // Extra system persona item gereksiz; tekrarı kaldırdık
           console.log('[proxy] updated prefs via set_prefs');
         } catch (e) {
           console.error('[proxy] set_prefs error:', e);
@@ -1506,10 +1517,9 @@ wss.on('connection', (clientWs, request) => {
         const create = {
           type: 'response.create',
           response: {
-            modalities: RESPONSE_TEXT_ENABLED ? ['audio', 'text'] : ['audio'],
-            // Keep instructions short; session already has persona
-            instructions: (obj?.instructions ? String(obj.instructions) : `Hedef dilde cevap ver. Target language: ${lang}. Native: ${nlang}. Asla başka dile kayma. 1-2 kısa öneri ver, ardından ${nlang} tek cümle 'Tip:' ekle.`),
-            max_output_tokens: 30,
+            modalities: ['audio'],
+            // Per-turn extra instructions kaldırıldı; persona zaten session.instructions içinde
+            max_output_tokens: 20,
           }
         };
         if (usage.over) {

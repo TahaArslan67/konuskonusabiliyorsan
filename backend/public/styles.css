@@ -206,8 +206,13 @@ a{ color:var(--text); text-decoration:none; }
   .grid-rt .card h3{ font-size:15px; margin:0 0 6px; }
   .grid-rt .card p{ font-size:12px; }
   .grid-rt .card .row{ margin:6px 0 !important; gap:8px !important; }
-  /* Realtime card horizontal size: attach to left edge, keep right breathing */
-  .grid-rt .card, .grid-rt .demo-card{ width:92% !important; max-width:92% !important; margin-left:0 !important; margin-right:auto !important; }
+  /* Realtime cards: add side spacing on mobile */
+  .grid-rt .card, .grid-rt .demo-card{
+    width:auto !important;
+    max-width:100% !important;
+    margin-left:12px !important;
+    margin-right:12px !important;
+  }
   #btnStartTalk, #btnStopTalk, #btnToggleMic, #btnReplay{ padding:10px 12px !important; font-size:14px !important; }
   main.container h1{ font-size:24px; line-height:1.25; }
 

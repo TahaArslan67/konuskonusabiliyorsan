@@ -371,7 +371,6 @@ app.use(limiter);
 
 // Static web client
 import path from 'path';
-import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { Analytics } from './models.js';
 const __filename = fileURLToPath(import.meta.url);

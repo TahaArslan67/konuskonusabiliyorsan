@@ -76,6 +76,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const REALTIME_MODEL = process.env.OPENAI_REALTIME_MODEL || 'gpt-4o-realtime-preview-2025-08-28';
 const RESPONSE_TEXT_ENABLED = (process.env.RESPONSE_TEXT_ENABLED ?? 'true').toLowerCase() !== 'false';
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || '';
+const IPINFO_TOKEN = process.env.IPINFO_TOKEN || '';
 
 // Azure OpenAI envs
 const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || '';
@@ -405,6 +406,32 @@ try { app.set('trust proxy', true); } catch {}
 function hashIp(ip){
   try { return crypto.createHash('sha256').update(String(ip||'')).digest('hex').slice(0,32); } catch { return null; }
 }
+function isPrivateIp(ip){
+  try{
+    if (!ip) return true;
+    // remove IPv6 localhost/zone
+    const x = ip.replace('::ffff:','');
+    return (
+      x.startsWith('10.') ||
+      x.startsWith('192.168.') ||
+      x.startsWith('172.16.') || x.startsWith('172.17.') || x.startsWith('172.18.') || x.startsWith('172.19.') ||
+      x.startsWith('172.20.') || x.startsWith('172.21.') || x.startsWith('172.22.') || x.startsWith('172.23.') ||
+      x.startsWith('172.24.') || x.startsWith('172.25.') || x.startsWith('172.26.') || x.startsWith('172.27.') ||
+      x.startsWith('172.28.') || x.startsWith('172.29.') || x.startsWith('172.30.') || x.startsWith('172.31.') ||
+      x === '127.0.0.1' || x === '::1'
+    );
+  } catch { return true; }
+}
+
+// Simple in-memory IP -> country cache (TTL 6h)
+const ipCountryCache = new Map();
+function cacheSet(ip, country){ ipCountryCache.set(ip, { country, ts: Date.now() }); }
+function cacheGet(ip){
+  const v = ipCountryCache.get(ip);
+  if (!v) return null;
+  if (Date.now() - v.ts > 6*60*60*1000){ ipCountryCache.delete(ip); return null; }
+  return v.country || null;
+}
 app.use((req, res, next) => {
   try {
     // Log only GET page views; skip static assets by extension
@@ -415,10 +442,27 @@ app.use((req, res, next) => {
     const ua = req.get('user-agent') || null;
     const ip = (req.headers['x-forwarded-for']?.toString().split(',')[0].trim()) || req.ip || req.connection?.remoteAddress || '';
     const ipHash = hashIp(ip);
-    const country = (req.headers['cf-ipcountry'] || req.headers['x-vercel-ip-country'] || req.headers['x-country'] || null) || null;
+    let country = (req.headers['cf-ipcountry'] || req.headers['x-vercel-ip-country'] || req.headers['x-country'] || null) || null;
     const uid = req.auth?.uid ? new mongoose.Types.ObjectId(req.auth.uid) : null;
     const doc = { path: p, referrer: ref, userAgent: ua, ipHash, country, anonId: null, uid, ts: new Date() };
-    Analytics.create(doc).catch(()=>{});
+    Analytics.create(doc).then(async (saved) => {
+      try {
+        if (!country && IPINFO_TOKEN && ip && !isPrivateIp(ip)){
+          const cached = cacheGet(ip);
+          if (cached){
+            await Analytics.updateOne({ _id: saved._id }, { $set: { country: cached } });
+          } else {
+            // Non-blocking lookup
+            const r = await fetch(`https://ipinfo.io/${encodeURIComponent(ip)}?token=${encodeURIComponent(IPINFO_TOKEN)}`);
+            if (r.ok){
+              const j = await r.json();
+              const cc = j && (j.country || j.country_name || null);
+              if (cc){ cacheSet(ip, cc); await Analytics.updateOne({ _id: saved._id }, { $set: { country: cc } }); }
+            }
+          }
+        }
+      } catch {}
+    }).catch(()=>{});
   } catch {}
   next();
 });

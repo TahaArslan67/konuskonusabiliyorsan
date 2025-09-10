@@ -641,6 +641,9 @@ async function wsConnect(){
           micToggleOn = true;
           const btnToggleMicAuto = document.getElementById('btnToggleMic');
           if (btnToggleMicAuto){ btnToggleMicAuto.textContent = 'Mikrofon Kapat'; }
+          // Küçük WS mic butonlarını da güncelle
+          try { const bOn = document.getElementById('btnWsMicOn'); if (bOn) bOn.disabled = true; } catch {}
+          try { const bOff = document.getElementById('btnWsMicOff'); if (bOff) bOff.disabled = false; } catch {}
           updateStatus();
           $('#btnStopTalk') && ($('#btnStopTalk').disabled = false);
         } catch{}
@@ -672,6 +675,23 @@ async function wsConnect(){
           log('WS open -> mic başlatıldı (auto)');
         }
       } catch (e){ log('Auto mic hata: '+(e.message||e)); }
+
+      // İlk değerlerde yarış durumunu önlemek için kısa gecikmeli /usage yenilemesi
+      try {
+        setTimeout(async () => {
+          try {
+            const token2 = localStorage.getItem('hk_token');
+            const d2 = document.getElementById('limitDaily');
+            const m2 = document.getElementById('limitMonthly');
+            const ur2 = await fetch(`${backendBase}/usage`, { headers: token2 ? { Authorization: `Bearer ${token2}` } : {} });
+            if (ur2.ok){
+              const u2 = await ur2.json();
+              if (d2) d2.textContent = `Günlük: ${(u2.usedDaily||0).toFixed(1)}/${u2.limits?.daily ?? '-' } dk`;
+              if (m2) m2.textContent = `Aylık: ${(u2.usedMonthly||0).toFixed(1)}/${u2.limits?.monthly ?? '-' } dk`;
+            }
+          } catch {}
+        }, 700);
+      } catch {}
     };
     ws.onclose = () => {
       log('WS: close');
@@ -791,6 +811,10 @@ async function wsMicOn(){
   try {
     await wsStartMic();
     $('#btnWsMicOn').disabled = true; $('#btnWsMicOff').disabled = false;
+    // Büyük toggle butonunu da senkronize et
+    const btnToggleMic = document.getElementById('btnToggleMic');
+    if (btnToggleMic){ btnToggleMic.textContent = 'Mikrofon Kapat'; }
+    micToggleOn = true;
     updateStatus();
   } catch (e){ log('WS mic error: '+(e.message||e)); }
 }

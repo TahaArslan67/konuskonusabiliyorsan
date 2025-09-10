@@ -200,17 +200,17 @@ a{ color:var(--text); text-decoration:none; }
   .demo-card .demo-text{ padding-right: 32px !important; padding-bottom: 6px; }
 
   /* Realtime grid to single column */
-  .grid-rt{ grid-template-columns: 1fr !important; gap:14px !important; padding-left:16px; padding-right:16px; }
+  .grid-rt{ grid-template-columns: 1fr !important; gap:14px !important; padding-left:0; padding-right:16px; }
   /* Realtime top card content compaction */
   .grid-rt .card{ padding:8px !important; }
   .grid-rt .card h3{ font-size:15px; margin:0 0 6px; }
   .grid-rt .card p{ font-size:12px; }
   .grid-rt .card .row{ margin:6px 0 !important; gap:8px !important; }
-  /* Realtime cards: rely on grid padding for side spacing */
+  /* Realtime cards: left aligned, right breathing */
   .grid-rt .card, .grid-rt .demo-card{
     width:88% !important;
     max-width:560px !important;
-    margin-left:auto !important;
+    margin-left:0 !important;
     margin-right:auto !important;
   }
   #btnStartTalk, #btnStopTalk, #btnToggleMic, #btnReplay{ padding:10px 12px !important; font-size:14px !important; }

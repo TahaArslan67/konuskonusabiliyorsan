@@ -216,6 +216,10 @@ a{ color:var(--text); text-decoration:none; }
   #btnStartTalk, #btnStopTalk, #btnToggleMic, #btnReplay{ padding:10px 12px !important; font-size:14px !important; }
   main.container h1{ font-size:24px; line-height:1.25; }
 
+  /* Place demo text to bottom-center on mobile, then we can offset on ultra-narrow */
+  .demo-card{ position: relative; }
+  .demo-card .demo-text{ position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); padding-right: 0 !important; }
+
   /* Grids to single column */
   .grid-3{ grid-template-columns:1fr; }
   .grid{ gap:16px; }
@@ -289,8 +293,8 @@ a{ color:var(--text); text-decoration:none; }
     width:92% !important;
     max-width:520px !important;
   }
-  /* Keep the demo text away from the right edge on very narrow screens */
-  .demo-card .demo-text{ padding-right: 56px !important; }
+  /* Bottom-center, slightly pushed to right on ultra-narrow */
+  .demo-card .demo-text{ left: 58%; transform: translateX(-50%); padding-right: 0 !important; }
   #btnStartTalk, #btnStopTalk, #btnToggleMic, #btnReplay{ padding:8px 10px !important; font-size:13px !important; }
   .pill{ font-size:10px; padding:2px 6px; }
 }

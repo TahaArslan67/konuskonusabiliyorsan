@@ -289,6 +289,8 @@ a{ color:var(--text); text-decoration:none; }
     width:92% !important;
     max-width:520px !important;
   }
+  /* Keep the demo text away from the right edge on very narrow screens */
+  .demo-card .demo-text{ padding-right: 56px !important; }
   #btnStartTalk, #btnStopTalk, #btnToggleMic, #btnReplay{ padding:8px 10px !important; font-size:13px !important; }
   .pill{ font-size:10px; padding:2px 6px; }
 }

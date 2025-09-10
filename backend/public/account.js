@@ -24,18 +24,22 @@ function fillLangSelect(el, def){
 async function loadMe(){
   const token = getToken();
   if (!token) throw new Error('missing_token');
+  try{ console.log('[account] /me çağrısı hazırlanıyor', { backendBase, hasToken: !!token, tokenPreview: token.slice(0,12)+'...' }); }catch{}
   const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }});
   if (!r.ok){
     let detail = '';
-    try{ detail = (await r.json())?.error || String(r.status); }catch{}
+    try{ detail = (await r.clone().text()) || String(r.status); }catch{}
+    try{ console.warn('[account] /me hata', { status: r.status, detail }); }catch{}
     const err = new Error(`me_error_${r.status}_${detail}`);
     err.status = r.status; err.detail = detail; throw err;
   }
+  try{ console.log('[account] /me başarılı'); }catch{}
   return r.json();
 }
 
 async function loadUsage(){
   const token = getToken();
+  try{ console.log('[account] /usage çağrısı', { hasToken: !!token }); }catch{}
   const r = await fetch(`${backendBase}/usage`, { headers: { Authorization: `Bearer ${token}` }});
   if (!r.ok) return null;
   return r.json();
@@ -43,7 +47,9 @@ async function loadUsage(){
 
 async function init(){
   try {
+    try{ console.log('[account] init başlıyor', { backendBase, token: getToken()? 'VAR':'YOK' }); }catch{}
     const me = await loadMe();
+    try{ console.log('[account] me yüklendi', me); }catch{}
     const badgePlan = $('#accBadgePlan');
     const badgeLevel = $('#accBadgeLevel');
     const emailEl = $('#accEmail');
@@ -63,6 +69,7 @@ async function init(){
 
     const usage = await loadUsage();
     if (usage){
+      try{ console.log('[account] usage', usage); }catch{}
       const d = $('#accUsageDaily'); const m = $('#accUsageMonthly');
       if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)} / ${usage.limits?.daily ?? '-' } dk`;
       if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)} / ${usage.limits?.monthly ?? '-' } dk`;

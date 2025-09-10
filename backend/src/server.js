@@ -460,6 +460,32 @@ function cacheGet(ip){
   if (Date.now() - v.ts > 6*60*60*1000){ ipCountryCache.delete(ip); return null; }
   return v.country || null;
 }
+
+// Minimal cookie parser and anon ID assignment (no external deps)
+function parseCookies(req){
+  try{
+    const h = req.headers['cookie'];
+    if (!h) return {};
+    return h.split(';').map(s=>s.trim()).filter(Boolean).reduce((acc, kv)=>{
+      const i = kv.indexOf('=');
+      if (i>0){ acc[decodeURIComponent(kv.slice(0,i))] = decodeURIComponent(kv.slice(i+1)); }
+      return acc;
+    }, {});
+  } catch { return {}; }
+}
+function getOrSetAnonId(req, res){
+  try{
+    const cookies = parseCookies(req);
+    let id = cookies['hk_anon'] || '';
+    if (!id){
+      id = uuidv4();
+      const isSecure = (req.protocol === 'https') || (req.headers['x-forwarded-proto'] === 'https');
+      const cookie = `hk_anon=${encodeURIComponent(id)}; Path=/; Max-Age=31536000; SameSite=Lax${isSecure?'; Secure':''}`;
+      try { res.setHeader('Set-Cookie', cookie); } catch {}
+    }
+    return id;
+  } catch { return null; }
+}
 app.use((req, res, next) => {
   try {
     // Log only GET page views; skip static assets by extension
@@ -479,7 +505,8 @@ app.use((req, res, next) => {
     let country = (req.headers['cf-ipcountry'] || req.headers['x-vercel-ip-country'] || req.headers['x-country'] || null) || null;
     let countrySource = country ? 'header' : null;
     const uid = req.auth?.uid ? new mongoose.Types.ObjectId(req.auth.uid) : null;
-    const doc = { path: p, referrer: ref, userAgent: ua, ipHash, ipRaw: ip, country, countrySource, anonId: null, uid, ts: new Date() };
+    const anonId = getOrSetAnonId(req, res) || null;
+    const doc = { path: p, referrer: ref, userAgent: ua, ipHash, ipRaw: ip, country, countrySource, anonId, uid, ts: new Date() };
     Analytics.create(doc).then(async (saved) => {
       try {
         const cached = !country ? cacheGet(ip) : null;

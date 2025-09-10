@@ -66,6 +66,22 @@
     </table>
   </div>
 
+  <div class="card">
+    <h3>Son Kayıtlar</h3>
+    <div class="row">
+      <label>Adet <input id="recentLimit" type="number" min="1" max="500" value="50" style="width:80px;"/></label>
+      <button id="btnLoadRecent" class="btn">Son Kayıtları Yükle</button>
+    </div>
+    <table id="tblRecent">
+      <thead>
+        <tr>
+          <th>Zaman</th><th>IP</th><th>Ülke</th><th>Şehir</th><th>Bölge</th><th>Kaynak</th><th>Path</th><th>Referrer</th><th>UA</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
   <script src="/config.js"></script>
   <script>
     const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : location.origin;
@@ -82,6 +98,41 @@
         tr.appendChild(v1); tr.appendChild(v2);
         tbody.appendChild(tr);
       });
+    }
+
+    async function loadRecent(){
+      try{
+        setStatus('Son kayıtlar yükleniyor...');
+        const l = Number($('#recentLimit')?.value || 50) || 50;
+        const qs = new URLSearchParams({ limit: String(l) });
+        const r = await fetch(`${backendBase}/admin/analytics/recent?${qs.toString()}`, { headers: { Authorization: `Bearer ${token()}` } });
+        if (!r.ok){
+          let detail='';
+          try{ detail = await r.text(); }catch{}
+          setStatus(`Hata (recent): ${r.status} ${detail||''}`.trim());
+          return;
+        }
+        const j = await r.json();
+        const tb = $('#tblRecent tbody');
+        tb.innerHTML = '';
+        (j.items||[]).forEach(it => {
+          const tr = document.createElement('tr');
+          const cells = [
+            new Date(it.ts).toLocaleString(),
+            it.ip || '-',
+            it.country || '-',
+            it.city || '-',
+            it.region || '-',
+            it.countrySource || '-',
+            it.path || '-',
+            it.referrer || '-',
+            (it.userAgent||'-').slice(0,90)
+          ];
+          cells.forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+          tb.appendChild(tr);
+        });
+        setStatus('Hazır');
+      } catch(e){ setStatus('Hata (recent)'); }
     }
 
     async function load(){
@@ -119,6 +170,8 @@
         $('#from').value = from.toISOString().slice(0,10);
       } catch{}
       load();
+      $('#btnLoadRecent')?.addEventListener('click', loadRecent);
+      loadRecent();
     });
   </script>
 </body>

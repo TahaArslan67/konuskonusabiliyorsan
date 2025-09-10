@@ -100,6 +100,8 @@ const analyticsSchema = new Schema(
     ipRaw: { type: String, default: null },
     country: { type: String, default: null, index: true },
     countrySource: { type: String, default: null },
+    city: { type: String, default: null },
+    region: { type: String, default: null },
     anonId: { type: String, default: null },
     uid: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     ts: { type: Date, default: () => new Date(), index: true },

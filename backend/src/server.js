@@ -165,6 +165,34 @@ const limiter = rateLimit({
   max: Number(process.env.RATE_LIMIT_MAX || 120)
 });
 
+// --- Admin: recent analytics records ---
+app.get('/admin/analytics/recent', authRequired, async (req, res) => {
+  try {
+    const caller = String(req.auth?.email || '').toLowerCase();
+    if (!ADMIN_EMAILS.has(caller)){
+      return res.status(403).json({ error: 'forbidden' });
+    }
+    const { limit = 50 } = req.query || {};
+    const lmt = Math.max(1, Math.min(500, Number(limit) || 50));
+    const docs = await Analytics.find({}).sort({ ts: -1 }).limit(lmt).lean();
+    // Return selected fields only
+    const items = docs.map(d => ({
+      ts: d.ts,
+      path: d.path,
+      referrer: d.referrer || '-',
+      userAgent: d.userAgent || '-',
+      ip: d.ipRaw || null,
+      country: d.country || null,
+      city: d.city || null,
+      region: d.region || null,
+      countrySource: d.countrySource || null,
+    }));
+    return res.json({ items });
+  } catch (e) {
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
 // ---- Protected: Placement test result ----
 app.patch('/me/placement', authRequired, async (req, res) => {
   try {
@@ -440,24 +468,47 @@ app.use((req, res, next) => {
     if (/\.(css|js|png|jpg|jpeg|svg|ico|gif|webp|mp3|wav|ogg|woff|woff2|ttf|map)$/i.test(p)) return next();
     const ref = req.get('referer') || null;
     const ua = req.get('user-agent') || null;
-    const ip = (req.headers['x-forwarded-for']?.toString().split(',')[0].trim()) || req.ip || req.connection?.remoteAddress || '';
+    // Choose first public IP from X-Forwarded-For chain
+    const xff = (req.headers['x-forwarded-for'] || '').toString();
+    const chain = xff.split(',').map(s => s.trim()).filter(Boolean);
+    let chosenIp = null;
+    for (const cand of chain){ if (!isPrivateIp(cand)) { chosenIp = cand; break; } }
+    if (!chosenIp) chosenIp = (req.ip || req.connection?.remoteAddress || '').toString();
+    const ip = chosenIp.replace('::ffff:','');
     const ipHash = hashIp(ip);
     let country = (req.headers['cf-ipcountry'] || req.headers['x-vercel-ip-country'] || req.headers['x-country'] || null) || null;
+    let countrySource = country ? 'header' : null;
     const uid = req.auth?.uid ? new mongoose.Types.ObjectId(req.auth.uid) : null;
-    const doc = { path: p, referrer: ref, userAgent: ua, ipHash, country, anonId: null, uid, ts: new Date() };
+    const doc = { path: p, referrer: ref, userAgent: ua, ipHash, ipRaw: ip, country, countrySource, anonId: null, uid, ts: new Date() };
     Analytics.create(doc).then(async (saved) => {
       try {
-        if (!country && IPINFO_TOKEN && ip && !isPrivateIp(ip)){
-          const cached = cacheGet(ip);
-          if (cached){
-            await Analytics.updateOne({ _id: saved._id }, { $set: { country: cached } });
-          } else {
-            // Non-blocking lookup
+        const cached = !country ? cacheGet(ip) : null;
+        if (!country && cached){
+          await Analytics.updateOne({ _id: saved._id }, { $set: { country: cached, countrySource: 'cache' } });
+          country = cached;
+        }
+        // Tokenli ipinfo öncelik; yoksa ipwho.is ücretsiz fallback (HTTPS destekli)
+        if (!country && ip && !isPrivateIp(ip)){
+          if (IPINFO_TOKEN){
             const r = await fetch(`https://ipinfo.io/${encodeURIComponent(ip)}?token=${encodeURIComponent(IPINFO_TOKEN)}`);
             if (r.ok){
               const j = await r.json();
               const cc = j && (j.country || j.country_name || null);
-              if (cc){ cacheSet(ip, cc); await Analytics.updateOne({ _id: saved._id }, { $set: { country: cc } }); }
+              const city = j && (j.city || null);
+              const region = j && (j.region || j.state || null);
+              if (cc){ cacheSet(ip, cc); await Analytics.updateOne({ _id: saved._id }, { $set: { country: cc, city, region, countrySource: 'ipinfo' } }); country = cc; }
+            }
+          }
+          if (!country){
+            const r2 = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`);
+            if (r2.ok){
+              const j2 = await r2.json();
+              if (j2 && j2.success){
+                const cc2 = j2.country_code || null;
+                const city2 = j2.city || null;
+                const region2 = j2.region || null;
+                if (cc2){ await Analytics.updateOne({ _id: saved._id }, { $set: { country: cc2, city: city2, region: region2, countrySource: 'ipwho' } }); cacheSet(ip, cc2); }
+              }
             }
           }
         }

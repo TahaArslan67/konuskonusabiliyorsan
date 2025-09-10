@@ -90,3 +90,21 @@ export const Streak = model('Streak', streakSchema);
 export const Achievement = model('Achievement', achievementSchema);
 export const Goal = model('Goal', goalSchema);
 
+// Analytics: minimal request logs
+const analyticsSchema = new Schema(
+  {
+    path: { type: String, index: true },
+    referrer: { type: String, default: null },
+    userAgent: { type: String, default: null },
+    ipHash: { type: String, index: true },
+    country: { type: String, default: null, index: true },
+    anonId: { type: String, default: null },
+    uid: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+    ts: { type: Date, default: () => new Date(), index: true },
+  },
+  { timestamps: false }
+);
+analyticsSchema.index({ ts: 1 });
+
+export const Analytics = model('Analytics', analyticsSchema);
+

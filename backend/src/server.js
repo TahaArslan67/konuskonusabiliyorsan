@@ -184,6 +184,56 @@ app.patch('/me/placement', authRequired, async (req, res) => {
   }
 });
 
+// --- Admin: Analytics summary ---
+app.get('/admin/analytics/summary', authRequired, async (req, res) => {
+  try {
+    const caller = String(req.auth?.email || '').toLowerCase();
+    if (!ADMIN_EMAILS.has(caller)){
+      return res.status(403).json({ error: 'forbidden' });
+    }
+    const { from, to, limit = 10 } = req.query || {};
+    const lmt = Math.max(1, Math.min(100, Number(limit) || 10));
+    const match = {};
+    if (from || to){
+      match.ts = {};
+      if (from) match.ts.$gte = new Date(from + 'T00:00:00Z');
+      if (to) match.ts.$lte = new Date(to + 'T23:59:59Z');
+    }
+    // Totals
+    const total = await Analytics.countDocuments(match);
+    // By day
+    const byDay = await Analytics.aggregate([
+      { $match: match },
+      { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$ts' } }, count: { $sum: 1 } } },
+      { $sort: { _id: 1 } }
+    ]);
+    // Top countries
+    const countries = await Analytics.aggregate([
+      { $match: match },
+      { $group: { _id: '$country', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: lmt }
+    ]);
+    // Top paths
+    const paths = await Analytics.aggregate([
+      { $match: match },
+      { $group: { _id: '$path', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: lmt }
+    ]);
+    // Top referrers
+    const referrers = await Analytics.aggregate([
+      { $match: match },
+      { $group: { _id: '$referrer', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: lmt }
+    ]);
+    return res.json({ total, byDay, countries, paths, referrers });
+  } catch (e) {
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
 // Pretty URL for realtime (hide .html in address bar)
 app.get(['/realtime', '/realtime/'], (_req, res) => {
   try {
@@ -320,7 +370,9 @@ app.use(limiter);
 
 // Static web client
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
+import { Analytics } from './models.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.join(__dirname, '..', 'public');
@@ -346,6 +398,31 @@ function loadScenarios(){
   }
 }
 loadScenarios();
+// Enable trust proxy for correct req.ip behind proxies
+try { app.set('trust proxy', true); } catch {}
+
+// --- In-house analytics middleware (non-blocking) ---
+function hashIp(ip){
+  try { return crypto.createHash('sha256').update(String(ip||'')).digest('hex').slice(0,32); } catch { return null; }
+}
+app.use((req, res, next) => {
+  try {
+    // Log only GET page views; skip static assets by extension
+    if (req.method !== 'GET') return next();
+    const p = String(req.path || '/');
+    if (/\.(css|js|png|jpg|jpeg|svg|ico|gif|webp|mp3|wav|ogg|woff|woff2|ttf|map)$/i.test(p)) return next();
+    const ref = req.get('referer') || null;
+    const ua = req.get('user-agent') || null;
+    const ip = (req.headers['x-forwarded-for']?.toString().split(',')[0].trim()) || req.ip || req.connection?.remoteAddress || '';
+    const ipHash = hashIp(ip);
+    const country = (req.headers['cf-ipcountry'] || req.headers['x-vercel-ip-country'] || req.headers['x-country'] || null) || null;
+    const uid = req.auth?.uid ? new mongoose.Types.ObjectId(req.auth.uid) : null;
+    const doc = { path: p, referrer: ref, userAgent: ua, ipHash, country, anonId: null, uid, ts: new Date() };
+    Analytics.create(doc).catch(()=>{});
+  } catch {}
+  next();
+});
+
 // Pretty URL for realtime (hide .html in address bar) — must be BEFORE static middleware
 try {
   app.get(['/realtime', '/realtime/'], (_req, res) => {

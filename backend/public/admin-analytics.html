@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Analytics - Admin</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    body{ padding:20px; }
+    .row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    table{ width:100%; border-collapse: collapse; margin-top:10px; }
+    th, td{ border:1px solid #1b2442; padding:6px 8px; font-size:13px; }
+    th{ background:#0f1738; color:#c7d2fe; text-align:left; }
+    .card{ padding:16px; border:1px solid #243055; border-radius:12px; background:#0b1022; margin-bottom:16px; }
+    .pill{ font-size:12px; color:#aab4c3; padding:4px 8px; border:1px solid #243055; border-radius:999px; }
+  </style>
+</head>
+<body>
+  <h1>Analytics (Admin)</h1>
+  <div class="card">
+    <div class="row">
+      <label>From <input id="from" type="date" /></label>
+      <label>To <input id="to" type="date" /></label>
+      <label>Top N <input id="limit" type="number" min="1" max="100" value="10" style="width:80px;"/></label>
+      <button id="btnLoad" class="btn btn-primary">Yükle</button>
+      <span id="status" class="pill">Hazır</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Özet</h3>
+    <div class="row">
+      <span class="pill" id="total">Toplam: -</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Günlük Dağılım</h3>
+    <table id="tblDays">
+      <thead><tr><th>Tarih</th><th>Sayım</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Ülke</h3>
+    <table id="tblCountries">
+      <thead><tr><th>Ülke</th><th>Sayım</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>En Çok Ziyaret Edilen Yollar</h3>
+    <table id="tblPaths">
+      <thead><tr><th>Path</th><th>Sayım</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Referrer</h3>
+    <table id="tblReferrers">
+      <thead><tr><th>Referrer</th><th>Sayım</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : location.origin;
+    function $(s){ return document.querySelector(s); }
+    function token(){ try { return localStorage.getItem('hk_token'); } catch { return null; } }
+
+    function setStatus(t){ const el=$('#status'); if (el) el.textContent = t; }
+    function fillTable(tbody, rows, map){
+      tbody.innerHTML = '';
+      (rows||[]).forEach(r => {
+        const tr = document.createElement('tr');
+        const v1 = document.createElement('td'); v1.textContent = map.key(r);
+        const v2 = document.createElement('td'); v2.textContent = map.count(r);
+        tr.appendChild(v1); tr.appendChild(v2);
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function load(){
+      try{
+        setStatus('Yükleniyor...');
+        const f = $('#from')?.value || '';
+        const t = $('#to')?.value || '';
+        const l = Number($('#limit')?.value || 10) || 10;
+        const qs = new URLSearchParams({ limit: String(l) });
+        if (f) qs.set('from', f); if (t) qs.set('to', t);
+        const r = await fetch(`${backendBase}/admin/analytics/summary?${qs.toString()}`, { headers: { Authorization: `Bearer ${token()}` } });
+        if (!r.ok){ setStatus('Yetkisiz veya hata'); return; }
+        const j = await r.json();
+        $('#total').textContent = `Toplam: ${j.total ?? '-'}`;
+        fillTable($('#tblDays tbody'), j.byDay, { key: (r)=>r._id||'-', count: (r)=>r.count||0 });
+        fillTable($('#tblCountries tbody'), j.countries, { key: (r)=>r._id||'-', count: (r)=>r.count||0 });
+        fillTable($('#tblPaths tbody'), j.paths, { key: (r)=>r._id||'-', count: (r)=>r.count||0 });
+        fillTable($('#tblReferrers tbody'), j.referrers, { key: (r)=>r._id||'-', count: (r)=>r.count||0 });
+        setStatus('Hazır');
+      } catch(e){ setStatus('Hata'); }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      $('#btnLoad')?.addEventListener('click', load);
+      // Varsayılan: son 7 gün
+      try{
+        const to = new Date();
+        const from = new Date(Date.now() - 6*24*60*60*1000);
+        $('#to').value = to.toISOString().slice(0,10);
+        $('#from').value = from.toISOString().slice(0,10);
+      } catch{}
+      load();
+    });
+  </script>
+</body>
+</html>

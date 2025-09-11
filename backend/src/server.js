@@ -162,8 +162,15 @@ app.use(cors({
 // Rate limit
 const limiter = rateLimit({
   windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000),
-  max: Number(process.env.RATE_LIMIT_MAX || 120)
+  max: Number(process.env.RATE_LIMIT_MAX || 120),
+  standardHeaders: true,
+  legacyHeaders: false,
+  trustProxy: true,
 });
+
+// Route-bazlı ek limitler
+const strictLimiter = rateLimit({ windowMs: 60_000, max: 20, standardHeaders: true, legacyHeaders: false, trustProxy: true });
+const mediumLimiter = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true, legacyHeaders: false, trustProxy: true });
 
 // --- Admin: recent analytics records ---
 app.get('/admin/analytics/recent', authRequired, async (req, res) => {
@@ -276,8 +283,7 @@ app.get(['/realtime', '/realtime/'], (_req, res) => {
 app.get('/realtime.html', (_req, res) => res.redirect(301, '/realtime'));
 
 // Route-bazlı ek limitler
-const strictLimiter = rateLimit({ windowMs: 60_000, max: 20, standardHeaders: true, legacyHeaders: false });
-const mediumLimiter = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true, legacyHeaders: false });
+// (tanımlar yukarıda yapıldı)
 
 // Kritik uçlara uygulama (rotalardan ÖNCE)
 app.use('/auth', strictLimiter);       // login/register/verify/forgot vb.
@@ -892,7 +898,7 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
     const price = priceMap[String(plan)] ?? priceMap.starter;
     const payment_amount = Math.round(price * 100); // kuruş
 
-    const merchant_oid = `hk_${uuidv4()}`.replace(/-/g,'');
+    const merchant_oid = `hk${uuidv4().replace(/-/g,'')}`;
     const user_ip = getClientIp(req);
     const email = req.auth?.email || 'test@example.com';
     const user_name = 'Hemen Konus';
@@ -1060,7 +1066,7 @@ app.post('/api/iyzico/checkout', authRequired, async (req, res) => {
       basketItems: [
         {
           id: `plan_${plan}`,
-          name: `KonusKonusabilirsen ${plan.toUpperCase()} Planı`,
+          name: `KonusKonusabilirsen ${String(plan).toUpperCase()} Planı`,
           category1: 'Abonelik',
           itemType: Iyzipay.BASKET_ITEM_TYPE.VIRTUAL,
           price,
@@ -1603,7 +1609,7 @@ wss.on('connection', (clientWs, request) => {
             response: {
               modalities: ['audio', 'text'],
               // Ensure Turkish output during auto-commit as well
-              instructions: 'Lütfen sadece Türkçe, kısa ve doğal yanıt ver.',
+              instructions: 'Lütfen sadece Türkçe, kısaltma ve doğal yanıt ver.',
             },
           };
           openaiWs.send(JSON.stringify(create));
@@ -1648,13 +1654,7 @@ wss.on('connection', (clientWs, request) => {
       // Handle control messages from client
       const text = data.toString();
       let obj;
-      try {
-        obj = JSON.parse(text);
-      } catch {
-        // Ignore non-JSON text
-        return;
-      }
-
+      try { obj = JSON.parse(text); } catch { return; }
       const t = obj?.type;
       if (t === 'audio_start') {
         // Optionally could send a session/update here for formats; skip for simplicity
@@ -1800,7 +1800,7 @@ wss.on('connection', (clientWs, request) => {
           type: 'response.create',
           response: {
             modalities: RESPONSE_TEXT_ENABLED ? ['audio','text'] : ['audio'],
-            instructions: `Target language: ${lang}. Native: ${nlang}. Asla başka dile kayma. Kullanıcı: ${String(obj.text)}\n1-2 kısa öneri ver (hedef dilde), yeni satırda ${nlang} tek cümle 'Tip:' ekle.`,
+            instructions: `Target language: ${lang}. Native: ${nlang}. Asla başka dile kayma. Kullanıcı: ${String(obj.text)}\n1-2 kısaltma öneri ver (hedef dilde), yeni satırda ${nlang} tek cümle 'Tip:' ekle.`,
             max_output_tokens: 30,
           }
         };
@@ -1870,9 +1870,9 @@ wss.on('connection', (clientWs, request) => {
           break;
         }
         case 'response.delta':
-        case 'response.output_text.delta':
+        case 'response.transcript.delta':
         case 'response.text.delta':
-        case 'response.transcript.delta': {
+        case 'response.output_text.delta': {
           const text = obj?.delta ?? obj?.text ?? '';
           if (text) clientWs.send(JSON.stringify({ type: 'transcript', text: String(text), final: false }));
           break;
@@ -1882,7 +1882,10 @@ wss.on('connection', (clientWs, request) => {
         case 'response.text.completed':
         case 'response.output_item.done': {
           const text = obj?.text ?? obj?.output_text ?? '';
-          if (text) clientWs.send(JSON.stringify({ type: 'transcript', text: String(text), final: true }));
+          if (text) {
+            const payload = { type: 'transcript', text: String(text), final: true };
+            clientWs.send(JSON.stringify(payload));
+          }
           // Also ensure audio_end for safety
           clientWs.send(JSON.stringify({ type: 'audio_end' }));
           break;
@@ -1954,7 +1957,7 @@ wss.on('connection', (clientWs, request) => {
       case 'response.transcript.delta':
       case 'response.text.delta':
       case 'response.output_text.delta': {
-        const text = obj?.delta ?? obj?.text ?? obj?.output_text ?? '';
+        const text = obj?.delta ?? obj?.text ?? '';
         if (text) {
           const payload = { type: 'transcript', text: String(text), final: false };
           clientWs.send(JSON.stringify(payload));

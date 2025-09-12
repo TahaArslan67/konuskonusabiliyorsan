@@ -40,9 +40,17 @@
     <div class="card" style="padding:16px; margin-top:16px;">
       <h3 style="margin:0 0 8px;">Plan</h3>
       <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center;">
-        <span class="pill">Aktif Plan: <strong id="planText">-</strong></span>
-        <a class="btn btn-secondary btn-sm" href="/#pricing">Planı Yönet</a>
+        <select id="accPlan" style="flex:1; min-width:180px; padding:10px 12px; border-radius:10px; background:#0b1022; border:1px solid #1b2442; color:var(--text);">
+          <option value="free">Ücretsiz Plan</option>
+          <option value="starter">Starter Plan</option>
+          <option value="pro">Pro Plan</option>
+          <option value="enterprise">Kurumsal Plan</option>
+        </select>
+        <span class="subtle" id="accMsg" style="margin-left:8px;"></span>
       </div>
+      <p class="subtle" style="margin:8px 0 0; font-size:13px;">
+        Plan değişikliğinde kullanım süreleriniz sıfırlanacaktır.
+      </p>
     </div>
     </div>
 

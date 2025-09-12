@@ -362,6 +362,56 @@ function authRequired(req, res, next){
   }
 }
 
+// ---- Protected: Update user plan and reset usage ----
+app.post('/api/update-plan', authRequired, async (req, res) => {
+  try {
+    const { plan } = req.body || {};
+    if (!['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
+      return res.status(400).json({ error: 'invalid_plan' });
+    }
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    // Update user's plan and reset usage
+    await User.findByIdAndUpdate(req.auth.uid, { 
+      $set: { 
+        plan,
+        planUpdatedAt: now,
+        // Reset daily and monthly usage
+        'usage.dailyUsed': 0,
+        'usage.monthlyUsed': 0,
+        'usage.lastReset': now,
+        'usage.monthlyResetAt': startOfMonth
+      } 
+    });
+    
+    // Also update the Usage collection
+    await Usage.updateOne(
+      { userId: req.auth.uid },
+      { 
+        $set: {
+          'daily.used': 0,
+          'monthly.used': 0,
+          'daily.resetAt': now,
+          'monthly.resetAt': startOfMonth,
+          updatedAt: now
+        },
+        $setOnInsert: { 
+          userId: req.auth.uid,
+          createdAt: now
+        }
+      },
+      { upsert: true }
+    );
+
+    return res.json({ success: true, message: 'Plan updated and usage reset' });
+  } catch (e) {
+    console.error('[update-plan] error:', e);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
 // ---- Protected: Current user ----
 app.get('/me', authRequired, async (req, res) => {
   try {

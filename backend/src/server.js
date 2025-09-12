@@ -592,6 +592,79 @@ app.use(express.static(publicDir, {
 app.get('/', (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
 app.get('/contact', (_req, res) => res.sendFile(path.join(publicDir, 'contact.html')));
 
+// Handle contact form submission
+app.post('/api/contact', [
+  body('name').trim().notEmpty().withMessage('Lütfen adınızı girin'),
+  body('email').isEmail().withMessage('Lütfen geçerli bir e-posta adresi girin'),
+  body('message').trim().notEmpty().withMessage('Lütfen bir mesaj yazın')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Geçersiz form verileri',
+        errors: errors.array()
+      });
+    }
+
+    const { name, email, message } = req.body;
+    
+    // Email options
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: 'info@konuskonusabilirsen.com',
+      subject: `Yeni İletişim Formu: ${name}`,
+      text: `
+        İsim: ${name}
+        E-posta: ${email}
+        
+        Mesaj:
+        ${message}
+      `,
+      html: `
+        <h2>Yeni İletişim Formu</h2>
+        <p><strong>İsim:</strong> ${name}</p>
+        <p><strong>E-posta:</strong> ${email}</p>
+        <p><strong>Mesaj:</strong></p>
+        <p>${message.replace(/\n/g, '<br>')}</p>
+      `
+    };
+
+    // Send email
+    await transporter.sendMail(mailOptions);
+    
+    // Send a copy to the user
+    const userMailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Mesajınız Alındı - KonusKonusabilirsen',
+      text: `Merhaba ${name},\n\nSize en kısa sürede dönüş yapacağız.\n\nGönderdiğiniz mesaj:\n${message}\n\nSaygılarımızla,\nKonusKonusabilirsen Ekibi`,
+      html: `
+        <p>Merhaba <strong>${name}</strong>,</p>
+        <p>Mesajınızı aldık. Size en kısa sürede dönüş yapacağız.</p>
+        <p><strong>Gönderdiğiniz mesaj:</strong></p>
+        <p>${message.replace(/\n/g, '<br>')}</p>
+        <p>Saygılarımızla,<br>KonusKonusabilirsen Ekibi</p>
+      `
+    };
+
+    await transporter.sendMail(userMailOptions);
+    
+    res.json({ 
+      success: true, 
+      message: 'Mesajınız başarıyla gönderildi. Teşekkür ederiz!' 
+    });
+    
+  } catch (error) {
+    console.error('Contact form error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Mesaj gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.' 
+    });
+  }
+});
+
 // Handle CORS preflight for contact form
 app.options('/api/contact', (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');

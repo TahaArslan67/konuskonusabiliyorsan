@@ -41,18 +41,14 @@ const PAYTR_MERCHANT_KEY = process.env.PAYTR_MERCHANT_KEY || '';
 const PAYTR_MERCHANT_SALT = process.env.PAYTR_MERCHANT_SALT || '';
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const MAIL_FROM = process.env.MAIL_FROM || 'no-reply@konuskonuşabilirsen.com';
-// E-posta göndericisini oluştur
+// E-posta göndericisini oluştur (Cloudflare Email Routing için)
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
+  host: 'smtp.sendgrid.net', // veya kendi SMTP sunucunuz
   port: 587,
   secure: false,
-  requireTLS: true,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-  tls: {
-    rejectUnauthorized: false
+    user: 'apikey', // Genellikle 'apikey' kullanılır
+    pass: process.env.SENDGRID_API_KEY // veya SMTP şifreniz
   }
 });
 
@@ -618,7 +614,7 @@ app.post('/api/contact', [
     
     // Email options - send to admin
     const mailOptions = {
-      from: `"${name}" <${process.env.EMAIL_USER}>`,
+      from: 'noreply@konuskonusabilirsen.com', // Cloudflare'de onaylı gönderici adresi
       replyTo: email, // Kullanıcının yanıt verebilmesi için
       to: 'info@konuskonusabilirsen.com',
       subject: `Yeni İletişim Formu: ${name}`,

@@ -187,38 +187,23 @@
   </header>
 
   <main>
-    <div class="card" style="text-align: center; background: var(--card); border: 1px solid rgba(255,255,255,0.08);">
-      <h1 style="color: var(--text-color); font-size: 2.5rem; margin-bottom: 1.5rem;">Bizimle İletişime Geçin</h1>
-      <p style="color: var(--muted-text); font-size: 1.2rem; margin-bottom: 3rem; line-height: 1.6;">
-        Herhangi bir sorunuz veya öneriniz mi var? Aşağıdaki e-posta adresimizden bize ulaşabilirsiniz. En kısa sürede size dönüş yapacağız.
+    <div class="card" style="text-align: center; background: var(--card); border: 1px solid rgba(255,255,255,0.08); max-width: 600px; margin: 2rem auto; padding: 2rem;">
+      <h1 style="color: var(--text-color); font-size: 2rem; margin-bottom: 1.5rem;">Bizimle İletişime Geçin</h1>
+      <p style="color: var(--muted-text); font-size: 1.1rem; margin-bottom: 2rem; line-height: 1.6;">
+        Bize ulaşmak için aşağıdaki e-posta adresimizi kullanabilirsiniz.
       </p>
       
-      <div style="margin-top: 2rem; max-width: 600px; margin-left: auto; margin-right: auto;">
-        <form id="contactForm" style="text-align: left;">
-          <div style="margin-bottom: 1.5rem;">
-            <label for="name" style="display: block; margin-bottom: 0.5rem; color: var(--text-color);">Adınız</label>
-            <input type="text" id="name" name="name" required 
-                   style="width: 100%; padding: 0.75rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.05); color: var(--text-color);">
-          </div>
-          
-          <div style="margin-bottom: 1.5rem;">
-            <label for="email" style="display: block; margin-bottom: 0.5rem; color: var(--text-color);">E-posta Adresiniz</label>
-            <input type="email" id="email" name="email" required
-                   style="width: 100%; padding: 0.75rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.05); color: var(--text-color);">
-          </div>
-          
-          <div style="margin-bottom: 1.5rem;">
-            <label for="message" style="display: block; margin-bottom: 0.5rem; color: var(--text-color);">Mesajınız</label>
-            <textarea id="message" name="message" rows="5" required
-                     style="width: 100%; padding: 0.75rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.05); color: var(--text-color); resize: vertical;"></textarea>
-          </div>
-          
-          <button type="submit" style="display: inline-flex; align-items: center; justify-content: center; background: var(--primary-color); color: white; border: none; padding: 1rem 2.5rem; border-radius: 8px; font-size: 1.1rem; font-weight: 500; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3); width: 100%;">
-            <i class="fas fa-paper-plane" style="margin-right: 10px;"></i>
-            Gönder
-          </button>
-        </form>
-        <div id="formMessage" style="margin-top: 1.5rem; padding: 1rem; border-radius: 6px; display: none;"></div>
+      <div style="background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 1.5rem; margin: 2rem 0;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 1rem; margin-bottom: 1rem;">
+          <i class="fas fa-envelope" style="font-size: 1.5rem; color: var(--primary-color);"></i>
+          <span id="emailAddress" style="font-size: 1.2rem; font-weight: 500; color: var(--text-color);">info@konuskonusabilirsen.com</span>
+        </div>
+        <button id="copyButton" style="display: inline-flex; align-items: center; gap: 0.5rem; background: var(--primary-color); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-size: 1rem; font-weight: 500; cursor: pointer; transition: all 0.2s ease;">
+          <i class="far fa-copy"></i>
+          <span>Kopyala</span>
+        </button>
+        <div id="copyMessage" style="margin-top: 1rem; color: #10b981; font-size: 0.9rem; height: 1.5rem;"></div>
+      </div>
       </div>
     </div>
   </main>
@@ -277,63 +262,30 @@
   </footer>
 
   <script>
-    // Contact form submission
-    document.getElementById('contactForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
+    // E-posta adresini kopyalama işlevi
+    document.getElementById('copyButton').addEventListener('click', function() {
+      const email = 'info@konuskonusabilirsen.com';
+      const copyMessage = document.getElementById('copyMessage');
       
-      const form = e.target;
-      const formMessage = document.getElementById('formMessage');
-      const submitBtn = form.querySelector('button[type="submit"]');
-      const originalBtnText = submitBtn.innerHTML;
-      
-      try {
-        // Disable the submit button and show loading state
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>Gönderiliyor...';
+      navigator.clipboard.writeText(email).then(() => {
+        copyMessage.textContent = 'E-posta adresi panoya kopyalandı!';
+        copyMessage.style.color = '#10b981';
         
-        // Get form data
-        const formData = new FormData(form);
-        const data = Object.fromEntries(formData.entries());
+        // Buton metnini güncelle
+        const button = document.getElementById('copyButton');
+        button.innerHTML = '<i class="fas fa-check"></i><span>Kopyalandı!</span>';
+        button.style.background = '#10b981';
         
-        // Send the form data to the server
-        const response = await fetch('/api/contact', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data)
-        });
-        
-        const result = await response.json();
-        
-        if (response.ok) {
-          // Show success message
-          formMessage.textContent = 'Mesajınız başarıyla gönderildi. En kısa sürede size dönüş yapacağız.';
-          formMessage.style.display = 'block';
-          formMessage.style.background = 'rgba(34, 197, 94, 0.1)';
-          formMessage.style.border = '1px solid rgba(34, 197, 94, 0.2)';
-          formMessage.style.color = '#22c55e';
-          
-          // Reset the form
-          form.reset();
-        } else {
-          throw new Error(result.message || 'Bir hata oluştu');
-        }
-      } catch (error) {
-        // Show error message
-        formMessage.textContent = 'Mesaj gönderilirken bir hata oluştu: ' + (error.message || 'Lütfen daha sonra tekrar deneyin.');
-        formMessage.style.display = 'block';
-        formMessage.style.background = 'rgba(239, 68, 68, 0.1)';
-        formMessage.style.border = '1px solid rgba(239, 68, 68, 0.2)';
-        formMessage.style.color = '#ef4444';
-      } finally {
-        // Re-enable the submit button and reset its text
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = originalBtnText;
-        
-        // Scroll to the message
-        formMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+        // 2 saniye sonra eski haline getir
+        setTimeout(() => {
+          copyMessage.textContent = '';
+          button.innerHTML = '<i class="far fa-copy"></i><span>Kopyala</span>';
+          button.style.background = '';
+        }, 2000);
+      }).catch(err => {
+        copyMessage.textContent = 'Kopyalama başarısız oldu: ' + err;
+        copyMessage.style.color = '#ef4444';
+      });
     });
     
     // Sayfa yüklendiğinde çalışacak fonksiyon

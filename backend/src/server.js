@@ -1169,19 +1169,49 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
     }
     if (status === 'success'){
       const sess = iyzPending.get(merchant_oid);
-      if (sess && sess.uid){
+      if (sess && sess.uid && sess.plan) {
+        // Calculate subscription end date (1 month from now)
+        const currentDate = new Date();
+        const endDate = new Date();
+        endDate.setMonth(endDate.getMonth() + 1);
+
+        // Update or create subscription
         await Subscription.findOneAndUpdate(
-          { userId: sess.uid, plan: sess.plan },
-          { $set: { status: 'active', currentPeriodEnd: null } },
-          { upsert: true }
+          { userId: sess.uid },
+          { 
+            $set: { 
+              plan: sess.plan,
+              status: 'active',
+              currentPeriodStart: currentDate,
+              currentPeriodEnd: endDate,
+              updatedAt: new Date()
+            },
+            $setOnInsert: { createdAt: new Date() }
+          },
+          { upsert: true, new: true }
         );
+
+        // Update user's plan
+        await User.findByIdAndUpdate(sess.uid, { 
+          $set: { 
+            plan: sess.plan,
+            planUpdatedAt: new Date()
+          } 
+        });
+
         // Send email notification (best-effort)
-        try{
+        try {
           const userDoc = await User.findById(sess.uid).lean();
           const email = userDoc?.email || null;
           const amountTl = Number(total_amount) / 100;
-          if (email) await sendPaymentSuccessEmail(email, { plan: sess.plan, amountTl, oid: merchant_oid });
-        } catch (e){ console.warn('[paytr] email notify error:', e?.message || e); }
+          if (email) await sendPaymentSuccessEmail(email, { 
+            plan: sess.plan, 
+            amountTl, 
+            oid: merchant_oid 
+          });
+        } catch (e) { 
+          console.warn('[paytr] email notify error:', e?.message || e); 
+        }
       }
       iyzPending.delete(merchant_oid);
     }

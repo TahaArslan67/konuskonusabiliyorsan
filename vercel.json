@@ -4,6 +4,8 @@
     { "src": "backend/public/**", "use": "@vercel/static" }
   ],
   "routes": [
+    { "src": "/contact", "dest": "/backend/public/contact.html" },
+    { "src": "/konus", "dest": "/backend/public/realtime.html" },
     { "src": "/(.*)", "dest": "/backend/public/$1" }
   ]
 }

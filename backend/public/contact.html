@@ -270,45 +270,57 @@
     }
     
     // Form gönderimini yönet
-    document.getElementById('contactForm').addEventListener('submit', async function(e) {
+    document.getElementById('contact-form').addEventListener('submit', async function(e) {
       e.preventDefault();
       
-      const form = this;
+      const form = e.target;
+      const formData = new FormData(form);
       const submitBtn = form.querySelector('button[type="submit"]');
-      const originalBtnText = submitBtn.textContent;
+      const originalBtnText = submitBtn.innerHTML;
+      
+      // Hata ayıklama bilgilerini göstermek için bir div oluştur
+      let debugDiv = document.getElementById('debug-info');
+      if (!debugDiv) {
+        debugDiv = document.createElement('div');
+        debugDiv.id = 'debug-info';
+        debugDiv.style.marginTop = '20px';
+        debugDiv.style.padding = '15px';
+        debugDiv.style.border = '1px solid #ddd';
+        debugDiv.style.borderRadius = '5px';
+        debugDiv.style.backgroundColor = '#f9f9f9';
+        debugDiv.style.fontFamily = 'monospace';
+        debugDiv.style.whiteSpace = 'pre-wrap';
+        debugDiv.style.maxHeight = '300px';
+        debugDiv.style.overflow = 'auto';
+        form.parentNode.insertBefore(debugDiv, form.nextSibling);
+      }
+      
+      function logToDebug(message) {
+        const timestamp = new Date().toISOString();
+        debugDiv.textContent += `[${timestamp}] ${message}\n`;
+        debugDiv.scrollTop = debugDiv.scrollHeight;
+      }
       
       try {
-        // Butonu devre dışı bırak ve yükleniyor göster
+        logToDebug('Form gönderiliyor...');
         submitBtn.disabled = true;
-        submitBtn.textContent = 'Gönderiliyor...';
-        submitBtn.style.opacity = '0.7';
+        submitBtn.innerHTML = 'Gönderiliyor...';
         
-        // Form verilerini topla
-        const formData = {
-          name: document.getElementById('name').value.trim(),
-          email: document.getElementById('email').value.trim(),
-          subject: document.getElementById('subject').value,
-          message: document.getElementById('message').value.trim()
+        const requestData = {
+          name: formData.get('name'),
+          email: formData.get('email'),
+          subject: formData.get('subject'),
+          message: formData.get('message')
         };
         
-        // Temel doğrulama
-        if (!formData.name || !formData.email || !formData.subject || !formData.message) {
-          throw new Error('Lütfen tüm alanları doldurunuz.');
-        }
+        logToDebug('Gönderilen veri: ' + JSON.stringify(requestData, null, 2));
         
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-          throw new Error('Lütfen geçerli bir e-posta adresi giriniz.');
-        }
-        
-        // Sunucuya gönder
-        const apiUrl = 'https://www.konuskonusabilirsen.com/api/contact';
-        const response = await fetch(apiUrl, {
+        const response = await fetch('/api/contact', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Accept': 'application/json'
           },
-          body: JSON.stringify(formData)
+          body: JSON.stringify(requestData)
         });
         
         if (!response.ok) {

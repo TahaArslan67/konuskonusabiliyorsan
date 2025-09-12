@@ -614,12 +614,22 @@ app.post('/api/contact', express.json(), async (req, res) => {
       `,
     };
 
-    console.log('Attempting to send email with data:', JSON.stringify(emailData, null, 2));
+    console.log('Environment Variables:', {
+      NODE_ENV: process.env.NODE_ENV,
+      RESEND_API_KEY: process.env.RESEND_API_KEY ? '***' + process.env.RESEND_API_KEY.slice(-4) : 'Not set',
+      MAIL_FROM: process.env.MAIL_FROM
+    });
+
+    console.log('Attempting to send email with data:', {
+      ...emailData,
+      html: emailData.html.substring(0, 100) + '...' // Kısaltılmış HTML içeriği
+    });
 
     if (resend) {
       try {
+        console.log('Sending email via Resend...');
         const response = await resend.emails.send(emailData);
-        console.log('Resend API Response:', JSON.stringify(response, null, 2));
+        console.log('Resend API Response:', response);
         
         if (response.error) {
           console.error('Resend API Error:', response.error);
@@ -627,13 +637,22 @@ app.post('/api/contact', express.json(), async (req, res) => {
         }
         
         console.log('Email sent successfully with ID:', response.data?.id);
+        console.log('Email sent to:', emailData.to);
+        return { success: true, message: 'E-posta başarıyla gönderildi', emailId: response.data?.id };
       } catch (error) {
         console.error('Error sending email via Resend:', error);
-        // Don't fail the request, just log the error
-        console.warn('Email content that failed to send:', emailData);
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          code: error.code,
+          statusCode: error.statusCode
+        });
+        throw error;
       }
     } else {
-      console.warn('Resend not initialized. Email would be sent to:', emailData);
+      const errorMsg = 'Resend API başlatılamadı. Lütfen RESEND_API_KEY kontrol edin.';
+      console.error(errorMsg);
+      throw new Error(errorMsg);
     }
 
     res.json({ success: true });

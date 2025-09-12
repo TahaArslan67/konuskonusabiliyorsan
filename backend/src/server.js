@@ -1228,8 +1228,11 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
     if (status === 'success'){
       console.log(`[paytr] Processing successful payment for merchant_oid: ${merchant_oid}`);
       const sess = iyzPending.get(merchant_oid);
+      console.log(`[paytr] Session data from iyzPending:`, sess);
+      
       if (!sess) {
         console.error(`[paytr] No session found for merchant_oid: ${merchant_oid}`);
+        console.log(`[paytr] Current iyzPending keys:`, Array.from(iyzPending.keys()));
         return res.end('OK');
       }
       
@@ -1262,8 +1265,8 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
           }
         );
 
-        // Then create or update the new subscription
-        await Subscription.findOneAndUpdate(
+        console.log(`[paytr] Creating/updating subscription for user ${sess.uid} to plan ${sess.plan}`);
+        const updateResult = await Subscription.findOneAndUpdate(
           { 
             userId: sess.uid,
             plan: sess.plan,
@@ -1281,6 +1284,7 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
               cancellationReason: null
             },
             $setOnInsert: { 
+              userId: sess.uid,
               createdAt: new Date()
             }
           },
@@ -1289,6 +1293,13 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
             new: true 
           }
         );
+        
+        console.log(`[paytr] Subscription update result:`, {
+          matchedCount: updateResult?.matchedCount,
+          modifiedCount: updateResult?.modifiedCount,
+          upsertedCount: updateResult?.upsertedCount,
+          upsertedId: updateResult?.upsertedId
+        });
 
         // Reset usage for the new plan
         const now = new Date();
@@ -1360,6 +1371,118 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
   }catch(e){
     console.error('[paytr] callback error:', e);
     return res.end('OK');
+  }
+});
+
+// Debug endpoint to check user and subscription data
+app.get('/api/debug/user-plan', async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) return res.status(400).json({ error: 'email_required' });
+    
+    const user = await User.findOne({ email }).lean();
+    if (!user) return res.status(404).json({ error: 'user_not_found' });
+    
+    const subscriptions = await Subscription.find({ userId: user._id })
+      .sort({ currentPeriodStart: -1 })
+      .lean();
+      
+    const usage = await Usage.findOne({ userId: user._id }).lean();
+    
+    return res.json({
+      user: {
+        _id: user._id,
+        email: user.email,
+        plan: user.plan,
+        planUpdatedAt: user.planUpdatedAt,
+        usage: user.usage
+      },
+      subscriptions,
+      usage,
+      serverTime: new Date()
+    });
+  } catch (e) {
+    console.error('[debug/user-plan] error:', e);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// Manual plan update (for admin/troubleshooting)
+app.post('/api/admin/update-plan', authRequired, async (req, res) => {
+  try {
+    // Check if user is admin
+    const user = await User.findById(req.auth.uid);
+    if (!user.isAdmin) {
+      return res.status(403).json({ error: 'forbidden' });
+    }
+
+    const { userId, plan } = req.body;
+    if (!userId || !['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
+      return res.status(400).json({ error: 'invalid_parameters' });
+    }
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Update user
+    await User.findByIdAndUpdate(userId, {
+      $set: {
+        plan,
+        planUpdatedAt: now,
+        'usage.dailyUsed': 0,
+        'usage.monthlyUsed': 0,
+        'usage.lastReset': now,
+        'usage.monthlyResetAt': startOfMonth
+      }
+    });
+
+    // Update usage collection
+    await Usage.updateOne(
+      { userId },
+      {
+        $set: {
+          'daily.used': 0,
+          'monthly.used': 0,
+          'daily.resetAt': now,
+          'monthly.resetAt': startOfMonth,
+          updatedAt: now
+        },
+        $setOnInsert: {
+          userId,
+          createdAt: now
+        }
+      },
+      { upsert: true }
+    );
+
+    // Update subscription
+    await Subscription.updateMany(
+      { userId },
+      { $set: { status: 'cancelled', updatedAt: now } }
+    );
+
+    await Subscription.findOneAndUpdate(
+      { userId, plan },
+      {
+        $set: {
+          status: 'active',
+          currentPeriodStart: now,
+          currentPeriodEnd: new Date(now.setMonth(now.getMonth() + 1)),
+          updatedAt: now
+        },
+        $setOnInsert: {
+          userId,
+          plan,
+          createdAt: now
+        }
+      },
+      { upsert: true, new: true }
+    );
+
+    return res.json({ success: true, message: 'Plan updated successfully' });
+  } catch (e) {
+    console.error('[admin/update-plan] error:', e);
+    return res.status(500).json({ error: 'server_error' });
   }
 });
 

@@ -43,10 +43,16 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const MAIL_FROM = process.env.MAIL_FROM || 'no-reply@konuskonuşabilirsen.com';
 // E-posta göndericisini oluştur
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  requireTLS: true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
+  },
+  tls: {
+    rejectUnauthorized: false
   }
 });
 
@@ -610,9 +616,10 @@ app.post('/api/contact', [
 
     const { name, email, message } = req.body;
     
-    // Email options
+    // Email options - send to admin
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: `"${name}" <${process.env.EMAIL_USER}>`,
+      replyTo: email, // Kullanıcının yanıt verebilmesi için
       to: 'info@konuskonusabilirsen.com',
       subject: `Yeni İletişim Formu: ${name}`,
       text: `
@@ -621,6 +628,8 @@ app.post('/api/contact', [
         
         Mesaj:
         ${message}
+        
+        Bu mesajı yanıtlamak için e-posta istemcinizde "Yanıtla" butonuna tıklayın.
       `,
       html: `
         <h2>Yeni İletişim Formu</h2>
@@ -628,27 +637,40 @@ app.post('/api/contact', [
         <p><strong>E-posta:</strong> ${email}</p>
         <p><strong>Mesaj:</strong></p>
         <p>${message.replace(/\n/g, '<br>')}</p>
+        <p><em>Bu mesajı yanıtlamak için e-posta istemcinizde "Yanıtla" butonuna tıklayın.</em></p>
       `
     };
 
-    // Send email
+    // Send email to admin
     await transporter.sendMail(mailOptions);
     
-    // Send a copy to the user
+    // Send a copy to the user from noreply address
     const userMailOptions = {
-      from: process.env.EMAIL_USER,
+      from: `"KonusKonusabilirsen" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Mesajınız Alındı - KonusKonusabilirsen',
-      text: `Merhaba ${name},\n\nSize en kısa sürede dönüş yapacağız.\n\nGönderdiğiniz mesaj:\n${message}\n\nSaygılarımızla,\nKonusKonusabilirsen Ekibi`,
+      text: `Merhaba ${name},
+
+İletişim formunuzu aldık. Size en kısa sürede dönüş yapacağız.
+
+Gönderdiğiniz mesaj:
+${message}
+
+Bu bir otomatik yanıttır. Lütfen bu e-postaya yanıt vermeyiniz.
+
+Saygılarımızla,
+KonusKonusabilirsen Ekibi`,
       html: `
         <p>Merhaba <strong>${name}</strong>,</p>
-        <p>Mesajınızı aldık. Size en kısa sürede dönüş yapacağız.</p>
+        <p>İletişim formunuzu aldık. Size en kısa sürede dönüş yapacağız.</p>
         <p><strong>Gönderdiğiniz mesaj:</strong></p>
         <p>${message.replace(/\n/g, '<br>')}</p>
+        <p><em>Bu bir otomatik yanıttır. Lütfen bu e-postaya yanıt vermeyiniz.</em></p>
         <p>Saygılarımızla,<br>KonusKonusabilirsen Ekibi</p>
       `
     };
 
+    // Send copy to user
     await transporter.sendMail(userMailOptions);
     
     res.json({ 

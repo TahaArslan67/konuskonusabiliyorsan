@@ -583,7 +583,7 @@ app.options('/api/contact', (req, res) => {
 });
 
 // Contact form submission
-app.post('/api/contact', express.json(), (req, res) => {
+app.post('/api/contact', express.json(), async (req, res) => {
   try {
     const { name, email, subject, message } = req.body;
 

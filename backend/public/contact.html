@@ -243,11 +243,38 @@
     // Yıl bilgisini güncelle
     document.getElementById('year').textContent = new Date().getFullYear();
     
+    // Hata mesajlarını göster
+    function showError(message) {
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'error-message';
+      errorDiv.textContent = message;
+      errorDiv.style.color = '#ff4d4d';
+      errorDiv.style.marginTop = '10px';
+      errorDiv.style.padding = '10px';
+      errorDiv.style.borderRadius = '4px';
+      errorDiv.style.backgroundColor = 'rgba(255, 77, 77, 0.1)';
+      
+      // Önceki hata mesajlarını temizle
+      const existingError = document.querySelector('.error-message');
+      if (existingError) {
+        existingError.remove();
+      }
+      
+      document.querySelector('form').appendChild(errorDiv);
+      window.scrollTo(0, document.body.scrollHeight);
+    }
+    
+    // Başarılı mesajını göster
+    function showSuccess(message) {
+      alert(message);
+    }
+    
     // Form gönderimini yönet
     document.getElementById('contactForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       
-      const submitBtn = this.querySelector('button[type="submit"]');
+      const form = this;
+      const submitBtn = form.querySelector('button[type="submit"]');
       const originalBtnText = submitBtn.textContent;
       
       try {
@@ -258,32 +285,44 @@
         
         // Form verilerini topla
         const formData = {
-          name: document.getElementById('name').value,
-          email: document.getElementById('email').value,
+          name: document.getElementById('name').value.trim(),
+          email: document.getElementById('email').value.trim(),
           subject: document.getElementById('subject').value,
-          message: document.getElementById('message').value
+          message: document.getElementById('message').value.trim()
         };
         
+        // Temel doğrulama
+        if (!formData.name || !formData.email || !formData.subject || !formData.message) {
+          throw new Error('Lütfen tüm alanları doldurunuz.');
+        }
+        
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+          throw new Error('Lütfen geçerli bir e-posta adresi giriniz.');
+        }
+        
         // Sunucuya gönder
-        const response = await fetch('/api/contact', {
+        const apiUrl = 'https://www.konuskonusabilirsen.com/api/contact';
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json'
           },
           body: JSON.stringify(formData)
         });
         
-        const result = await response.json();
-        
-        if (response.ok) {
-          alert('Mesajınız başarıyla gönderildi. En kısa sürede size dönüş yapacağız.');
-          this.reset();
-        } else {
-          throw new Error(result.error || 'Bir hata oluştu');
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.');
         }
+        
+        // Başarılı yanıt
+        showSuccess('Mesajınız başarıyla gönderildi. En kısa sürede size dönüş yapacağız.');
+        form.reset();
+        
       } catch (error) {
         console.error('Hata:', error);
-        alert('Mesajınız gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
+        showError(error.message || 'Mesajınız gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
       } finally {
         // Butonu tekrar aktif et
         submitBtn.disabled = false;

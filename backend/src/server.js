@@ -139,24 +139,12 @@ for (const o of allowedOriginsRaw) {
   } catch {}
 }
 
+// Allow all origins for now to ensure the contact form works
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests without Origin (same-origin or curl)
-    if (!origin) return callback(null, true);
-    // Always allow local development origins
-    const localOk = /^(http:\/\/localhost:\d+|http:\/\/127\.0\.0\.1:\d+)$/.test(origin);
-    if (localOk) return callback(null, true);
-    if (allowedOriginsSet.size === 0) return callback(null, true);
-    if (allowedOriginsSet.has(origin)) return callback(null, true);
-    try {
-      const u = new URL(origin);
-      const asciiHost = toASCII(u.hostname);
-      const normalized = `${u.protocol}//${asciiHost}${u.port ? ':'+u.port : ''}`;
-      if (allowedOriginsSet.has(normalized)) return callback(null, true);
-    } catch {}
-    return callback(new Error('Not allowed by CORS'));
-  },
-  credentials: true
+  origin: true, // Allow all origins
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Rate limit
@@ -586,8 +574,16 @@ app.use(express.static(publicDir, {
 app.get('/', (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
 app.get('/contact', (_req, res) => res.sendFile(path.join(publicDir, 'contact.html')));
 
+// Handle CORS preflight for contact form
+app.options('/api/contact', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.status(204).end();
+});
+
 // Contact form submission
-app.post('/api/contact', express.json(), async (req, res) => {
+app.post('/api/contact', express.json(), (req, res) => {
   try {
     const { name, email, subject, message } = req.body;
 

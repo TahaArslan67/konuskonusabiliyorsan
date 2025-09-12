@@ -189,49 +189,26 @@
 
   <main class="contact-container">
     <h1>Bizimle İletişime Geçin</h1>
-    <p>Herhangi bir sorunuz veya öneriniz mi var? Aşağıdaki formu doldurarak bize ulaşabilirsiniz. En kısa sürede size dönüş yapacağız.</p>
+    <p>Herhangi bir sorunuz veya öneriniz mi var? Aşağıdaki e-posta adresimizden bize ulaşabilirsiniz. En kısa sürede size dönüş yapacağız.</p>
     
-    <form id="contact-form" class="contact-form">
-      <div class="form-group">
-        <label for="name">Ad Soyad *</label>
-        <input type="text" id="name" name="name" required>
+    <div class="contact-email" style="text-align: center; margin: 3rem 0; padding: 2rem; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border-color);">
+      <div style="font-size: 1.5rem; margin-bottom: 1rem; color: var(--primary-color);">
+        <i class="fas fa-envelope" style="margin-right: 10px;"></i>
+        <a href="mailto:info@konuskonusabilirsen.com" style="color: var(--primary-color); text-decoration: none;">info@konuskonusabilirsen.com</a>
       </div>
-      
-      <div class="form-group">
-        <label for="email">E-posta Adresi *</label>
-        <input type="email" id="email" name="email" required>
-      </div>
-      
-      <div class="form-group">
-        <label for="subject">Konu *</label>
-        <select id="subject" name="subject" required>
-          <option value="">Bir konu seçiniz</option>
-          <option value="genel">Genel Soru</option>
-          <option value="teklif">Kurumsal Teklif</option>
-          <option value="destek">Teknik Destek</option>
-          <option value="isbirligi">İş Birliği</option>
-          <option value="diger">Diğer</option>
-        </select>
-      </div>
-      
-      <div class="form-group">
-        <label for="message">Mesajınız *</label>
-        <textarea id="message" name="message" required></textarea>
-      </div>
-      
-      <button type="submit" class="submit-btn">Gönder</button>
-    </form>
+      <p style="color: var(--muted-text); margin-top: 1rem;">E-posta göndermek için yukarıdaki adrese tıklayın</p>
+    </div>
     
-    <div class="contact-info">
-      <div class="info-box">
-        <h3>E-posta</h3>
-        <p><a href="mailto:info@konuskonusabilirsen.com">info@konuskonusabilirsen.com</a></p>
+    <div class="contact-info" style="margin-top: 3rem;">
+      <div class="info-box" style="text-align: center; padding: 1.5rem;">
+        <h3 style="margin-top: 0; color: var(--primary-color);">E-posta</h3>
+        <p style="margin-bottom: 0;"><a href="mailto:info@konuskonusabilirsen.com" style="color: var(--text-color); text-decoration: none;">info@konuskonusabilirsen.com</a></p>
       </div>
     </div>
   </main>
 
   <footer class="container footer">
-    <div>© <span id="year">2024</span> KonusKonusabilirsen. Tüm hakları saklıdır.</div>
+    <div> KonusKonusabilirsen. Tüm hakları saklıdır.</div>
     <nav class="nav small">
       <a href="/gizlilik">Gizlilik Politikası</a>
       <a href="/kullanim">Kullanım Koşulları</a>
@@ -243,123 +220,10 @@
     // Sayfa yüklendiğinde çalışacak fonksiyon
     document.addEventListener('DOMContentLoaded', function() {
       // Yıl bilgisini güncelle
-      document.getElementById('year').textContent = new Date().getFullYear();
-      
-      // Hata mesajlarını göster
-      function showError(message) {
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'error-message';
-        errorDiv.textContent = message;
-        errorDiv.style.color = '#ff4d4d';
-        errorDiv.style.marginTop = '10px';
-        errorDiv.style.padding = '10px';
-        errorDiv.style.borderRadius = '4px';
-        errorDiv.style.backgroundColor = 'rgba(255, 77, 77, 0.1)';
-        
-        // Önceki hata mesajlarını temizle
-        const existingError = document.querySelector('.error-message');
-        if (existingError) {
-          existingError.remove();
-        }
-        
-        // Hata mesajını formun altına ekle
-        const form = document.querySelector('form');
-        if (form) {
-          form.appendChild(errorDiv);
-          window.scrollTo(0, document.body.scrollHeight);
-        }
+      const yearElement = document.getElementById('year');
+      if (yearElement) {
+        yearElement.textContent = new Date().getFullYear();
       }
-      
-      // Başarılı mesajını göster
-      function showSuccess(message) {
-        alert(message);
-      }
-
-      // Debug bilgilerini göster
-      function logToDebug(debugDiv, message) {
-        if (!debugDiv) return;
-        const timestamp = new Date().toISOString();
-        debugDiv.textContent += `[${timestamp}] ${message}\n`;
-        debugDiv.scrollTop = debugDiv.scrollHeight;
-      }
-
-      // Form elementini al
-      const contactForm = document.getElementById('contact-form');
-      if (!contactForm) {
-        console.error('İletişim formu bulunamadı');
-        console.log('Mevcut form ID leri:', Array.from(document.forms).map(f => f.id || 'ID yok'));
-        return;
-      }
-
-      // Debug divini oluştur
-      let debugDiv = document.getElementById('debug-info');
-      if (!debugDiv) {
-        debugDiv = document.createElement('div');
-        debugDiv.id = 'debug-info';
-        debugDiv.style.marginTop = '20px';
-        debugDiv.style.padding = '15px';
-        debugDiv.style.border = '1px solid #ddd';
-        debugDiv.style.borderRadius = '5px';
-        debugDiv.style.backgroundColor = '#f9f9f9';
-        debugDiv.style.fontFamily = 'monospace';
-        debugDiv.style.whiteSpace = 'pre-wrap';
-        debugDiv.style.maxHeight = '300px';
-        debugDiv.style.overflow = 'auto';
-        contactForm.parentNode.insertBefore(debugDiv, contactForm.nextSibling);
-      }
-
-      // Form gönderimini dinle
-      contactForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const form = e.target;
-        const formData = new FormData(form);
-        const submitBtn = form.querySelector('button[type="submit"]');
-        const originalBtnText = submitBtn.textContent;
-        
-        try {
-          logToDebug(debugDiv, 'Form gönderiliyor...');
-          submitBtn.disabled = true;
-          submitBtn.textContent = 'Gönderiliyor...';
-          
-          const requestData = {
-            name: formData.get('name'),
-            email: formData.get('email'),
-            subject: formData.get('subject'),
-            message: formData.get('message')
-          };
-          
-          logToDebug(debugDiv, 'Gönderilen veri: ' + JSON.stringify(requestData, null, 2));
-          
-          const response = await fetch('/api/contact', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestData)
-          });
-          
-          const responseData = await response.json().catch(() => ({}));
-          
-          if (!response.ok) {
-            throw new Error(responseData.error || 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.');
-          }
-          
-          // Başarılı yanıt
-          showSuccess('Mesajınız başarıyla gönderildi. En kısa sürede size dönüş yapacağız.');
-          form.reset();
-          
-        } catch (error) {
-          console.error('Hata:', error);
-          showError(error.message || 'Mesajınız gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
-        } finally {
-          // Butonu tekrar aktif et
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = originalBtnText;
-          }
-        }
-      });
     });
   </script>
 </body>

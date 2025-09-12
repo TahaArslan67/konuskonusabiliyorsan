@@ -2418,6 +2418,7 @@ wss.on('connection', (clientWs, request) => {
       default: {
         // Forward unknown events verbatim for debugging
         clientWs.send(JSON.stringify(obj));
+      }
         break;
       }
     }
@@ -2494,3 +2495,4 @@ mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 5000 })
       console.log(`[server] Listening (without DB) on http://localhost:${PORT}`);
     });
   });
+}

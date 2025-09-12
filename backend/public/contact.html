@@ -185,8 +185,8 @@
     </nav>
   </header>
 
-  <main class="container" style="min-height: 60vh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 4rem 1rem;">
-    <div class="card" style="max-width: 800px; width: 100%; padding: 3rem 2rem; text-align: center; background: var(--card); border: 1px solid rgba(255,255,255,0.08);">
+  <main style="min-height: 60vh; width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 4rem 0;">
+    <div class="card" style="width: 100%; max-width: 1200px; padding: 4rem 2rem; text-align: center; background: var(--card); border: 1px solid rgba(255,255,255,0.08); margin: 0 auto;">
       <h1 style="color: var(--text-color); font-size: 2.5rem; margin-bottom: 1.5rem;">Bizimle İletişime Geçin</h1>
       <p style="color: var(--muted-text); font-size: 1.2rem; margin-bottom: 3rem; line-height: 1.6;">
         Herhangi bir sorunuz veya öneriniz mi var? Aşağıdaki e-posta adresimizden bize ulaşabilirsiniz. En kısa sürede size dönüş yapacağız.
@@ -201,6 +201,24 @@
       </div>
     </div>
   </main>
+
+  <style>
+    @media (max-width: 1024px) {
+      .card {
+        max-width: 90% !important;
+        padding: 3rem 1.5rem !important;
+      }
+    }
+    @media (max-width: 640px) {
+      .card {
+        max-width: 95% !important;
+        padding: 2rem 1rem !important;
+      }
+      h1 {
+        font-size: 2rem !important;
+      }
+    }
+  </style>
 
   <footer class="container footer" style="margin-top: auto;">
     <div> KonusKonusabilirsen. Tüm hakları saklıdır.</div>

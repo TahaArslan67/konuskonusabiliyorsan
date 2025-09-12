@@ -1363,6 +1363,36 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
   }
 });
 
+// Get current subscription status
+app.get('/api/subscription/status', authRequired, async (req, res) => {
+  try {
+    const user = await User.findById(req.auth.uid).lean();
+    if (!user) return res.status(404).json({ error: 'user_not_found' });
+    
+    const subscription = await Subscription.findOne({ 
+      userId: req.auth.uid,
+      status: 'active'
+    }).sort({ currentPeriodStart: -1 }).lean();
+    
+    const usage = await Usage.findOne({ userId: req.auth.uid }).lean();
+    
+    return res.json({
+      user: {
+        _id: user._id,
+        email: user.email,
+        plan: user.plan,
+        planUpdatedAt: user.planUpdatedAt,
+        usage: user.usage
+      },
+      subscription,
+      usage
+    });
+  } catch (e) {
+    console.error('[subscription/status] error:', e);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
 // Update user plan and reset usage
 app.post('/api/update-plan', authRequired, async (req, res) => {
   try {

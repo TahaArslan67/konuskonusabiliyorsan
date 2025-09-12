@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { toASCII } from 'punycode';
-import rateLimit from 'express-rate-limit';
+// express-rate-limit import edildi
 import morgan from 'morgan';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -25,8 +25,9 @@ const app = express();
 app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal']);
 
 // Rate limiting middleware
-const rateLimit = require('express-rate-limit');
+import rateLimit from 'express-rate-limit';
 
+// API rotalarına rate limit uygula
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 dakika
   max: 100, // Her IP için maksimum 100 istek
@@ -34,7 +35,6 @@ const apiLimiter = rateLimit({
   trustProxy: false
 });
 
-// API rotalarına rate limit uygula
 app.use('/api/', apiLimiter);
 const server = createServer(app);
 // Güvenlik başlıklarını ve proxy ayarlarını düzenle

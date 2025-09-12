@@ -28,14 +28,42 @@
   <main class="container center">
     <div class="card center">
       <h2 class="warn">Ödeme İptal Edildi veya Başarısız</h2>
-      <p>Her şey yolunda mı? Dilerseniz planları yeniden inceleyebilir veya tekrar deneyebilirsiniz.</p>
+      <p>İşlem bankanız tarafından reddedilmiş veya siz iptal etmiş olabilirsiniz. Tekrar deneyebilir ya da planları inceleyebilirsiniz.</p>
       <div class="actions">
+        <button id="retryPay" class="btn btn-primary">Tekrar Dene</button>
         <a href="/#pricing" class="btn btn-secondary">Planları Gör</a>
-        <a href="/realtime.html" class="btn btn-primary">Tekrar Dene</a>
         <a href="/" class="btn btn-text">Ana Sayfa</a>
       </div>
     </div>
   </main>
   <script src="/site.js" type="module"></script>
+  <script type="module">
+    const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : location.origin;
+    const btn = document.getElementById('retryPay');
+    btn?.addEventListener('click', async () => {
+      const token = localStorage.getItem('hk_token');
+      if (!token){
+        // Giriş yoksa login modaliyle geri dönülecek sayfayı bildir
+        window.location.href = '/?auth=1&redirect=/realtime.html';
+        return;
+      }
+      btn.disabled = true; btn.textContent = 'Başlatılıyor...';
+      try{
+        const r = await fetch(`${backendBase}/api/paytr/checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ plan: 'starter' })
+        });
+        const j = await r.json();
+        if (!r.ok){ alert(j?.error || 'Hata'); btn.disabled=false; btn.textContent='Tekrar Dene'; return; }
+        if (j?.iframe_url){ window.location.href = j.iframe_url; return; }
+        alert('Ödeme başlatılamadı');
+      } catch(e){
+        alert('Bağlantı hatası');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Tekrar Dene';
+      }
+    });
+  </script>
 </body>
 </html>

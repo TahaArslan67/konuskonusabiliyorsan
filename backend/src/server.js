@@ -748,6 +748,28 @@ function maskToken(t){
   } catch { return '****'; }
 }
 
+// Payment success email (Resend)
+async function sendPaymentSuccessEmail(to, { plan, amountTl, oid }){
+  try{
+    if (!resend || !MAIL_FROM) return;
+    const titlePlan = String(plan || 'starter').toUpperCase();
+    const amountStr = typeof amountTl === 'number' ? amountTl.toFixed(2).replace('.', ',') : String(amountTl);
+    const subject = `Ödemeniz alındı: ${titlePlan} plan`;
+    const html = `
+      <div style="font-family:Arial,sans-serif;line-height:1.6">
+        <h2>Teşekkürler!</h2>
+        <p>${titlePlan} plan için ödemeniz başarıyla alındı.</p>
+        <p><strong>Tutar:</strong> ${amountStr} TL</p>
+        <p><strong>Sipariş No:</strong> ${oid}</p>
+        <p>Hesabınızda abonelik durumunu görüntülemek için <a href="https://konuskonusabilirsen.com/account.html">Hesabım</a> sayfasını ziyaret edebilirsiniz.</p>
+        <hr/>
+        <p>Herhangi bir sorunuz olursa bu e-postayı yanıtlayabilirsiniz.</p>
+      </div>`;
+    const { error } = await resend.emails.send({ from: MAIL_FROM, to, subject, html });
+    if (error) console.warn('[resend] payment-success email error:', error);
+  } catch (e){ console.warn('[resend] payment-success send error:', e); }
+}
+
 // Request password reset link
 app.post('/auth/forgot', [body('email').isEmail()], async (req, res) => {
   try {
@@ -990,6 +1012,13 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
           { $set: { status: 'active', currentPeriodEnd: null } },
           { upsert: true }
         );
+        // Send email notification (best-effort)
+        try{
+          const userDoc = await User.findById(sess.uid).lean();
+          const email = userDoc?.email || null;
+          const amountTl = Number(total_amount) / 100;
+          if (email) await sendPaymentSuccessEmail(email, { plan: sess.plan, amountTl, oid: merchant_oid });
+        } catch (e){ console.warn('[paytr] email notify error:', e?.message || e); }
       }
       iyzPending.delete(merchant_oid);
     }

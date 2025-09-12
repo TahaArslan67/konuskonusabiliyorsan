@@ -594,6 +594,11 @@ app.use(express.static(publicDir, {
 app.get('/', (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
 app.get('/contact', (_req, res) => res.sendFile(path.join(publicDir, 'contact.html')));
 
+// Redirect success.html to main domain
+app.get('/success.html', (req, res) => {
+  res.redirect(301, 'https://konuskonusabilirsen.com/konus');
+});
+
 // Handle contact form submission
 app.post('/api/contact', [
   body('name').trim().notEmpty().withMessage('Lütfen adınızı girin'),
@@ -1089,8 +1094,6 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
     const user_name = 'Hemen Konus';
     const user_address = 'İstanbul';
     const user_phone = '+905555555555';
-    const merchant_ok_url = `${req.protocol}://${req.get('host')}/success.html`;
-    const merchant_fail_url = `${req.protocol}://${req.get('host')}/cancel.html`;
     const currency = 'TL';
     const test_mode = 1; // sandbox
     const non_3d = 0;
@@ -1109,6 +1112,11 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
       .update(hash_str + PAYTR_MERCHANT_SALT, 'utf8')
       .digest('base64');
 
+    // Use main domain for callbacks
+    const baseUrl = 'https://konuskonusabilirsen.com';
+    const merchant_ok_url = `${baseUrl}/success.html`;
+    const merchant_fail_url = `${baseUrl}/?payment=failed`;
+    
     const form = new URLSearchParams({
       merchant_id: PAYTR_MERCHANT_ID,
       user_ip,

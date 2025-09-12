@@ -39,19 +39,32 @@
   </main>
   <script src="/site.js" type="module"></script>
   <script>
-    (function(){
+    // Wait for site.js to load
+    document.addEventListener('DOMContentLoaded', function() {
+      // Use the backendBase from site.js or fallback to current origin
+      const backendBase = window.backendBase || window.location.origin;
+      
       try {
         const token = localStorage.getItem('hk_token');
         if (!token) return;
-        fetch('/me', { headers: { Authorization: `Bearer ${token}` } })
-          .then(r => r.ok ? r.json() : null)
-          .then(me => {
-            if (!me) return;
-            const el = document.getElementById('planInfo');
-            if (el) el.textContent = `Planınız: ${me.plan || 'free'}`;
-          });
-      } catch {}
-    })();
+        
+        fetch(`${backendBase}/me`, { 
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        .then(r => r.ok ? r.json() : null)
+        .then(me => {
+          if (!me) return;
+          const el = document.getElementById('planInfo');
+          if (el) el.textContent = `Planınız: ${me.plan || 'free'}`;
+        })
+        .catch(error => console.error('Error fetching user data:', error));
+      } catch (error) {
+        console.error('Error in success page script:', error);
+      }
+    });
   </script>
 </body>
 </html>

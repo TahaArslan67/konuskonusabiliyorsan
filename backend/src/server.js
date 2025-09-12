@@ -1918,9 +1918,12 @@ wss.on('connection', (clientWs, request) => {
         }
         return;
       }
-      if (t === 'audio_stop') {
-        // Only commit if we actually appended audio; otherwise ignore to avoid empty-commit errors
-        if (!hasAppendedAudio || appendedBytes < 4800) {
+      if (t === 'stop' || t === 'audio_stop') {
+        // If this is a manual stop, always process it regardless of audio state
+        if (t === 'stop') {
+          console.log('[proxy] Received manual stop request');
+        } else if (!hasAppendedAudio || appendedBytes < 4800) {
+          // For audio_stop, only commit if we have sufficient audio
           console.log('[proxy] audio_stop ignored (insufficient audio)');
           return;
         }
@@ -2225,6 +2228,17 @@ wss.on('connection', (clientWs, request) => {
 
   clientWs.on('close', () => {
     console.log('[server] Client disconnected.');
+    // Ensure we save any remaining usage before cleaning up
+    if (sess && sess.usage) {
+      const usage = sess.usage;
+      if (usage.startTime) {
+        const endTime = new Date();
+        const seconds = Math.ceil((endTime - new Date(usage.startTime)) / 1000);
+        if (seconds > 0) {
+          addUsageFromSeconds(seconds);
+        }
+      }
+    }
     cleanup();
   });
 

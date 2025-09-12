@@ -790,7 +790,40 @@ async function wsConnect(){
 
 function wsStop(){
   wsForceSilence = true;
-  try { if (ws) ws.close(); } catch {}
+  try { 
+    if (ws) {
+      // Send a stop message to the server before closing
+      try { ws.send(JSON.stringify({ type: 'stop' })); } catch {}
+      ws.close(); 
+    }
+  } catch {}
+  
+  // Update UI elements
+  const btnStart = $('#btnStartTalk');
+  const btnStop = $('#btnStopTalk');
+  if (btnStart) btnStart.disabled = false;
+  if (btnStop) btnStop.disabled = true;
+  
+  // Stop any ongoing audio
+  if (wsPlaybackCtx) {
+    try { wsPlaybackCtx.suspend(); } catch {}
+  }
+  
+  // Stop microphone
+  wsStopMic();
+  
+  // Update status
+  if (statusConnEl) statusConnEl.textContent = 'Bağlantı: Kapalı';
+  if (statusMicEl) statusMicEl.textContent = 'Mikrofon: Kapalı';
+  
+  // Reset states
+  wsMicStreaming = false;
+  wsBotSpeaking = false;
+  wsBargeInPending = false;
+  wsBargeInConfirmed = false;
+  
+  // Send usage update to server
+  updateUsageFromApi();
 }
 
 async function wsMicOn(){

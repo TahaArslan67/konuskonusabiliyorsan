@@ -582,20 +582,7 @@ app.options('/api/contact', (req, res) => {
   res.status(204).end();
 });
 
-// Initialize Resend if not already initialized
-if (process.env.RESEND_API_KEY && !global.resend) {
-  try {
-    const { Resend } = await import('resend');
-    global.resend = new Resend(process.env.RESEND_API_KEY);
-    console.log('Resend initialized successfully');
-  } catch (error) {
-    console.error('Failed to initialize Resend:', error);
-  }
-} else if (!process.env.RESEND_API_KEY) {
-  console.warn('RESEND_API_KEY is not set. Emails will be logged to console only.');
-}
-
-const resend = global.resend;
+// Resend is already initialized at the top of the file
 
 // Contact form submission
 app.post('/api/contact', express.json(), async (req, res) => {
@@ -613,7 +600,7 @@ app.post('/api/contact', express.json(), async (req, res) => {
 
     // Send email using Resend with detailed logging
     const emailData = {
-      from: `"${name}" <${process.env.MAIL_FROM || 'onboarding@resend.dev'}>`,
+      from: `"${name}" <${MAIL_FROM}>`,
       to: 'info@konuskonusabilirsen.com',
       reply_to: email,
       subject: `İletişim Formu: ${subject}`,

@@ -16,7 +16,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 import Iyzipay from 'iyzipay';
 import crypto from 'crypto';
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import fs from 'fs';
 
 const app = express();
@@ -41,7 +41,16 @@ const PAYTR_MERCHANT_KEY = process.env.PAYTR_MERCHANT_KEY || '';
 const PAYTR_MERCHANT_SALT = process.env.PAYTR_MERCHANT_SALT || '';
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const MAIL_FROM = process.env.MAIL_FROM || 'no-reply@konuskonuşabilirsen.com';
-const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
+// E-posta göndericiyi oluştur
+const transporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false, // true for 465, false for other ports
+  auth: {
+    user: process.env.EMAIL_USER || 'your-email@gmail.com',
+    pass: process.env.EMAIL_PASS || 'your-app-password'
+  }
+});
 // Admins (comma-separated emails)
 const ADMIN_EMAILS = new Set(String(process.env.ADMIN_EMAILS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
 
@@ -598,61 +607,35 @@ app.post('/api/contact', express.json(), async (req, res) => {
       return res.status(400).json({ error: 'Geçerli bir e-posta adresi giriniz.' });
     }
 
-    // Send email using Resend with detailed logging
-    const emailData = {
-      from: `"${name}" <${MAIL_FROM}>`,
-      to: 'info@konuskonusabilirsen.com',
-      reply_to: email,
-      subject: `İletişim Formu: ${subject}`,
-      html: `
-        <h2>Yeni İletişim Formu Gönderimi</h2>
-        <p><strong>Ad Soyad:</strong> ${name}</p>
-        <p><strong>E-posta:</strong> ${email}</p>
-        <p><strong>Konu:</strong> ${subject}</p>
-        <p><strong>Mesaj:</strong></p>
-        <p>${message.replace(/\n/g, '<br>')}</p>
-      `,
-    };
+    // E-posta gönder
+    try {
+      const mailOptions = {
+        from: `"${name}" <${process.env.EMAIL_USER}>`,
+        to: 'info@konuskonusabilirsen.com',
+        replyTo: email,
+        subject: `İletişim Formu: ${subject}`,
+        html: `
+          <h2>Yeni İletişim Formu Gönderimi</h2>
+          <p><strong>Ad Soyad:</strong> ${name}</p>
+          <p><strong>E-posta:</strong> ${email}</p>
+          <p><strong>Konu:</strong> ${subject}</p>
+          <p><strong>Mesaj:</strong></p>
+          <p>${message.replace(/\n/g, '<br>')}</p>
+        `
+      };
 
-    console.log('Environment Variables:', {
-      NODE_ENV: process.env.NODE_ENV,
-      RESEND_API_KEY: process.env.RESEND_API_KEY ? '***' + process.env.RESEND_API_KEY.slice(-4) : 'Not set',
-      MAIL_FROM: process.env.MAIL_FROM
-    });
+      console.log('E-posta gönderiliyor:', {
+        from: mailOptions.from,
+        to: mailOptions.to,
+        subject: mailOptions.subject
+      });
 
-    console.log('Attempting to send email with data:', {
-      ...emailData,
-      html: emailData.html.substring(0, 100) + '...' // Kısaltılmış HTML içeriği
-    });
-
-    if (resend) {
-      try {
-        console.log('Sending email via Resend...');
-        const response = await resend.emails.send(emailData);
-        console.log('Resend API Response:', response);
-        
-        if (response.error) {
-          console.error('Resend API Error:', response.error);
-          throw new Error(response.error.message || 'E-posta gönderilirken bir hata oluştu');
-        }
-        
-        console.log('Email sent successfully with ID:', response.data?.id);
-        console.log('Email sent to:', emailData.to);
-        return { success: true, message: 'E-posta başarıyla gönderildi', emailId: response.data?.id };
-      } catch (error) {
-        console.error('Error sending email via Resend:', error);
-        console.error('Error details:', {
-          message: error.message,
-          stack: error.stack,
-          code: error.code,
-          statusCode: error.statusCode
-        });
-        throw error;
-      }
-    } else {
-      const errorMsg = 'Resend API başlatılamadı. Lütfen RESEND_API_KEY kontrol edin.';
-      console.error(errorMsg);
-      throw new Error(errorMsg);
+      const info = await transporter.sendMail(mailOptions);
+      console.log('E-posta gönderildi:', info.messageId);
+      return { success: true, message: 'E-posta başarıyla gönderildi', messageId: info.messageId };
+    } catch (error) {
+      console.error('E-posta gönderme hatası:', error);
+      throw new Error('E-posta gönderilirken bir hata oluştu: ' + error.message);
     }
 
     res.json({ success: true });

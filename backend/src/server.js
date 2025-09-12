@@ -1922,6 +1922,24 @@ wss.on('connection', (clientWs, request) => {
         // If this is a manual stop, always process it regardless of audio state
         if (t === 'stop') {
           console.log('[proxy] Received manual stop request');
+          // Force update usage when manual stop is received
+          if (speechStartTs) {
+            const seconds = Math.max(0, (Date.now() - speechStartTs) / 1000);
+            const usage = addUsageFromSeconds(seconds);
+            // Send updated usage to client
+            clientWs.send(JSON.stringify({ 
+              type: 'usage_update', 
+              usage: { 
+                usedDaily: usage.usedDaily, 
+                usedMonthly: usage.usedMonthly, 
+                limits: usage.limits 
+              } 
+            }));
+            speechStartTs = null;
+          }
+          // Clean up and close the connection
+          cleanup();
+          return;
         } else if (!hasAppendedAudio || appendedBytes < 4800) {
           // For audio_stop, only commit if we have sufficient audio
           console.log('[proxy] audio_stop ignored (insufficient audio)');

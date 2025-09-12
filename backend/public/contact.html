@@ -244,25 +244,52 @@
     document.getElementById('year').textContent = new Date().getFullYear();
     
     // Form gönderimini yönet
-    document.getElementById('contactForm').addEventListener('submit', function(e) {
+    document.getElementById('contactForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       
-      // Form verilerini topla
-      const formData = {
-        name: document.getElementById('name').value,
-        email: document.getElementById('email').value,
-        subject: document.getElementById('subject').value,
-        message: document.getElementById('message').value
-      };
+      const submitBtn = this.querySelector('button[type="submit"]');
+      const originalBtnText = submitBtn.textContent;
       
-      // Burada form verilerini işleyebilir veya bir API'ye gönderebilirsiniz
-      console.log('Form gönderildi:', formData);
-      
-      // Kullanıcıya geri bildirim göster
-      alert('Mesajınız başarıyla gönderildi. En kısa sürede sizinle iletişime geçeceğiz.');
-      
-      // Formu sıfırla
-      this.reset();
+      try {
+        // Butonu devre dışı bırak ve yükleniyor göster
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Gönderiliyor...';
+        submitBtn.style.opacity = '0.7';
+        
+        // Form verilerini topla
+        const formData = {
+          name: document.getElementById('name').value,
+          email: document.getElementById('email').value,
+          subject: document.getElementById('subject').value,
+          message: document.getElementById('message').value
+        };
+        
+        // Sunucuya gönder
+        const response = await fetch('/api/contact', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          alert('Mesajınız başarıyla gönderildi. En kısa sürede size dönüş yapacağız.');
+          this.reset();
+        } else {
+          throw new Error(result.error || 'Bir hata oluştu');
+        }
+      } catch (error) {
+        console.error('Hata:', error);
+        alert('Mesajınız gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
+      } finally {
+        // Butonu tekrar aktif et
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+        submitBtn.style.opacity = '1';
+      }
     });
   </script>
 </body>

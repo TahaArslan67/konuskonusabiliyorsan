@@ -585,6 +585,55 @@ app.use(express.static(publicDir, {
 }));
 app.get('/', (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
 app.get('/contact', (_req, res) => res.sendFile(path.join(publicDir, 'contact.html')));
+
+// Contact form submission
+app.post('/api/contact', express.json(), async (req, res) => {
+  try {
+    const { name, email, subject, message } = req.body;
+
+    // Basic validation
+    if (!name || !email || !subject || !message) {
+      return res.status(400).json({ error: 'Lütfen tüm alanları doldurunuz.' });
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      return res.status(400).json({ error: 'Geçerli bir e-posta adresi giriniz.' });
+    }
+
+    // Send email using Resend
+    if (resend) {
+      await resend.emails.send({
+        from: `"${name}" <${MAIL_FROM}>`,
+        to: 'info@konuskonusabilirsen.com',
+        reply_to: email,
+        subject: `İletişim Formu: ${subject}`,
+        html: `
+          <h2>Yeni İletişim Formu Gönderimi</h2>
+          <p><strong>Ad Soyad:</strong> ${name}</p>
+          <p><strong>E-posta:</strong> ${email}</p>
+          <p><strong>Konu:</strong> ${subject}</p>
+          <p><strong>Mesaj:</strong></p>
+          <p>${message.replace(/\n/g, '<br>')}</p>
+        `,
+      });
+    } else {
+      console.warn('Resend API key not configured. Email would be sent to:', {
+        to: 'info@konuskonusabilirsen.com',
+        from: `"${name}" <${MAIL_FROM}>`,
+        replyTo: email,
+        subject: `İletişim Formu: ${subject}`,
+        message
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Contact form error:', error);
+    res.status(500).json({ 
+      error: 'Mesajınız gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.' 
+    });
+  }
+});
 // Fallback for browsers requesting /favicon.ico
 app.get('/favicon.ico', (_req, res) => {
   try {

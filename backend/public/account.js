@@ -75,54 +75,6 @@ async function init(){
       if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)} / ${usage.limits?.monthly ?? '-' } dk`;
     }
 
-    // Plan seçimi için event listener ekle
-    const planSelect = $('#accPlan');
-    if (planSelect) {
-      // Mevcut planı seç
-      planSelect.value = me.plan || 'free';
-      
-      // Plan değişikliği işleyicisi
-      planSelect.addEventListener('change', async (e) => {
-        const newPlan = e.target.value;
-        const confirmChange = confirm(`Planı '${newPlan}' olarak değiştirmek istediğinize emin misiniz? Kullanım süreleriniz sıfırlanacaktır.`);
-        
-        if (confirmChange) {
-          const msg = $('#accMsg'); 
-          if (msg) msg.textContent = 'Plan güncelleniyor...';
-          
-          try {
-            const response = await fetch(`${backendBase}/api/update-plan`, {
-              method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${getToken()}`
-              },
-              body: JSON.stringify({ plan: newPlan })
-            });
-            
-            const result = await response.json();
-            
-            if (!response.ok) {
-              throw new Error(result.error || 'Plan güncellenirken bir hata oluştu');
-            }
-            
-            // Başarılı olduğunda sayfayı yenile
-            if (msg) msg.textContent = 'Plan başarıyla güncellendi. Sayfa yenileniyor...';
-            setTimeout(() => window.location.reload(), 1500);
-            
-          } catch (error) {
-            console.error('Plan güncelleme hatası:', error);
-            if (msg) msg.textContent = error.message || 'Plan güncellenirken bir hata oluştu';
-            // Hata durumunda planı eski haline getir
-            planSelect.value = me.plan || 'free';
-          }
-        } else {
-          // İptal durumunda planı eski haline getir
-          planSelect.value = me.plan || 'free';
-        }
-      });
-    }
-
     const btnSave = $('#accSave');
     if (btnSave){
       btnSave.addEventListener('click', async () => {
@@ -133,28 +85,13 @@ async function init(){
         const msg = $('#accMsg'); if (msg) msg.textContent = 'Kaydediliyor...';
         try{
           const rr = await fetch(`${backendBase}/me/preferences`, {
-            method:'PATCH', 
-            headers:{
-              'Content-Type':'application/json', 
-              'Authorization': `Bearer ${getToken()}` 
-            },
-            body: JSON.stringify({ 
-              preferredLearningLanguage, 
-              preferredNativeLanguage, 
-              preferredVoice, 
-              preferredCorrectionMode 
-            })
+            method:'PATCH', headers:{ 'Content-Type':'application/json', Authorization: `Bearer ${getToken()}` },
+            body: JSON.stringify({ preferredLearningLanguage, preferredNativeLanguage, preferredVoice, preferredCorrectionMode })
           });
           const jj = await rr.json();
-          if (!rr.ok){ 
-            if (msg) msg.textContent = jj?.error || 'Hata'; 
-            return; 
-          }
-          if (msg) msg.textContent = 'Tercihler kaydedildi';
-        } catch (e){ 
-          console.error('Tercih kaydetme hatası:', e);
-          if (msg) msg.textContent = 'Bağlantı hatası'; 
-        }
+          if (!rr.ok){ if (msg) msg.textContent = jj?.error || 'Hata'; return; }
+          if (msg) msg.textContent = 'Kaydedildi';
+        } catch (e){ if (msg) msg.textContent = 'Bağlantı hatası'; }
       });
     }
 

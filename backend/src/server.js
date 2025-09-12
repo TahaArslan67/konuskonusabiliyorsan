@@ -586,17 +586,14 @@ app.get('/contact', (_req, res) => res.sendFile(path.join(publicDir, 'contact.ht
 // Handle CORS preflight for contact form
 app.options('/api/contact', (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.status(204).end();
+  res.status(200).end();
 });
-
-// Resend is already initialized at the top of the file
 
 // Contact form submission
 app.post('/api/contact', express.json(), async (req, res) => {
   try {
-    const { name, email, subject, message } = req.body;
+    const { name, email, subject, message } = req.body || {};
+    console.log('Received contact form submission:', { name, email, subject, message });
 
     // Basic validation
     if (!name || !email || !subject || !message) {
@@ -610,7 +607,7 @@ app.post('/api/contact', express.json(), async (req, res) => {
     // E-posta gönder
     try {
       const mailOptions = {
-        from: `"${name}" <${process.env.EMAIL_USER}>`,
+        from: `"${name}" <${process.env.EMAIL_USER || 'noreply@konuskonusabilirsen.com'}>`,
         to: 'info@konuskonusabilirsen.com',
         replyTo: email,
         subject: `İletişim Formu: ${subject}`,
@@ -620,7 +617,7 @@ app.post('/api/contact', express.json(), async (req, res) => {
           <p><strong>E-posta:</strong> ${email}</p>
           <p><strong>Konu:</strong> ${subject}</p>
           <p><strong>Mesaj:</strong></p>
-          <p>${message.replace(/\n/g, '<br>')}</p>
+          <p>${String(message).replace(/\n/g, '<br>')}</p>
         `
       };
 
@@ -630,19 +627,27 @@ app.post('/api/contact', express.json(), async (req, res) => {
         subject: mailOptions.subject
       });
 
+      if (!transporter) {
+        throw new Error('E-posta servisi başlatılamadı. Lütfen yapılandırmayı kontrol edin.');
+      }
+
       const info = await transporter.sendMail(mailOptions);
       console.log('E-posta gönderildi:', info.messageId);
-      return { success: true, message: 'E-posta başarıyla gönderildi', messageId: info.messageId };
+      
+      // Başarılı yanıt döndür
+      return res.json({ 
+        success: true, 
+        message: 'Mesajınız başarıyla gönderildi. En kısa sürede size dönüş yapacağız.' 
+      });
+      
     } catch (error) {
       console.error('E-posta gönderme hatası:', error);
       throw new Error('E-posta gönderilirken bir hata oluştu: ' + error.message);
     }
-
-    res.json({ success: true });
   } catch (error) {
     console.error('Contact form error:', error);
     res.status(500).json({ 
-      error: 'Mesajınız gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.' 
+      error: error.message || 'Mesajınız gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.' 
     });
   }
 });

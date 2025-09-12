@@ -20,12 +20,34 @@ import nodemailer from 'nodemailer';
 import fs from 'fs';
 
 const app = express();
+
+// Güvenli trust proxy ayarı
+app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal']);
+
+// Rate limiting middleware
+const rateLimit = require('express-rate-limit');
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 dakika
+  max: 100, // Her IP için maksimum 100 istek
+  message: 'Çok fazla istek yaptınız, lütfen 15 dakika sonra tekrar deneyin.',
+  trustProxy: false
+});
+
+// API rotalarına rate limit uygula
+app.use('/api/', apiLimiter);
 const server = createServer(app);
-// Trust proxy headers (Render/Heroku/Nginx vb.) so rate-limit and req.ip work correctly
-// This fixes ERR_ERL_UNEXPECTED_X_FORWARDED_FOR from express-rate-limit
-app.set('trust proxy', 1);
-// Remove X-Powered-By header
+// Güvenlik başlıklarını ve proxy ayarlarını düzenle
 app.disable('x-powered-by');
+
+// CORS ayarları
+app.use((req, res, next) => {
+  res.header('X-Content-Type-Options', 'nosniff');
+  res.header('X-Frame-Options', 'DENY');
+  res.header('X-XSS-Protection', '1; mode=block');
+  res.header('Content-Security-Policy', "default-src 'self'");
+  next();
+});
 
 // Env
 const PORT = process.env.PORT || 8080;

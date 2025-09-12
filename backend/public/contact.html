@@ -180,10 +180,56 @@
       <a href="/#features">Özellikler</a>
       <a href="/#pricing">Fiyatlandırma</a>
       <a href="/contact" class="active">İletişim</a>
+      
       <button class="btn btn-text" id="btnAccount" type="button" style="display:none;">Hesabım <span id="verifyDot" class="dot" style="display:none;"></span></button>
       <button class="btn btn-secondary" id="btnLogin" type="button">Giriş Yap</button>
-      <a href="/#pricing" class="btn btn-primary" id="btnStart">Hemen Başla</a>
+      <a href="#" class="btn btn-primary" id="btnStart">Hemen Başla</a>
+      <button id="btnMenu" class="btn btn-secondary btn-sm" type="button" aria-label="Menüyü Aç" style="display:none;">
+        <span aria-hidden="true">☰</span>
+      </button>
     </nav>
+    <script>
+      // Sayfa yüklendiğinde header'ı güncelle
+      document.addEventListener('DOMContentLoaded', function() {
+        // Yıl bilgisini güncelle
+        const yearElement = document.getElementById('year');
+        if (yearElement) {
+          yearElement.textContent = new Date().getFullYear();
+        }
+        
+        // Header'ı güncelle
+        updateHeader();
+        
+        // Mobil menü butonunu yönet
+        const btnMenu = document.getElementById('btnMenu');
+        const nav = document.querySelector('.nav');
+        
+        if (btnMenu && window.innerWidth <= 640) {
+          btnMenu.style.display = 'inline-flex';
+          
+          btnMenu.addEventListener('click', function() {
+            const isExpanded = nav.style.display === 'flex';
+            nav.style.display = isExpanded ? 'none' : 'flex';
+          });
+          
+          // Ekran boyutu değiştiğinde kontrol et
+          window.addEventListener('resize', function() {
+            if (window.innerWidth > 640) {
+              nav.style.display = '';
+              btnMenu.style.display = 'none';
+            } else {
+              btnMenu.style.display = 'inline-flex';
+              nav.style.display = 'none';
+            }
+          });
+          
+          // Mobilde menüyü başlangıçta gizle
+          if (window.innerWidth <= 640) {
+            nav.style.display = 'none';
+          }
+        }
+      });
+    </script>
   </header>
 
   <main>
@@ -297,5 +343,7 @@
       }
     });
   </script>
+  <!-- Site genel JavaScript -->
+  <script src="/site.js"></script>
 </body>
 </html>

@@ -582,6 +582,20 @@ app.options('/api/contact', (req, res) => {
   res.status(204).end();
 });
 
+// Initialize Resend with detailed logging
+let resend;
+if (process.env.RESEND_API_KEY) {
+  try {
+    const { Resend } = await import('resend');
+    resend = new Resend(process.env.RESEND_API_KEY);
+    console.log('Resend initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize Resend:', error);
+  }
+} else {
+  console.warn('RESEND_API_KEY is not set. Emails will be logged to console only.');
+}
+
 // Contact form submission
 app.post('/api/contact', express.json(), async (req, res) => {
   try {
@@ -596,30 +610,44 @@ app.post('/api/contact', express.json(), async (req, res) => {
       return res.status(400).json({ error: 'Geçerli bir e-posta adresi giriniz.' });
     }
 
-    // Send email using Resend
+    // Send email using Resend with detailed logging
+    // Geçici olarak doğrulanmış bir e-posta adresi kullanıyoruz
+    const verifiedEmail = 'onboarding@resend.dev'; // Resend'in test e-posta adresi
+    const emailData = {
+      from: `"${name}" <${verifiedEmail}>`,
+      to: 'info@konuskonusabilirsen.com',
+      reply_to: email,
+      subject: `İletişim Formu: ${subject}`,
+      html: `
+        <h2>Yeni İletişim Formu Gönderimi</h2>
+        <p><strong>Ad Soyad:</strong> ${name}</p>
+        <p><strong>E-posta:</strong> ${email}</p>
+        <p><strong>Konu:</strong> ${subject}</p>
+        <p><strong>Mesaj:</strong></p>
+        <p>${message.replace(/\n/g, '<br>')}</p>
+      `,
+    };
+
+    console.log('Attempting to send email with data:', JSON.stringify(emailData, null, 2));
+
     if (resend) {
-      await resend.emails.send({
-        from: `"${name}" <${MAIL_FROM}>`,
-        to: 'info@konuskonusabilirsen.com',
-        reply_to: email,
-        subject: `İletişim Formu: ${subject}`,
-        html: `
-          <h2>Yeni İletişim Formu Gönderimi</h2>
-          <p><strong>Ad Soyad:</strong> ${name}</p>
-          <p><strong>E-posta:</strong> ${email}</p>
-          <p><strong>Konu:</strong> ${subject}</p>
-          <p><strong>Mesaj:</strong></p>
-          <p>${message.replace(/\n/g, '<br>')}</p>
-        `,
-      });
+      try {
+        const response = await resend.emails.send(emailData);
+        console.log('Resend API Response:', JSON.stringify(response, null, 2));
+        
+        if (response.error) {
+          console.error('Resend API Error:', response.error);
+          throw new Error(response.error.message || 'E-posta gönderilirken bir hata oluştu');
+        }
+        
+        console.log('Email sent successfully with ID:', response.data?.id);
+      } catch (error) {
+        console.error('Error sending email via Resend:', error);
+        // Don't fail the request, just log the error
+        console.warn('Email content that failed to send:', emailData);
+      }
     } else {
-      console.warn('Resend API key not configured. Email would be sent to:', {
-        to: 'info@konuskonusabilirsen.com',
-        from: `"${name}" <${MAIL_FROM}>`,
-        replyTo: email,
-        subject: `İletişim Formu: ${subject}`,
-        message
-      });
+      console.warn('Resend not initialized. Email would be sent to:', emailData);
     }
 
     res.json({ success: true });

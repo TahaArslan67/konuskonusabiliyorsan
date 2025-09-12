@@ -191,7 +191,7 @@
     <h1>Bizimle İletişime Geçin</h1>
     <p>Herhangi bir sorunuz veya öneriniz mi var? Aşağıdaki formu doldurarak bize ulaşabilirsiniz. En kısa sürede size dönüş yapacağız.</p>
     
-    <form id="contactForm" class="contact-form">
+    <form id="contact-form" class="contact-form">
       <div class="form-group">
         <label for="name">Ad Soyad *</label>
         <input type="text" id="name" name="name" required>
@@ -287,6 +287,7 @@
       const contactForm = document.getElementById('contact-form');
       if (!contactForm) {
         console.error('İletişim formu bulunamadı');
+        console.log('Mevcut form ID leri:', Array.from(document.forms).map(f => f.id || 'ID yok'));
         return;
       }
 

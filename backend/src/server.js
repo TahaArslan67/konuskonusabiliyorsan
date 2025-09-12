@@ -584,6 +584,7 @@ app.use(express.static(publicDir, {
   }
 }));
 app.get('/', (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
+app.get('/contact', (_req, res) => res.sendFile(path.join(publicDir, 'contact.html')));
 // Fallback for browsers requesting /favicon.ico
 app.get('/favicon.ico', (_req, res) => {
   try {

@@ -2418,7 +2418,6 @@ wss.on('connection', (clientWs, request) => {
       default: {
         // Forward unknown events verbatim for debugging
         clientWs.send(JSON.stringify(obj));
-      }
         break;
       }
     }

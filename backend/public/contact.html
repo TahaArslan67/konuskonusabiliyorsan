@@ -194,10 +194,13 @@
       </p>
       
       <div style="margin-top: 2rem;">
-        <a href="mailto:info@konuskonusabilirsen.com" style="display: inline-block; background: var(--primary-color); color: white; padding: 1rem 2.5rem; border-radius: 8px; text-decoration: none; font-size: 1.1rem; font-weight: 500; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);">
-          <i class="fas fa-envelope" style="margin-right: 10px;"></i>
-          info@konuskonusabilirsen.com
-        </a>
+        <form action="mailto:info@konuskonusabilirsen.com" method="get" enctype="text/plain" style="display: inline-block;">
+          <input type="hidden" name="subject" value="KonusKonusabilirsen Hakkında">
+          <button type="submit" style="display: inline-flex; align-items: center; background: var(--primary-color); color: white; border: none; padding: 1rem 2.5rem; border-radius: 8px; font-size: 1.1rem; font-weight: 500; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);">
+            <i class="fas fa-envelope" style="margin-right: 10px;"></i>
+            info@konuskonusabilirsen.com
+          </button>
+        </form>
         <p style="color: var(--muted-text); margin-top: 1.5rem; font-size: 1rem;">E-posta göndermek için yukarıdaki butona tıklayın</p>
       </div>
     </div>

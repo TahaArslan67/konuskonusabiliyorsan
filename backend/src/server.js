@@ -1209,132 +1209,159 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
   }catch(e){
     console.error('[paytr] checkout error:', e);
     return res.status(500).json({ error: 'server_error' });
-  }
-});
-
 // PayTR callback
 app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req, res) => {
-  try{
-    const {
-      merchant_oid = '', status = '', total_amount = '', hash = ''
-    } = req.body || {};
+  try {
+    const { merchant_oid = '', status = '', total_amount = '', hash = '' } = req.body || {};
+    
     // Verify hash
     const hash_str = `${merchant_oid}${PAYTR_MERCHANT_SALT}${status}${total_amount}`;
     const calc = crypto.createHmac('sha256', PAYTR_MERCHANT_KEY).update(hash_str, 'utf8').digest('base64');
-    if (calc !== hash){
+    
+    if (calc !== hash) {
       console.error('[paytr] invalid hash for oid', merchant_oid);
       return res.end('OK'); // must respond OK regardless
     }
-    if (status === 'success'){
+    
+    if (status === 'success') {
       const sess = iyzPending.get(merchant_oid);
+      
       if (sess && sess.uid && sess.plan) {
-        // Calculate subscription end date (1 month from now)
-        const currentDate = new Date();
-        const endDate = new Date();
-        endDate.setMonth(endDate.getMonth() + 1);
-
-        // Update or create subscription
-        await Subscription.findOneAndUpdate(
-          { userId: sess.uid },
-          { 
-            $set: { 
-              plan: sess.plan,
-              status: 'active',
-              currentPeriodStart: currentDate,
-              currentPeriodEnd: endDate,
-              updatedAt: new Date()
-            },
-            $setOnInsert: { createdAt: new Date() }
-          },
-          { upsert: true, new: true }
-        );
-
-        // Reset usage for the new plan
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        
-        // Update user's plan and reset usage
-        await User.findByIdAndUpdate(sess.uid, { 
-          $set: { 
-            plan: sess.plan,
-            planUpdatedAt: now,
-            // Reset daily and monthly usage
-            'usage.dailyUsed': 0,
-            'usage.monthlyUsed': 0,
-            'usage.lastReset': now,
-            'usage.monthlyResetAt': startOfMonth
-          } 
-        });
-        
-        // Also update the Usage collection
-        await Usage.updateOne(
-          { userId: sess.uid },
-          { 
-            $set: {
-              'daily.used': 0,
-              'monthly.used': 0,
-              'daily.resetAt': now,
-              'monthly.resetAt': startOfMonth,
-              updatedAt: now
-            },
-            $setOnInsert: { 
-              userId: sess.uid,
-              createdAt: now
-            }
-          },
-          { upsert: true }
-        );
-
-        // Send email notification (best-effort)
         try {
-          const userDoc = await User.findById(sess.uid).lean();
-          const email = userDoc?.email || null;
-          const amountTl = Number(total_amount) / 100;
-          if (email) await sendPaymentSuccessEmail(email, { 
-            plan: sess.plan, 
-            amountTl, 
-            oid: merchant_oid 
-          });
-        } catch (e) { 
-          console.warn('[paytr] email notify error:', e?.message || e); 
+          // Get user document
+          const user = await User.findById(sess.uid);
+          if (!user) {
+            console.error('[paytr] user not found:', sess.uid);
+            return res.end('OK');
+          }
+
+          const now = new Date();
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          const endDate = new Date();
+          endDate.setMonth(endDate.getMonth() + 1);
+
+          // Log the plan change for debugging
+          console.log(`[paytr] updating plan for user ${sess.uid} from ${user.plan} to ${sess.plan}`);
+          
+          // Update or create subscription
+          await Subscription.findOneAndUpdate(
+            { userId: sess.uid },
+            { 
+              $set: { 
+                plan: sess.plan,
+                status: 'active',
+                currentPeriodStart: now,
+                currentPeriodEnd: endDate,
+                updatedAt: now
+              },
+              $setOnInsert: { 
+                userId: sess.uid,
+                createdAt: now 
+              }
+            },
+            { upsert: true, new: true }
+          );
+          
+          // Update user's plan and reset usage
+          user.plan = sess.plan;
+          user.planUpdatedAt = now;
+          user.usage = user.usage || {};
+          user.usage.dailyUsed = 0;
+          user.usage.monthlyUsed = 0;
+          user.usage.lastReset = now;
+          user.usage.monthlyResetAt = startOfMonth;
+          
+          await user.save();
+          
+          // Also update the Usage collection
+          await Usage.updateOne(
+            { userId: sess.uid },
+            { 
+              $set: {
+                'daily.used': 0,
+                'monthly.used': 0,
+                'daily.resetAt': now,
+                'monthly.resetAt': startOfMonth,
+                'plan': sess.plan,
+                updatedAt: now
+              },
+              $setOnInsert: { 
+                userId: sess.uid,
+                createdAt: now
+              }
+            },
+            { upsert: true }
+          );
+          
+          console.log(`[paytr] successfully updated plan to ${sess.plan} for user ${sess.uid}`);
+          
+          // Send email notification (best-effort)
+          try {
+            const email = user.email;
+            const amountTl = Number(total_amount) / 100;
+            if (email) {
+              await sendPaymentSuccessEmail(email, { 
+                plan: sess.plan, 
+                amountTl, 
+                oid: merchant_oid,
+                previousPlan: user.plan
+              });
+            }
+          } catch (e) { 
+            console.warn('[paytr] email notify error:', e?.message || e); 
+          }
+          
+        } catch (e) {
+          console.error('[paytr] error processing payment:', e);
+          // Log the error but still respond with OK to PayTR
         }
+      } else {
+        console.error('[paytr] invalid session data for oid:', merchant_oid, sess);
       }
+      
+      // Always clean up the pending session
       iyzPending.delete(merchant_oid);
     }
-    // PayTR expects plain 'OK'
+    
+    // Always respond with OK to PayTR
     return res.end('OK');
-  }catch(e){
+  } catch (e) {
     console.error('[paytr] callback error:', e);
     return res.end('OK');
   }
 });
 
-// Update user plan and reset usage
+// Kullanıcı planını güncelleme ve kullanımı sıfırlama
 app.post('/api/update-plan', authRequired, async (req, res) => {
   try {
     const { plan } = req.body || {};
     
-    // Validate plan
+    // Planı doğrula
     if (!['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
-      return res.status(400).json({ error: 'invalid_plan' });
+      return res.status(400).json({ error: 'Geçersiz plan' });
+    }
+
+    // Mevcut kullanıcı bilgilerini al
+    const user = await User.findById(req.auth.uid);
+    if (!user) {
+      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
     }
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     
-    // Update user's plan and reset usage
-    await User.findByIdAndUpdate(req.auth.uid, { 
-      $set: { 
-        plan,
-        planUpdatedAt: now,
-        'usage.dailyUsed': 0,
-        'usage.monthlyUsed': 0,
-        'usage.lastReset': now,
-        'usage.monthlyResetAt': startOfMonth
-      } 
-    });
+    // Kullanıcının planını güncelle ve kullanımı sıfırla
+    user.plan = plan;
+    user.planUpdatedAt = now;
+    user.usage = user.usage || {};
+    user.usage.dailyUsed = 0;
+    user.usage.monthlyUsed = 0;
+    user.usage.lastReset = now;
+    user.usage.monthlyResetAt = startOfMonth;
     
-    // Also update the Usage collection
+    await user.save();
+    
+    // Ayrıca Usage koleksiyonunu da güncelle
     await Usage.updateOne(
       { userId: req.auth.uid },
       { 
@@ -1343,7 +1370,8 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
           'monthly.used': 0,
           'daily.resetAt': now,
           'monthly.resetAt': startOfMonth,
-          updatedAt: now
+          updatedAt: now,
+          plan: plan // Plan bilgisini de kaydet
         },
         $setOnInsert: { 
           userId: req.auth.uid,
@@ -1353,10 +1381,17 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
       { upsert: true }
     );
 
-    return res.json({ success: true, message: 'Plan updated and usage reset' });
+    return res.json({ 
+      success: true, 
+      message: `Plan başarıyla güncellendi: ${plan}`,
+      plan: plan
+    });
   } catch (e) {
-    console.error('[update-plan] error:', e);
-    return res.status(500).json({ error: 'server_error' });
+    console.error('[update-plan] hata:', e);
+    return res.status(500).json({ 
+      error: 'sunucu_hatasi',
+      message: 'Plan güncellenirken bir hata oluştu'
+    });
   }
 });
 

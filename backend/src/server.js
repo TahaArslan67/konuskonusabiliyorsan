@@ -1191,13 +1191,41 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
           { upsert: true, new: true }
         );
 
-        // Update user's plan
+        // Reset usage for the new plan
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        
+        // Update user's plan and reset usage
         await User.findByIdAndUpdate(sess.uid, { 
           $set: { 
             plan: sess.plan,
-            planUpdatedAt: new Date()
+            planUpdatedAt: now,
+            // Reset daily and monthly usage
+            'usage.dailyUsed': 0,
+            'usage.monthlyUsed': 0,
+            'usage.lastReset': now,
+            'usage.monthlyResetAt': startOfMonth
           } 
         });
+        
+        // Also update the Usage collection
+        await Usage.updateOne(
+          { userId: sess.uid },
+          { 
+            $set: {
+              'daily.used': 0,
+              'monthly.used': 0,
+              'daily.resetAt': now,
+              'monthly.resetAt': startOfMonth,
+              updatedAt: now
+            },
+            $setOnInsert: { 
+              userId: sess.uid,
+              createdAt: now
+            }
+          },
+          { upsert: true }
+        );
 
         // Send email notification (best-effort)
         try {

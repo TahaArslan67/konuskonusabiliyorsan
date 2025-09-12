@@ -163,7 +163,7 @@ for (const o of allowedOriginsRaw) {
 app.use(cors({
   origin: true, // Allow all origins
   credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS'],
+  methods: ['GET', 'POST', 'OPTIONS', 'PATCH', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 

@@ -274,12 +274,15 @@ function openAccount(){
     }
   }, 50);
 }
-if (btnAccount) btnAccount.addEventListener('click', (ev) => {
-  ev.preventDefault();
-  const token = getToken();
-  if (!token){ setPostLoginRedirect('/account.html'); openAuth(); showLogin(); return; }
-  window.location.href = '/account.html';
-});
+const btnAccount = document.getElementById('btnAccount');
+if (btnAccount) {
+  btnAccount.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    const token = getToken();
+    if (!token){ setPostLoginRedirect('/account.html'); openAuth(); showLogin(); return; }
+    window.location.href = '/account.html';
+  });
+}
 
 if (formLogin){
   formLogin.addEventListener('submit', async (e) => {

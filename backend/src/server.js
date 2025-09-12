@@ -42,15 +42,26 @@ const PAYTR_MERCHANT_SALT = process.env.PAYTR_MERCHANT_SALT || '';
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const MAIL_FROM = process.env.MAIL_FROM || 'no-reply@konuskonuşabilirsen.com';
 // E-posta göndericiyi oluştur
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: process.env.EMAIL_USER || 'your-email@gmail.com',
-    pass: process.env.EMAIL_PASS || 'your-app-password'
+// E-posta gönderimi için SendGrid kullanıyoruz (ES Module)
+import sgMail from '@sendgrid/mail';
+sgMail.setApiKey(process.env.SENDGRID_API_KEY || 'your-sendgrid-api-key');
+
+// Nodemailer yerine doğrudan SendGrid kullanacağız
+const sendEmail = async (mailOptions) => {
+  try {
+    await sgMail.send({
+      to: mailOptions.to,
+      from: mailOptions.from,
+      subject: mailOptions.subject,
+      html: mailOptions.html,
+      replyTo: mailOptions.replyTo
+    });
+    return { messageId: new Date().getTime().toString() }; // Basit bir messageId döndürüyoruz
+  } catch (error) {
+    console.error('SendGrid error:', error.response?.body || error);
+    throw error;
   }
-});
+};
 // Admins (comma-separated emails)
 const ADMIN_EMAILS = new Set(String(process.env.ADMIN_EMAILS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
 
@@ -631,7 +642,7 @@ app.post('/api/contact', express.json(), async (req, res) => {
         throw new Error('E-posta servisi başlatılamadı. Lütfen yapılandırmayı kontrol edin.');
       }
 
-      const info = await transporter.sendMail(mailOptions);
+      const info = await sendEmail(mailOptions);
       console.log('E-posta gönderildi:', info.messageId);
       
       // Başarılı yanıt döndür

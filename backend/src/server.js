@@ -438,48 +438,59 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
   try {
     const { plan } = req.body || {};
     if (!['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
-      return res.status(400).json({ error: 'invalid_plan' });
+      return res.status(400).json({ error: 'Geçersiz plan seçimi' });
     }
 
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const user = await User.findById(req.auth.uid);
+    if (!user) {
+      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+    }
+
+    // Eski planı kaydet
+    const oldPlan = user.plan;
     
-    // Update user's plan and reset usage
-    await User.findByIdAndUpdate(req.auth.uid, { 
-      $set: { 
-        plan,
-        planUpdatedAt: now,
-        // Reset daily and monthly usage
-        'usage.dailyUsed': 0,
-        'usage.monthlyUsed': 0,
-        'usage.lastReset': now,
-        'usage.monthlyResetAt': startOfMonth
-      } 
+    // Yeni planı güncelle
+    user.plan = plan;
+    user.planUpdatedAt = new Date();
+    
+    // Plan geçişlerinde kullanım sınırlarını güncelle
+    user.usage = user.usage || {};
+    user.usage.dailyLimit = getPlanLimit(plan, 'daily');
+    user.usage.monthlyLimit = getPlanLimit(plan, 'monthly');
+    
+    // Eğer daha yüksek plana geçiliyorsa kullanım sayacını sıfırla
+    const planOrder = { 'free': 0, 'starter': 1, 'pro': 2, 'enterprise': 3 };
+    if (planOrder[plan] > planOrder[oldPlan]) {
+      user.usage.dailyUsed = 0;
+      user.usage.monthlyUsed = 0;
+      user.usage.lastReset = new Date();
+      user.usage.monthlyResetAt = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    }
+    
+    await user.save();
+    
+    // Kullanım kaydını güncelle
+    await updateUsageRecord(req.auth.uid, plan);
+    
+    // Plan değişikliğini logla
+    console.log(`Kullanıcı planı güncellendi: ${user.email} (${oldPlan} -> ${plan})`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Plan başarıyla güncellendi',
+      plan: {
+        current: plan,
+        previous: oldPlan,
+        updatedAt: user.planUpdatedAt
+      }
     });
     
-    // Also update the Usage collection
-    await Usage.updateOne(
-      { userId: req.auth.uid },
-      { 
-        $set: {
-          'daily.used': 0,
-          'monthly.used': 0,
-          'daily.resetAt': now,
-          'monthly.resetAt': startOfMonth,
-          updatedAt: now
-        },
-        $setOnInsert: { 
-          userId: req.auth.uid,
-          createdAt: now
-        }
-      },
-      { upsert: true }
-    );
-
-    return res.json({ success: true, message: 'Plan updated and usage reset' });
-  } catch (e) {
-    console.error('[update-plan] error:', e);
-    return res.status(500).json({ error: 'server_error' });
+  } catch (error) {
+    console.error('Plan güncelleme hatası:', error);
+    res.status(500).json({ 
+      error: 'Plan güncellenirken bir hata oluştu',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -1431,58 +1442,6 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
   }catch(e){
     console.error('[paytr] callback error:', e);
     return res.end('OK');
-  }
-});
-
-// Update user plan and reset usage
-app.post('/api/update-plan', authRequired, async (req, res) => {
-  try {
-    const { plan } = req.body || {};
-    
-    // Validate plan
-    if (!['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
-      return res.status(400).json({ error: 'invalid_plan' });
-    }
-
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    
-    // Update user's plan and reset usage
-    await User.findByIdAndUpdate(req.auth.uid, { 
-      $set: { 
-        plan,
-        planUpdatedAt: now,
-        // Reset daily and monthly usage
-        'usage.dailyUsed': 0,
-        'usage.monthlyUsed': 0,
-        'usage.lastReset': now,
-        'usage.monthlyResetAt': startOfMonth
-      } 
-    });
-    
-    // Also update the Usage collection
-    await Usage.updateOne(
-      { userId: req.auth.uid },
-      { 
-        $set: {
-          'daily.used': 0,
-          'monthly.used': 0,
-          'daily.resetAt': now,
-          'monthly.resetAt': startOfMonth,
-          updatedAt: now
-        },
-        $setOnInsert: { 
-          userId: req.auth.uid,
-          createdAt: now
-        }
-      },
-      { upsert: true }
-    );
-
-    return res.json({ success: true, message: 'Plan updated and usage reset' });
-  } catch (e) {
-    console.error('[update-plan] error:', e);
-    return res.status(500).json({ error: 'server_error' });
   }
 });
 

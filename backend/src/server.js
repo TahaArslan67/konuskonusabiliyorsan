@@ -454,11 +454,20 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
     // Eski planı kaydet
     const oldPlan = user.plan;
     
-    // 1. Önce tüm aktif abonelikleri kaldır
-    await Subscription.deleteMany({ 
-      userId: req.auth.uid,
-      status: 'active'
-    }).session(session);
+    // 1. Önce tüm aktif abonelikleri iptal et (silme, status'ü cancelled yap)
+    await Subscription.updateMany(
+      { 
+        userId: req.auth.uid,
+        status: 'active'
+      },
+      { 
+        $set: { 
+          status: 'cancelled',
+          cancelledAt: new Date(),
+          updatedAt: new Date()
+        } 
+      }
+    ).session(session);
     
     // 2. Yeni abonelik oluştur
     const newSubscription = new Subscription({
@@ -468,8 +477,11 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
       startDate: new Date(),
       endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 gün sonra
       paymentMethod: 'manual',
-      paymentStatus: 'paid'
+      paymentStatus: 'paid',
+      createdAt: new Date(),
+      updatedAt: new Date()
     });
+    
     await newSubscription.save({ session });
     
     // 3. Kullanıcı bilgilerini güncelle
@@ -484,17 +496,32 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
     user.usage.monthlyUsed = 0;
     user.usage.lastReset = new Date();
     user.usage.monthlyResetAt = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    user.updatedAt = new Date();
     
+    // Kullanıcıyı kaydet ve değişiklikleri onayla
     await user.save({ session });
-    
-    // Kullanım kaydını güncelle
-    await updateUsageRecord(req.auth.uid, plan, session);
     
     // Transaction'ı tamamla
     await session.commitTransaction();
     
-    // Plan değişikliğini logla
-    console.log(`[${new Date().toISOString()}] Kullanıcı planı güncellendi: ${user.email} (${oldPlan} -> ${plan})`);
+    // Kullanıcı bilgilerini logla
+    console.log(`[${new Date().toISOString()}] Kullanıcı planı güncellendi:`, {
+      userId: req.auth.uid,
+      email: user.email,
+      oldPlan,
+      newPlan: plan,
+      newSubscriptionId: newSubscription._id
+    });
+    
+    // Yeni oluşturulan aboneliği logla
+    console.log(`[${new Date().toISOString()}] Yeni abonelik oluşturuldu:`, {
+      subscriptionId: newSubscription._id,
+      userId: req.auth.uid,
+      plan: newSubscription.plan,
+      status: newSubscription.status,
+      startDate: newSubscription.startDate,
+      endDate: newSubscription.endDate
+    });
     
     res.json({ 
       success: true, 

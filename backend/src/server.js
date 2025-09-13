@@ -435,60 +435,66 @@ function authRequired(req, res, next){
 
 // ---- Protected: Update user plan and reset usage ----
 app.post('/api/update-plan', authRequired, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
   try {
     const { plan } = req.body || {};
     if (!['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
+      await session.abortTransaction();
       return res.status(400).json({ error: 'Geçersiz plan seçimi' });
     }
 
-    const user = await User.findById(req.auth.uid);
+    const user = await User.findById(req.auth.uid).session(session);
     if (!user) {
+      await session.abortTransaction();
       return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
     }
 
     // Eski planı kaydet
     const oldPlan = user.plan;
     
-    // Yeni planı güncelle
+    // 1. Önce tüm aktif abonelikleri kaldır
+    await Subscription.deleteMany({ 
+      userId: req.auth.uid,
+      status: 'active'
+    }).session(session);
+    
+    // 2. Yeni abonelik oluştur
+    const newSubscription = new Subscription({
+      userId: req.auth.uid,
+      plan: plan,
+      status: 'active',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 gün sonra
+      paymentMethod: 'manual',
+      paymentStatus: 'paid'
+    });
+    await newSubscription.save({ session });
+    
+    // 3. Kullanıcı bilgilerini güncelle
     user.plan = plan;
     user.planUpdatedAt = new Date();
     
-    // Plan geçişlerinde kullanım sınırlarını güncelle
+    // Kullanım sınırlarını güncelle
     user.usage = user.usage || {};
     user.usage.dailyLimit = getPlanLimit(plan, 'daily');
     user.usage.monthlyLimit = getPlanLimit(plan, 'monthly');
-    
-    // Tüm plan geçişlerinde kullanım sayaçlarını sıfırla
     user.usage.dailyUsed = 0;
     user.usage.monthlyUsed = 0;
     user.usage.lastReset = new Date();
     user.usage.monthlyResetAt = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     
-    // Subscription modelini de güncelle
-    await Subscription.findOneAndUpdate(
-      { userId: req.auth.uid },
-      { 
-        $set: { 
-          plan: plan,
-          updatedAt: new Date()
-        },
-        $setOnInsert: {
-          userId: req.auth.uid,
-          status: 'active',
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 gün sonra
-        }
-      },
-      { upsert: true, new: true }
-    );
-    
-    await user.save();
+    await user.save({ session });
     
     // Kullanım kaydını güncelle
-    await updateUsageRecord(req.auth.uid, plan);
+    await updateUsageRecord(req.auth.uid, plan, session);
+    
+    // Transaction'ı tamamla
+    await session.commitTransaction();
     
     // Plan değişikliğini logla
-    console.log(`Kullanıcı planı güncellendi: ${user.email} (${oldPlan} -> ${plan})`);
+    console.log(`[${new Date().toISOString()}] Kullanıcı planı güncellendi: ${user.email} (${oldPlan} -> ${plan})`);
     
     res.json({ 
       success: true, 

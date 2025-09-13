@@ -433,6 +433,70 @@ function authRequired(req, res, next){
   }
 }
 
+// Kullanıcı planını manuel olarak güncellemek için yeni endpoint
+app.post('/api/admin/update-user-plan', authRequired, async (req, res) => {
+  try {
+    const { userId, newPlan } = req.body || {};
+    
+    // Basit güvenlik kontrolü (sadece admin kullanıcılar için)
+    const adminUser = await User.findById(req.auth.uid);
+    if (!adminUser || !adminUser.isAdmin) {
+      return res.status(403).json({ error: 'Bu işlem için yetkiniz yok' });
+    }
+    
+    if (!userId || !['free', 'starter', 'pro', 'enterprise'].includes(newPlan)) {
+      return res.status(400).json({ error: 'Geçersiz istek' });
+    }
+    
+    // Kullanıcıyı bul
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+    }
+    
+    // Eski planı kaydet
+    const oldPlan = user.plan;
+    
+    // Kullanıcının planını güncelle
+    user.plan = newPlan;
+    user.planUpdatedAt = new Date();
+    
+    // Kullanım sınırlarını güncelle
+    user.usage = user.usage || {};
+    user.usage.dailyLimit = getPlanLimit(newPlan, 'daily');
+    user.usage.monthlyLimit = getPlanLimit(newPlan, 'monthly');
+    user.usage.dailyUsed = 0;
+    user.usage.monthlyUsed = 0;
+    user.usage.lastReset = new Date();
+    user.usage.monthlyResetAt = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    
+    // Değişiklikleri kaydet
+    await user.save();
+    
+    console.log(`[${new Date().toISOString()}] ADMIN: Kullanıcı planı manuel olarak güncellendi`, {
+      admin: adminUser.email,
+      userId: user._id,
+      userEmail: user.email,
+      oldPlan,
+      newPlan,
+      ip: req.ip
+    });
+    
+    return res.json({ 
+      success: true, 
+      message: 'Kullanıcı planı başarıyla güncellendi',
+      userId: user._id,
+      email: user.email,
+      oldPlan,
+      newPlan
+    });
+    
+  } catch (error) {
+    console.error('Admin plan güncelleme hatası:', error);
+    return res.status(500).json({ error: 'Sunucu hatası', details: error.message });
+  }
+});
+
 // ---- Protected: Update user plan and reset usage ----
 app.post('/api/update-plan', authRequired, async (req, res) => {
   const session = await mongoose.startSession();

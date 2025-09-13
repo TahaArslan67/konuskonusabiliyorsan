@@ -113,13 +113,8 @@
 
     <script>
         let currentUser = null;
-        const token = localStorage.getItem('token');
+        const token = ''; // Token artık gerekli değil
         
-        if (!token) {
-            showAlert('Lütfen önce giriş yapın', 'error');
-            window.location.href = '/login.html';
-        }
-
         function showAlert(message, type = 'info') {
             const alert = document.getElementById('alert');
             alert.textContent = message;
@@ -133,17 +128,12 @@
         async function getUserData() {
             const email = document.getElementById('userEmail').value.trim();
             if (!email) {
-                showAlert('Lütfen bir e-posta adresi girin', 'error');
+                showAlert('Lütfen bir e-posta adresi giriniz.', 'error');
                 return;
             }
 
             try {
-                const response = await fetch(`/api/admin/user?email=${encodeURIComponent(email)}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
+                const response = await fetch(`/api/admin/user?email=${encodeURIComponent(email)}`);
 
                 const data = await response.json();
                 
@@ -209,29 +199,25 @@
 
         async function updateUserPlan() {
             if (!currentUser) {
-                showAlert('Lütfen önce bir kullanıcı seçin', 'error');
+                showAlert('Lütfen önce bir kullanıcı seçin.', 'error');
                 return;
             }
 
             const selectedPlan = document.querySelector('input[name="plan"]:checked');
             if (!selectedPlan) {
-                showAlert('Lütfen bir plan seçin', 'error');
+                showAlert('Lütfen bir plan seçin.', 'error');
                 return;
             }
 
             const plan = selectedPlan.value;
-            const updateBtn = document.querySelector('#planUpdateSection button');
-            const updateStatus = document.getElementById('updateStatus');
-            
-            try {
-                updateBtn.disabled = true;
-                updateBtn.innerHTML = '<span class="loading"></span> Güncelleniyor...';
-                updateStatus.textContent = '';
+            const statusElement = document.getElementById('updateStatus');
+            statusElement.textContent = 'Güncelleniyor...';
+            statusElement.className = 'text-sm ml-2 text-blue-600';
 
+            try {
                 const response = await fetch('/api/admin/update-plan', {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({

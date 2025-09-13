@@ -889,13 +889,9 @@ app.get('/favicon.png', (_req, res) => {
   }
 });
 
-// ---- Debug: Get user data by email (admin only) ----
-app.get('/api/admin/user', authRequired, async (req, res) => {
+// ---- Debug: Get user data by email (public access for debugging) ----
+app.get('/api/admin/user', async (req, res) => {
   try {
-    const caller = String(req.auth?.email || '').toLowerCase();
-    if (!ADMIN_EMAILS.has(caller)) {
-      return res.status(403).json({ error: 'forbidden', message: 'Admin yetkisi gerekli' });
-    }
     
     const { email } = req.query;
     if (!email) {
@@ -937,18 +933,12 @@ app.get('/api/admin/user', authRequired, async (req, res) => {
   }
 });
 
-// ---- Debug: Update user plan by email (admin only) ----
-app.post('/api/admin/update-plan', authRequired, async (req, res) => {
+// ---- Debug: Update user plan by email (public access for debugging) ----
+app.post('/api/admin/update-plan', async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   
   try {
-    const caller = String(req.auth?.email || '').toLowerCase();
-    if (!ADMIN_EMAILS.has(caller)) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(403).json({ error: 'forbidden', message: 'Admin yetkisi gerekli' });
-    }
     
     const { email, plan } = req.body;
     if (!email || !['free', 'starter', 'pro', 'enterprise'].includes(plan)) {

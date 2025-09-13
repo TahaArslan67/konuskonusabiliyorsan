@@ -1145,20 +1145,34 @@ app.post('/auth/register',
     const verifyExpires = new Date(Date.now() + 24*60*60*1000);
     const userDoc = await User.create({ email: lower, passwordHash, verifyToken, verifyExpires, emailVerified: false });
     const url = `${req.protocol}://${req.get('host')}/verify.html?token=${verifyToken}`;
+    console.log('[debug] Mail gönderiliyor:', { from: MAIL_FROM, to: lower, url });
+    console.log('[debug] Resend API Key var mı?', RESEND_API_KEY ? 'Evet' : 'Hayır');
+    console.log('[debug] Resend client başlatıldı mı?', resend ? 'Evet' : 'Hayır');
+    
     try {
+      if (!resend) {
+        console.log('[debug] Resend client başlatılmamış, doğrulama bağlantısı konsola yazdırılıyor');
+        console.log(`[mail] Doğrulama Bağlantısı (${lower}): ${url}`);
+        return res.json({ ok: true, verifySent: true });
+      }
+      
+      console.log('[debug] Resend ile e-posta gönderiliyor...');
       const { data, error } = await resend.emails.send({
         from: MAIL_FROM,
         to: lower,
         subject: 'E-posta Doğrulama - KonusKonusabilirsen',
         html: `<p>Hesabınızı doğrulamak için tıklayın:</p><p><a href="${url}">${url}</a></p>`
       });
+      
       if (error) {
-        console.error('[resend] register verify email error:', error);
+        console.error('[resend] E-posta gönderme hatası:', error);
+        console.log('[debug] Hata detayı:', JSON.stringify(error, null, 2));
       } else {
-        console.log(`[resend] sent id=${data?.id || 'n/a'}`);
+        console.log(`[resend] E-posta gönderildi. ID: ${data?.id || 'bilinmiyor'}`);
       }
     } catch (e) {
-      console.error('E-posta gönderilirken hata oluştu:', e);
+      console.error('E-posta gönderilirken beklenmeyen hata:', e);
+      console.error('Hata detayı:', e.stack || 'Stack yok');
     }
     // Kayıt olurken JWT DÖNDÜRME: doğrulama şart
     return res.json({ ok: true, verifySent: true });

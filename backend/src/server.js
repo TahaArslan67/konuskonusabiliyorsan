@@ -660,6 +660,7 @@ app.get('/me', authRequired, async (req, res) => {
           { $set: { status: 'cancelled' }}
         );
       }
+    }
     
     // Kullanıcı yanıtını oluştur
     const response = {
@@ -707,6 +708,7 @@ app.get('/me', authRequired, async (req, res) => {
     });
   }
 });
+
 
 // ---- Admin: Force update user plan (temporary) ----
 app.post('/admin/force-update-plan', authRequired, async (req, res) => {

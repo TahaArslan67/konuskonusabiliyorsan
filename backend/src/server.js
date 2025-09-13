@@ -516,10 +516,21 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
 // ---- Protected: Current user ----
 app.get('/me', authRequired, async (req, res) => {
   try {
+    // Önce kullanıcı bilgilerini al
     const userDoc = await User.findById(req.auth.uid).lean();
     if (!userDoc) return res.status(404).json({ error: 'not_found' });
+    
+    // Abonelik bilgilerini al (eğer yoksa, kullanıcının kendi plan bilgisini kullan)
+    let plan = userDoc.plan || 'free';
     const sub = await Subscription.findOne({ userId: req.auth.uid, status: 'active' }).lean();
-    const plan = sub?.plan || 'free';
+    
+    // Eğer abonelik bilgisi varsa ve userDoc'taki plandan farklıysa, userDoc'u güncelle
+    if (sub?.plan && sub.plan !== plan) {
+      await User.findByIdAndUpdate(req.auth.uid, { plan: sub.plan });
+      plan = sub.plan;
+      console.log(`[${new Date().toISOString()}] Kullanıcı planı abonelik bilgileriyle senkronize edildi: ${userDoc.email} (${plan})`);
+    }
+    
     return res.json({
       id: String(userDoc._id),
       email: userDoc.email,
@@ -531,7 +542,11 @@ app.get('/me', authRequired, async (req, res) => {
       preferredNativeLanguage: userDoc.preferredNativeLanguage || 'tr',
       placementLevel: userDoc.placementLevel || null,
       placementCompletedAt: userDoc.placementCompletedAt || null,
-      plan,
+      plan: plan,
+      subscriptionPlan: sub?.plan,
+      userPlan: userDoc.plan,
+      subscriptionStatus: sub?.status,
+      subscriptionEndDate: sub?.endDate
     });
   } catch (e){
     return res.status(500).json({ error: 'server_error' });

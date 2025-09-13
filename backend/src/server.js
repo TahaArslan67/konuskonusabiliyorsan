@@ -553,15 +553,35 @@ app.get('/me', authRequired, async (req, res) => {
     const userDoc = await User.findById(req.auth.uid).lean();
     if (!userDoc) return res.status(404).json({ error: 'not_found' });
     
-    // Abonelik bilgilerini al (eğer yoksa, kullanıcının kendi plan bilgisini kullan)
-    let plan = userDoc.plan || 'free';
-    const sub = await Subscription.findOne({ userId: req.auth.uid, status: 'active' }).lean();
+    // Abonelik bilgilerini al (öncelikle aktif aboneliğe göre planı belirle)
+    const sub = await Subscription.findOne({ userId: req.auth.uid, status: 'active' }).sort({ createdAt: -1 }).lean();
+    let plan = 'free';
     
-    // Eğer abonelik bilgisi varsa ve userDoc'taki plandan farklıysa, userDoc'u güncelle
-    if (sub?.plan && sub.plan !== plan) {
-      await User.findByIdAndUpdate(req.auth.uid, { plan: sub.plan });
+    // Eğer aktif abonelik varsa, planı aboneliğe göre güncelle
+    if (sub?.plan) {
       plan = sub.plan;
-      console.log(`[${new Date().toISOString()}] Kullanıcı planı abonelik bilgileriyle senkronize edildi: ${userDoc.email} (${plan})`);
+      // Kullanıcının plan bilgisini güncelle (eğer farklıysa veya yoksa)
+      if (userDoc.plan !== plan) {
+        await User.findByIdAndUpdate(req.auth.uid, { 
+          $set: { 
+            plan: plan,
+            planUpdatedAt: new Date() 
+          } 
+        });
+        console.log(`[${new Date().toISOString()}] Kullanıcı planı abonelik bilgileriyle güncellendi: ${userDoc.email} (${userDoc.plan} -> ${plan})`);
+      }
+    } else if (userDoc.plan !== 'free') {
+      // Eğer aktif abonelik yoksa ve kullanıcı free plana düşürülmemişse, free plana çek
+      plan = 'free';
+      await User.findByIdAndUpdate(req.auth.uid, { 
+        $set: { 
+          plan: 'free',
+          planUpdatedAt: new Date() 
+        } 
+      });
+      console.log(`[${new Date().toISOString()}] Kullanıcı aktif aboneliği olmadığı için free plana çekildi: ${userDoc.email}`);
+    } else {
+      plan = 'free';
     }
     
     return res.json({

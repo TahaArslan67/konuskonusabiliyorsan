@@ -1,9 +1,18 @@
 {
   "version": 2,
   "builds": [
+    { "src": "backend/src/server.js", "use": "@vercel/node" },
     { "src": "backend/public/**", "use": "@vercel/static" }
   ],
   "routes": [
+    { "src": "/api/(.*)", "dest": "/backend/src/server.js" },
+    { "src": "/contact", "dest": "/backend/public/contact.html" },
+    { "src": "/konus", "dest": "/backend/public/realtime.html" },
+    { 
+      "src": "/success.html", 
+      "status": 301, 
+      "headers": { "Location": "https://konuskonusabilirsen.com/konus" }
+    },
     { "src": "/(.*)", "dest": "/backend/public/$1" }
   ]
 }

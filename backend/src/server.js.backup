@@ -19,6 +19,26 @@ import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import fs from 'fs';
 
+// Connect to MongoDB
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/hemekonus';
+
+async function connectToMongoDB() {
+  try {
+    await mongoose.connect(MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log('[mongo] Connected to MongoDB');
+    return true;
+  } catch (error) {
+    console.error('[mongo] Connection error:', error.message);
+    return false;
+  }
+}
+
+// Initialize MongoDB connection
+connectToMongoDB().catch(console.error);
+
 const app = express();
 const server = createServer(app);
 // Trust proxy headers (Render/Heroku/Nginx vb.) so rate-limit and req.ip work correctly
@@ -32,52 +52,6 @@ const PORT = process.env.PORT || 8080;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const STRICT_REALTIME = String(process.env.STRICT_REALTIME || 'false').toLowerCase() === 'true';
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/hemekonus';
-
-// MongoDB bağlantı ayarları
-const mongooseOptions = {
-  maxPoolSize: 100,
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
-  connectTimeoutMS: 30000,
-  family: 4,
-  retryWrites: true,
-  w: 'majority'
-};
-
-// MongoDB bağlantısı olayları
-mongoose.connection.on('connected', () => {
-  console.log('MongoDB bağlantısı başarılı');
-});
-
-mongoose.connection.on('error', (err) => {
-  console.error('MongoDB bağlantı hatası:', err);
-});
-
-mongoose.connection.on('disconnected', () => {
-  console.log('MongoDB bağlantısı kesildi');
-});
-
-// Uygulama kapatılırken bağlantıyı kapat
-process.on('SIGINT', async () => {
-  try {
-    await mongoose.connection.close();
-    console.log('MongoDB bağlantısı kapatıldı');
-    process.exit(0);
-  } catch (err) {
-    console.error('MongoDB bağlantısı kapatılırken hata:', err);
-    process.exit(1);
-  }
-});
-
-// MongoDB'ye bağlan
-mongoose.connect(MONGODB_URI, mongooseOptions).then(() => {
-  console.log('MongoDB bağlantısı başarılı');
-}).catch(err => {
-  console.error('MongoDB bağlantı hatası:', err);
-  process.exit(1);
-});
-
 const IYZICO_API_KEY = process.env.IYZICO_API_KEY || '';
 const IYZICO_SECRET_KEY = process.env.IYZICO_SECRET_KEY || '';
 const IYZICO_BASE_URL = process.env.IYZICO_BASE_URL || 'https://sandbox-api.iyzipay.com';
@@ -85,15 +59,7 @@ const PAYTR_MERCHANT_ID = process.env.PAYTR_MERCHANT_ID || '';
 const PAYTR_MERCHANT_KEY = process.env.PAYTR_MERCHANT_KEY || '';
 const PAYTR_MERCHANT_SALT = process.env.PAYTR_MERCHANT_SALT || '';
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
-const MAIL_FROM = process.env.MAIL_FROM || 'no-reply@konuskonusabilirsen.com';
-
-// Resend client'ı oluştur
-let resend = null;
-if (RESEND_API_KEY) {
-  const { Resend } = await import('resend');
-  resend = new Resend(RESEND_API_KEY);
-}
-
+const MAIL_FROM = process.env.MAIL_FROM || 'no-reply@konuskonuşabilirsen.com';
 // E-posta göndericisini oluştur (Cloudflare Email Routing için)
 const transporter = nodemailer.createTransport({
   host: 'smtp.sendgrid.net', // veya kendi SMTP sunucunuz
@@ -115,7 +81,6 @@ const sendEmail = async (mailOptions) => {
     throw error;
   }
 };
-
 // Admins (comma-separated emails)
 const ADMIN_EMAILS = new Set(String(process.env.ADMIN_EMAILS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
 
@@ -175,38 +140,13 @@ if (RESEND_API_KEY && !MAIL_FROM) {
 }
 
 // Middleware
-app.use(express.json({ limit: '10mb' }));
-
-// Tüm API istekleri için genel zaman aşımı (30 saniye)
-app.use((req, res, next) => {
-  res.setTimeout(30000, () => {
-    if (!res.headersSent) {
-      res.status(504).json({ error: 'İstek zaman aşımına uğradı' });
-    }
-  });
-  next();
-});
-
-// İstek sürelerini ölçmek için middleware
-app.use((req, res, next) => {
-  const start = Date.now();
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} başladı`);
-  
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${res.statusCode} [${duration}ms]`);
-  });
-  
-  next();
-});
-
+app.use(express.json({ limit: '1mb' }));
 app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
 // HTTP compression for text-based responses (tune level for balance)
 app.use(compression({
   level: 6,
   threshold: '1kb'
 }));
-
 // Security headers (CSP tuned for this app)
 app.use(helmet({
   contentSecurityPolicy: {
@@ -441,242 +381,63 @@ function authRequired(req, res, next){
   }
 }
 
-// Plan limitlerini döndüren yardımcı fonksiyon
-function getPlanLimit(plan, type) {
-  const limits = {
-    free: { daily: 5, monthly: 30 },
-    starter: { daily: 30, monthly: 900 },
-    pro: { daily: 180, monthly: 5400 },
-    enterprise: { daily: 1000, monthly: 30000 }
-  };
-  return (limits[plan] && limits[plan][type]) || limits.free[type];
-}
-
-// Kullanıcı planını manuel olarak güncellemek için yeni endpoint
-app.post('/api/admin/update-user-plan', authRequired, async (req, res) => {
-  try {
-    const { userId, newPlan } = req.body || {};
-    
-    // Basit güvenlik kontrolü (sadece admin kullanıcılar için)
-    const adminUser = await User.findById(req.auth.uid);
-    if (!adminUser || !adminUser.isAdmin) {
-      return res.status(403).json({ error: 'Bu işlem için yetkiniz yok' });
-    }
-    
-    if (!userId || !['free', 'starter', 'pro', 'enterprise'].includes(newPlan)) {
-      return res.status(400).json({ error: 'Geçersiz istek' });
-    }
-    
-    // Kullanıcıyı bul
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
-    }
-    
-    // Eski planı kaydet
-    const oldPlan = user.plan;
-    
-    // Kullanıcının planını güncelle
-    user.plan = newPlan;
-    user.planUpdatedAt = new Date();
-    
-    // Kullanım sınırlarını güncelle
-    user.usage = user.usage || {};
-    user.usage.dailyLimit = getPlanLimit(newPlan, 'daily');
-    user.usage.monthlyLimit = getPlanLimit(newPlan, 'monthly');
-    user.usage.dailyUsed = 0;
-    user.usage.monthlyUsed = 0;
-    user.usage.lastReset = new Date();
-    user.usage.monthlyResetAt = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    
-    // Değişiklikleri kaydet
-    await user.save();
-    
-    console.log(`[${new Date().toISOString()}] ADMIN: Kullanıcı planı manuel olarak güncellendi`, {
-      admin: adminUser.email,
-      userId: user._id,
-      userEmail: user.email,
-      oldPlan,
-      newPlan,
-      ip: req.ip
-    });
-    
-    return res.json({ 
-      success: true, 
-      message: 'Kullanıcı planı başarıyla güncellendi',
-      userId: user._id,
-      email: user.email,
-      oldPlan,
-      newPlan
-    });
-    
-  } catch (error) {
-    console.error('Admin plan güncelleme hatası:', error);
-    return res.status(500).json({ error: 'Sunucu hatası', details: error.message });
-  }
-});
-
 // ---- Protected: Update user plan and reset usage ----
 app.post('/api/update-plan', authRequired, async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  
   try {
     const { plan } = req.body || {};
     if (!['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
-      await session.abortTransaction();
-      return res.status(400).json({ error: 'Geçersiz plan seçimi' });
+      return res.status(400).json({ error: 'invalid_plan' });
     }
 
-    const user = await User.findById(req.auth.uid).session(session);
-    if (!user) {
-      await session.abortTransaction();
-      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
-    }
-
-    // Eski planı kaydet
-    const oldPlan = user.plan;
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     
-    // 1. Önce tüm aktif abonelikleri iptal et (silme, status'ü cancelled yap)
-    await Subscription.updateMany(
+    // Update user's plan and reset usage
+    await User.findByIdAndUpdate(req.auth.uid, { 
+      $set: { 
+        plan,
+        planUpdatedAt: now,
+        // Reset daily and monthly usage
+        'usage.dailyUsed': 0,
+        'usage.monthlyUsed': 0,
+        'usage.lastReset': now,
+        'usage.monthlyResetAt': startOfMonth
+      } 
+    });
+    
+    // Also update the Usage collection
+    await Usage.updateOne(
+      { userId: req.auth.uid },
       { 
-        userId: req.auth.uid,
-        status: 'active'
-      },
-      { 
-        $set: { 
-          status: 'cancelled',
-          cancelledAt: new Date(),
-          updatedAt: new Date()
-        } 
-      }
-    ).session(session);
-    
-    // 2. Yeni abonelik oluştur
-    const newSubscription = new Subscription({
-      userId: req.auth.uid,
-      plan: plan,
-      status: 'active',
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 gün sonra
-      paymentMethod: 'manual',
-      paymentStatus: 'paid',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-    
-    await newSubscription.save({ session });
-    
-    // 3. Kullanıcı bilgilerini güncelle
-    user.plan = plan;
-    user.planUpdatedAt = new Date();
-    
-    // Kullanım sınırlarını güncelle
-    user.usage = user.usage || {};
-    user.usage.dailyLimit = getPlanLimit(plan, 'daily');
-    user.usage.monthlyLimit = getPlanLimit(plan, 'monthly');
-    user.usage.dailyUsed = 0;
-    user.usage.monthlyUsed = 0;
-    user.usage.lastReset = new Date();
-    user.usage.monthlyResetAt = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    user.updatedAt = new Date();
-    
-    // Kullanıcıyı kaydet ve değişiklikleri onayla
-    await user.save({ session });
-    
-    // Transaction'ı tamamla
-    await session.commitTransaction();
-    
-    // Kullanıcı bilgilerini logla
-    console.log(`[${new Date().toISOString()}] Kullanıcı planı güncellendi:`, {
-      userId: req.auth.uid,
-      email: user.email,
-      oldPlan,
-      newPlan: plan,
-      newSubscriptionId: newSubscription._id
-    });
-    
-    // Yeni oluşturulan aboneliği logla
-    console.log(`[${new Date().toISOString()}] Yeni abonelik oluşturuldu:`, {
-      subscriptionId: newSubscription._id,
-      userId: req.auth.uid,
-      plan: newSubscription.plan,
-      status: newSubscription.status,
-      startDate: newSubscription.startDate,
-      endDate: newSubscription.endDate
-    });
-    
-    res.json({ 
-      success: true, 
-      message: 'Plan başarıyla güncellendi',
-      plan: {
-        current: plan,
-        previous: oldPlan,
-        updatedAt: user.planUpdatedAt,
-        limits: {
-          daily: user.usage.dailyLimit,
-          monthly: user.usage.monthlyLimit
+        $set: {
+          'daily.used': 0,
+          'monthly.used': 0,
+          'daily.resetAt': now,
+          'monthly.resetAt': startOfMonth,
+          updatedAt: now
+        },
+        $setOnInsert: { 
+          userId: req.auth.uid,
+          createdAt: now
         }
-      }
-    });
-    
-  } catch (error) {
-    // Hata durumunda transaction'ı geri al
-    await session.abortTransaction();
-    console.error('Plan güncelleme hatası:', error);
-    res.status(500).json({ 
-      error: 'Plan güncellenirken bir hata oluştu',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  } finally {
-    // Session'ı kapat
-    await session.endSession();
+      },
+      { upsert: true }
+    );
+
+    return res.json({ success: true, message: 'Plan updated and usage reset' });
+  } catch (e) {
+    console.error('[update-plan] error:', e);
+    return res.status(500).json({ error: 'server_error' });
   }
 });
 
 // ---- Protected: Current user ----
 app.get('/me', authRequired, async (req, res) => {
   try {
-    // Kullanıcı bilgilerini al
     const userDoc = await User.findById(req.auth.uid).lean();
     if (!userDoc) return res.status(404).json({ error: 'not_found' });
-    
-    // Aktif aboneliği bul (en son oluşturulan aktif abonelik)
-    const subscription = await Subscription.findOne({ 
-      userId: req.auth.uid, 
-      status: 'active',
-      startDate: { $lte: new Date() },
-      endDate: { $gte: new Date() }
-    }).sort({ createdAt: -1 }).lean();
-    
-    // Kullanıcının mevcut planını al
-    let currentPlan = userDoc.plan || 'free';
-    
-    // Eğer aktif bir abonelik varsa ve kullanıcının mevcut planı abonelik planından farklıysa
-    if (subscription?.plan && subscription.plan !== currentPlan) {
-      // Kullanıcının planını abonelik planıyla güncelle
-      currentPlan = subscription.plan;
-      await User.findByIdAndUpdate(req.auth.uid, { 
-        $set: { 
-          plan: currentPlan,
-          planUpdatedAt: new Date() 
-        } 
-      });
-      console.log(`[${new Date().toISOString()}] Kullanıcı planı abonelik bilgileriyle güncellendi: ${userDoc.email} (${userDoc.plan} -> ${currentPlan})`);
-    } 
-    // Eğer aktif abonelik yoksa ve kullanıcı free plana düşürülmemişse
-    else if (!subscription && currentPlan !== 'free') {
-      currentPlan = 'free';
-      await User.findByIdAndUpdate(req.auth.uid, { 
-        $set: { 
-          plan: 'free',
-          planUpdatedAt: new Date() 
-        } 
-      });
-      console.log(`[${new Date().toISOString()}] Kullanıcı aktif aboneliği olmadığı için free plana çekildi: ${userDoc.email}`);
-    }
-    
-    // Kullanıcı bilgilerini döndür
+    const sub = await Subscription.findOne({ userId: req.auth.uid, status: 'active' }).lean();
+    const plan = sub?.plan || 'free';
     return res.json({
       id: String(userDoc._id),
       email: userDoc.email,
@@ -688,26 +449,9 @@ app.get('/me', authRequired, async (req, res) => {
       preferredNativeLanguage: userDoc.preferredNativeLanguage || 'tr',
       placementLevel: userDoc.placementLevel || null,
       placementCompletedAt: userDoc.placementCompletedAt || null,
-      plan: currentPlan, // Güncellenmiş plan
-      subscription: subscription ? {
-        plan: subscription.plan,
-        status: subscription.status,
-        startDate: subscription.startDate,
-        endDate: subscription.endDate,
-        paymentMethod: subscription.paymentMethod,
-        paymentStatus: subscription.paymentStatus
-      } : null,
-      usage: userDoc.usage || {
-        dailyLimit: getPlanLimit(currentPlan, 'daily'),
-        monthlyLimit: getPlanLimit(currentPlan, 'monthly'),
-        dailyUsed: 0,
-        monthlyUsed: 0,
-        lastReset: new Date(),
-        monthlyResetAt: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-      },
-      planUpdatedAt: userDoc.planUpdatedAt || new Date()
+      plan,
     });
-  } catch (e) {
+  } catch (e){
     return res.status(500).json({ error: 'server_error' });
   }
 });
@@ -1171,7 +915,14 @@ app.post('/auth/register',
       existing.verifyExpires = new Date(Date.now() + 24*60*60*1000);
       await existing.save();
       const url = `${req.protocol}://${req.get('host')}/verify.html?token=${existing.verifyToken}`;
-      console.log(`[mail] Doğrulama (${lower}): ${url}`);
+      if (resend) {
+        console.log(`[resend] sending verify email to ${lower} (existing-unverified)`);
+        const { data, error } = await resend.emails.send({ from: MAIL_FROM, to: lower, subject: 'E-posta Doğrulama - KonusKonusabilirsen', html: `<p>Hesabınızı doğrulamak için tıklayın:</p><p><a href="${url}">${url}</a></p>` });
+        if (error) { console.error('[resend] register verify email error:', error); }
+        else { console.log(`[resend] sent id=${data?.id || 'n/a'}`); }
+      } else {
+        console.log(`[mail] Doğrulama (${lower}): ${url}`);
+      }
       return res.json({ ok: true, verifySent: true });
     }
     const passwordHash = await bcrypt.hash(String(password), 10);
@@ -1179,34 +930,13 @@ app.post('/auth/register',
     const verifyExpires = new Date(Date.now() + 24*60*60*1000);
     const userDoc = await User.create({ email: lower, passwordHash, verifyToken, verifyExpires, emailVerified: false });
     const url = `${req.protocol}://${req.get('host')}/verify.html?token=${verifyToken}`;
-    console.log('[debug] Mail gönderiliyor:', { from: MAIL_FROM, to: lower, url });
-    console.log('[debug] Resend API Key var mı?', RESEND_API_KEY ? 'Evet' : 'Hayır');
-    console.log('[debug] Resend client başlatıldı mı?', resend ? 'Evet' : 'Hayır');
-    
-    try {
-      if (!resend) {
-        console.log('[debug] Resend client başlatılmamış, doğrulama bağlantısı konsola yazdırılıyor');
-        console.log(`[mail] Doğrulama Bağlantısı (${lower}): ${url}`);
-        return res.json({ ok: true, verifySent: true });
-      }
-      
-      console.log('[debug] Resend ile e-posta gönderiliyor...');
-      const { data, error } = await resend.emails.send({
-        from: MAIL_FROM,
-        to: lower,
-        subject: 'E-posta Doğrulama - KonusKonusabilirsen',
-        html: `<p>Hesabınızı doğrulamak için tıklayın:</p><p><a href="${url}">${url}</a></p>`
-      });
-      
-      if (error) {
-        console.error('[resend] E-posta gönderme hatası:', error);
-        console.log('[debug] Hata detayı:', JSON.stringify(error, null, 2));
-      } else {
-        console.log(`[resend] E-posta gönderildi. ID: ${data?.id || 'bilinmiyor'}`);
-      }
-    } catch (e) {
-      console.error('E-posta gönderilirken beklenmeyen hata:', e);
-      console.error('Hata detayı:', e.stack || 'Stack yok');
+    if (resend) {
+      console.log(`[resend] sending verify email to ${lower} (new-user)`);
+      const { data, error } = await resend.emails.send({ from: MAIL_FROM, to: lower, subject: 'E-posta Doğrulama - KonusKonusabilirsen', html: `<p>Hesabınızı doğrulamak için tıklayın:</p><p><a href="${url}">${url}</a></p>` });
+      if (error) { console.error('[resend] register verify email error:', error); }
+      else { console.log(`[resend] sent id=${data?.id || 'n/a'}`); }
+    } else {
+      console.log(`[mail] Doğrulama (${lower}): ${url}`);
     }
     // Kayıt olurken JWT DÖNDÜRME: doğrulama şart
     return res.json({ ok: true, verifySent: true });
@@ -1498,157 +1228,189 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
   }catch(e){
     console.error('[paytr] checkout error:', e);
     return res.status(500).json({ error: 'server_error' });
-  }
-});
-
 // PayTR callback
 app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req, res) => {
-  try{
-    const {
-      merchant_oid = '', status = '', total_amount = '', hash = ''
-    } = req.body || {};
+  try {
+    const { merchant_oid = '', status = '', total_amount = '', hash = '' } = req.body || {};
+    
     // Verify hash
     const hash_str = `${merchant_oid}${PAYTR_MERCHANT_SALT}${status}${total_amount}`;
     const calc = crypto.createHmac('sha256', PAYTR_MERCHANT_KEY).update(hash_str, 'utf8').digest('base64');
-    if (calc !== hash){
+    
+    if (calc !== hash) {
       console.error('[paytr] invalid hash for oid', merchant_oid);
       return res.end('OK'); // must respond OK regardless
     }
-    if (status === 'success'){
-      console.log(`[paytr] Processing successful payment for merchant_oid: ${merchant_oid}`);
+    
+    if (status === 'success') {
       const sess = iyzPending.get(merchant_oid);
-      if (!sess) {
-        console.error(`[paytr] No session found for merchant_oid: ${merchant_oid}`);
-        return res.end('OK');
-      }
       
-      if (!sess.uid || !sess.plan) {
-        console.error(`[paytr] Invalid session data for merchant_oid: ${merchant_oid}`, sess);
-        return res.end('OK');
-      }
-      
-      console.log(`[paytr] Updating user ${sess.uid} to plan ${sess.plan}`);
-      
-      try {
-        // Calculate subscription end date (1 month from now)
-        const currentDate = new Date();
-        const endDate = new Date();
-        endDate.setMonth(endDate.getMonth() + 1);
-
-        // First, cancel any existing active subscription
-        await Subscription.updateMany(
-          { 
-            userId: sess.uid,
-            status: 'active',
-            plan: { $ne: sess.plan } // Only update if the plan is different
-          },
-          { 
-            $set: { 
-              status: 'cancelled',
-              cancelledAt: currentDate,
-              updatedAt: new Date()
-            }
-          }
-        );
-
-        // Then create or update the new subscription
-        await Subscription.findOneAndUpdate(
-          { 
-            userId: sess.uid,
-            plan: sess.plan,
-            status: { $ne: 'cancelled' }
-          },
-          { 
-            $set: { 
-              plan: sess.plan,
-              status: 'active',
-              currentPeriodStart: currentDate,
-              currentPeriodEnd: endDate,
-              updatedAt: new Date(),
-              // Reset these fields when changing plans
-              cancelledAt: null,
-              cancellationReason: null
-            },
-            $setOnInsert: { 
-              createdAt: new Date()
-            }
-          },
-          { 
-            upsert: true, 
-            new: true 
-          }
-        );
-
-        // Reset usage for the new plan
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        
-        // Update user's plan and reset usage
-        await User.findByIdAndUpdate(sess.uid, { 
-          $set: { 
-            plan: sess.plan,
-            planUpdatedAt: now,
-            // Reset daily and monthly usage
-            'usage.dailyUsed': 0,
-            'usage.monthlyUsed': 0,
-            'usage.lastReset': now,
-            'usage.monthlyResetAt': startOfMonth
-          } 
-        });
-        
-        // Also update the Usage collection
-        await Usage.updateOne(
-          { userId: sess.uid },
-          { 
-            $set: {
-              'daily.used': 0,
-              'monthly.used': 0,
-              'daily.resetAt': now,
-              'monthly.resetAt': startOfMonth,
-              updatedAt: now
-            },
-            $setOnInsert: { 
-              userId: sess.uid,
-              createdAt: now
-            }
-          },
-          { upsert: true }
-        );
-
-        // Send email notification (best-effort)
+      if (sess && sess.uid && sess.plan) {
         try {
-          const userDoc = await User.findById(sess.uid).lean();
-          const email = userDoc?.email || null;
-          const amountTl = Number(total_amount) / 100;
-          if (email) {
-            await sendPaymentSuccessEmail(email, { 
-              plan: sess.plan, 
-              amountTl, 
-              oid: merchant_oid 
-            });
-            console.log(`[paytr] Success email sent to ${email} for plan ${sess.plan}`);
-          } else {
-            console.warn(`[paytr] No email found for user ${sess.uid}`);
+          // Get user document
+          const user = await User.findById(sess.uid);
+          if (!user) {
+            console.error('[paytr] user not found:', sess.uid);
+            return res.end('OK');
           }
-        } catch (e) { 
-          console.warn('[paytr] Email notification error:', e?.message || e); 
+
+          const now = new Date();
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          const endDate = new Date();
+          endDate.setMonth(endDate.getMonth() + 1);
+
+          // Log the plan change for debugging
+          console.log(`[paytr] updating plan for user ${sess.uid} from ${user.plan} to ${sess.plan}`);
+          
+          // Update or create subscription
+          await Subscription.findOneAndUpdate(
+            { userId: sess.uid },
+            { 
+              $set: { 
+                plan: sess.plan,
+                status: 'active',
+                currentPeriodStart: now,
+                currentPeriodEnd: endDate,
+                updatedAt: now
+              },
+              $setOnInsert: { 
+                userId: sess.uid,
+                createdAt: now 
+              }
+            },
+            { upsert: true, new: true }
+          );
+          
+          // Update user's plan and reset usage
+          user.plan = sess.plan;
+          user.planUpdatedAt = now;
+          user.usage = user.usage || {};
+          user.usage.dailyUsed = 0;
+          user.usage.monthlyUsed = 0;
+          user.usage.lastReset = now;
+          user.usage.monthlyResetAt = startOfMonth;
+          
+          await user.save();
+          
+          // Also update the Usage collection
+          await Usage.updateOne(
+            { userId: sess.uid },
+            { 
+              $set: {
+                'daily.used': 0,
+                'monthly.used': 0,
+                'daily.resetAt': now,
+                'monthly.resetAt': startOfMonth,
+                'plan': sess.plan,
+                updatedAt: now
+              },
+              $setOnInsert: { 
+                userId: sess.uid,
+                createdAt: now
+              }
+            },
+            { upsert: true }
+          );
+          
+          console.log(`[paytr] successfully updated plan to ${sess.plan} for user ${sess.uid}`);
+          
+          // Send email notification (best-effort)
+          try {
+            const email = user.email;
+            const amountTl = Number(total_amount) / 100;
+            if (email) {
+              await sendPaymentSuccessEmail(email, { 
+                plan: sess.plan, 
+                amountTl, 
+                oid: merchant_oid,
+                previousPlan: user.plan
+              });
+            }
+          } catch (e) { 
+            console.warn('[paytr] email notify error:', e?.message || e); 
+          }
+          
+        } catch (e) {
+          console.error('[paytr] error processing payment:', e);
+          // Log the error but still respond with OK to PayTR
         }
-        
-        console.log(`[paytr] Successfully updated user ${sess.uid} to plan ${sess.plan}`);
-      } catch (e) {
-        console.error(`[paytr] Error updating user ${sess.uid} to plan ${sess.plan}:`, e);
-        // Don't remove from pending so we can retry
-        return res.end('OK');
+      } else {
+        console.error('[paytr] invalid session data for oid:', merchant_oid, sess);
       }
       
-      // Only delete from pending if everything was successful
+      // Always clean up the pending session
       iyzPending.delete(merchant_oid);
     }
-    // PayTR expects plain 'OK'
+    
+    // Always respond with OK to PayTR
     return res.end('OK');
-  }catch(e){
+  } catch (e) {
     console.error('[paytr] callback error:', e);
     return res.end('OK');
+  }
+});
+
+// Kullanıcı planını güncelleme ve kullanımı sıfırlama
+app.post('/api/update-plan', authRequired, async (req, res) => {
+  try {
+    const { plan } = req.body || {};
+    
+    // Planı doğrula
+    if (!['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
+      return res.status(400).json({ error: 'Geçersiz plan' });
+    }
+
+    // Mevcut kullanıcı bilgilerini al
+    const user = await User.findById(req.auth.uid);
+    if (!user) {
+      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+    }
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    // Kullanıcının planını güncelle ve kullanımı sıfırla
+    user.plan = plan;
+    user.planUpdatedAt = now;
+    user.usage = user.usage || {};
+    user.usage.dailyUsed = 0;
+    user.usage.monthlyUsed = 0;
+    user.usage.lastReset = now;
+    user.usage.monthlyResetAt = startOfMonth;
+    
+    await user.save();
+    
+    // Ayrıca Usage koleksiyonunu da güncelle
+    await Usage.updateOne(
+      { userId: req.auth.uid },
+      { 
+        $set: {
+          'daily.used': 0,
+          'monthly.used': 0,
+          'daily.resetAt': now,
+          'monthly.resetAt': startOfMonth,
+          updatedAt: now,
+          plan: plan // Plan bilgisini de kaydet
+        },
+        $setOnInsert: { 
+          userId: req.auth.uid,
+          createdAt: now
+        }
+      },
+      { upsert: true }
+    );
+
+    return res.json({ 
+      success: true, 
+      message: `Plan başarıyla güncellendi: ${plan}`,
+      plan: plan
+    });
+  } catch (e) {
+    console.error('[update-plan] hata:', e);
+    return res.status(500).json({ 
+      error: 'sunucu_hatasi',
+      message: 'Plan güncellenirken bir hata oluştu'
+    });
   }
 });
 
@@ -1695,7 +1457,7 @@ app.post('/api/iyzico/checkout', authRequired, async (req, res) => {
         lastLoginDate: new Date().toISOString().slice(0,19).replace('T',' '),
         registrationDate: new Date().toISOString().slice(0,19).replace('T',' '),
         registrationAddress: 'İstanbul',
-        ip: req.ip || req.connection?.remoteAddress || '127.0.0.1',
+        ip: req.ip || '127.0.0.1',
         city: 'İstanbul',
         country: 'Türkiye',
         zipCode: '34000',
@@ -2030,10 +1792,11 @@ app.post('/session/close', (req, res) => {
   res.json({ closed: true, usage: s });
 });
 
-// WebSocket proxy to OpenAI Realtime
-const wss = new WebSocketServer({ server, path: '/realtime/ws' });
+// WebSocket server instance
+let wss;
 
-wss.on('connection', (clientWs, request) => {
+// WebSocket connection handler function
+function handleWebSocketConnection(clientWs, request) {
   const url = new URL(request.url, `http://${request.headers.host}`);
   const sessionId = url.searchParams.get('sessionId');
 
@@ -2580,7 +2343,11 @@ wss.on('connection', (clientWs, request) => {
     let obj;
     try {
       obj = JSON.parse(data.toString());
-    } catch { return; }
+    } catch (e) {
+      console.warn('[proxy] Non-JSON message from Azure, ignoring');
+      return;
+    }
+
     const t = obj?.type;
     if (t) console.log(`[proxy] Azure -> ${t}`);
     // Track which audio streaming variant Azure uses per response to avoid duplicates
@@ -2730,23 +2497,49 @@ wss.on('connection', (clientWs, request) => {
     console.error('[proxy] OpenAI WebSocket error:', error);
     cleanup();
   });
+}
+
+// Create HTTP server
+const server = createServer(app);
+
+// Initialize WebSocket server if not already initialized
+if (!wss) {
+  wss = new WebSocketServer({ 
+    server, 
+    path: '/realtime/ws' 
+  });
+}
+
+// Handle new WebSocket connections
+wss.on('connection', (clientWs, request) => {
+  console.log('[server] New WebSocket connection');
+  
+  // Use the existing WebSocket handler
+  handleWebSocketConnection(clientWs, request);
 });
 
-// Connect to MongoDB then start server
-mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 5000 })
-  .then(() => {
-    console.log('[mongo] connected');
-    server.listen(PORT, '0.0.0.0', () => {
-      console.log(`Sunucu ${PORT} portunda çalışıyor`);
-      console.log(`Ortam: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`MongoDB: ${MONGODB_URI}`);
-      console.log(`Tarih: ${new Date().toISOString()}`);
-    });
-  })
-  .catch((err) => {
-    console.error('[mongo] connection error:', err?.message || err);
-    // Still start the server to serve static pages, but auth/features will fail until DB is up
-    server.listen(PORT, '0.0.0.0', () => {
-      console.log(`Sunucu ${PORT} portunda çalışıyor (MongoDB bağlantısı yok)`);
-    });
-  });
+// Start the server
+server.listen(PORT, () => {
+  console.log(`[server] Server is running on http://localhost:${PORT}`);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+} // End of handleWebSocketConnection function
+
+// Export the app and server for testing and module usage
+module.exports = { 
+  app, 
+  server, 
+  wss 
+};
+
+// End of file

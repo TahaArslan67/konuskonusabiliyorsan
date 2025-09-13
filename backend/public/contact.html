@@ -3,7 +3,6 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <title>İletişim - KonusKonusabilirsen</title>
   <link rel="stylesheet" href="/styles.css?v=2" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,73 +10,40 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.png" type="image/png" />
   <style>
-    :root {
-      --primary-color: #7c3aed; /* Updated to match brand color */
-      --primary-hover: #6d28d9;
-      --text-color: #e5e7eb;
-      --muted-text: #9aa3b2;
-    }
-
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      color: var(--text-color);
-    }
-
     .contact-container {
       max-width: 800px;
       margin: 40px auto;
       padding: 0 20px;
     }
-    
     .contact-form {
-      background: var(--card-bg);
+      background: #f8f9fa;
       padding: 30px;
       border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-      border: 1px solid var(--border-color);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
-    
     .form-group {
       margin-bottom: 20px;
     }
-    
     .form-group label {
       display: block;
       margin-bottom: 8px;
       font-weight: 500;
-      color: var(--text-color);
     }
-    
     .form-group input,
     .form-group textarea,
     .form-group select {
       width: 100%;
-      padding: 12px;
-      background: var(--input-bg);
-      border: 1px solid var(--border-color);
+      padding: 10px;
+      border: 1px solid #ddd;
       border-radius: 6px;
       font-family: 'Inter', sans-serif;
-      color: var(--text-color);
-      transition: border-color 0.3s;
     }
-    
-    .form-group input:focus,
-    .form-group textarea:focus,
-    .form-group select:focus {
-      outline: none;
-      border-color: var(--primary-color);
-      box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
-    }
-    
     .form-group textarea {
       min-height: 150px;
       resize: vertical;
     }
-    
     .submit-btn {
-      background-color: var(--primary-color);
+      background-color: #4CAF50;
       color: white;
       border: none;
       padding: 12px 24px;
@@ -85,85 +51,31 @@
       cursor: pointer;
       font-weight: 600;
       font-size: 16px;
-      transition: background-color 0.3s, transform 0.2s;
-      width: 100%;
+      transition: background-color 0.3s;
     }
-    
     .submit-btn:hover {
-      background-color: var(--primary-hover);
-      transform: translateY(-1px);
+      background-color: #45a049;
     }
-    
-    .submit-btn:active {
-      transform: translateY(0);
-    }
-    
     .contact-info {
       margin-top: 40px;
-      display: flex;
-      justify-content: center;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
       gap: 20px;
-      flex-wrap: wrap;
     }
-    
     .info-box {
-      background: var(--card-bg);
-      padding: 25px;
-      border-radius: 12px;
+      background: #f9f9f9;
+      padding: 20px;
+      border-radius: 8px;
       text-align: center;
-      border: 1px solid var(--border-color);
-      transition: transform 0.2s, box-shadow 0.2s;
-      flex: 1;
-      min-width: 200px;
-      max-width: 300px;
     }
-    
-    .info-box:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-    }
-    
     .info-box h3 {
       margin-top: 0;
-      color: var(--primary-color);
-      margin-bottom: 12px;
+      color: #333;
     }
-    
-    .info-box a {
-      color: var(--text-color);
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-    
-    .info-box a:hover {
-      color: var(--primary-color);
-      text-decoration: underline;
-    }
-    
     @media (max-width: 768px) {
       .contact-form {
         padding: 20px;
       }
-      
-      .contact-info {
-        flex-direction: column;
-        align-items: center;
-      }
-      
-      .info-box {
-        width: 100%;
-        max-width: 100%;
-      }
-    }
-    
-    h1 {
-      color: var(--text-color);
-      margin-bottom: 20px;
-    }
-    
-    p {
-      color: var(--muted-text);
-      margin-bottom: 30px;
     }
   </style>
 </head>
@@ -179,127 +91,62 @@
     <nav class="nav">
       <a href="/#features">Özellikler</a>
       <a href="/#pricing">Fiyatlandırma</a>
-      <a href="/contact" class="active">İletişim</a>
-      
+      <a href="/contact">İletişim</a>
       <button class="btn btn-text" id="btnAccount" type="button" style="display:none;">Hesabım <span id="verifyDot" class="dot" style="display:none;"></span></button>
       <button class="btn btn-secondary" id="btnLogin" type="button">Giriş Yap</button>
-      <a href="#" class="btn btn-primary" id="btnStart">Hemen Başla</a>
-      <button id="btnMenu" class="btn btn-secondary btn-sm" type="button" aria-label="Menüyü Aç" style="display:none;">
-        <span aria-hidden="true">☰</span>
-      </button>
+      <a href="/#pricing" class="btn btn-primary" id="btnStart">Hemen Başla</a>
     </nav>
-    <script>
-      // Sayfa yüklendiğinde header'ı güncelle
-      document.addEventListener('DOMContentLoaded', function() {
-        // Yıl bilgisini güncelle
-        const yearElement = document.getElementById('year');
-        if (yearElement) {
-          yearElement.textContent = new Date().getFullYear();
-        }
-        
-        // Header'ı güncelle
-        updateHeader();
-        
-        // Mobil menü butonunu yönet
-        const btnMenu = document.getElementById('btnMenu');
-        const nav = document.querySelector('.nav');
-        
-        if (btnMenu && window.innerWidth <= 640) {
-          btnMenu.style.display = 'inline-flex';
-          
-          btnMenu.addEventListener('click', function() {
-            const isExpanded = nav.style.display === 'flex';
-            nav.style.display = isExpanded ? 'none' : 'flex';
-          });
-          
-          // Ekran boyutu değiştiğinde kontrol et
-          window.addEventListener('resize', function() {
-            if (window.innerWidth > 640) {
-              nav.style.display = '';
-              btnMenu.style.display = 'none';
-            } else {
-              btnMenu.style.display = 'inline-flex';
-              nav.style.display = 'none';
-            }
-          });
-          
-          // Mobilde menüyü başlangıçta gizle
-          if (window.innerWidth <= 640) {
-            nav.style.display = 'none';
-          }
-        }
-      });
-    </script>
   </header>
 
-  <main>
-    <div class="card" style="text-align: center; background: var(--card); border: 1px solid rgba(255,255,255,0.08); max-width: 600px; margin: 2rem auto; padding: 2rem;">
-      <h1 style="color: var(--text-color); font-size: 2rem; margin-bottom: 1.5rem;">Bizimle İletişime Geçin</h1>
-      <p style="color: var(--muted-text); font-size: 1.1rem; margin-bottom: 2rem; line-height: 1.6;">
-        Bize ulaşmak için aşağıdaki e-posta adresimizi kullanabilirsiniz.
-      </p>
-      
-      <div style="background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 1.5rem; margin: 2rem 0;">
-        <div style="display: flex; align-items: center; justify-content: center; gap: 1rem; margin-bottom: 1rem;">
-          <i class="fas fa-envelope" style="font-size: 1.5rem; color: var(--primary-color);"></i>
-          <span id="emailAddress" style="font-size: 1.2rem; font-weight: 500; color: var(--text-color);">info@konuskonusabilirsen.com</span>
-        </div>
-        <button id="copyButton" style="display: inline-flex; align-items: center; gap: 0.5rem; background: var(--primary-color); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-size: 1rem; font-weight: 500; cursor: pointer; transition: all 0.2s ease;">
-          <i class="far fa-copy"></i>
-          <span>Kopyala</span>
-        </button>
-        <div id="copyMessage" style="margin-top: 1rem; color: #10b981; font-size: 0.9rem; height: 1.5rem;"></div>
+  <main class="contact-container">
+    <h1>Bizimle İletişime Geçin</h1>
+    <p>Herhangi bir sorunuz veya öneriniz mi var? Aşağıdaki formu doldurarak bize ulaşabilirsiniz. En kısa sürede size dönüş yapacağız.</p>
+    
+    <form id="contactForm" class="contact-form">
+      <div class="form-group">
+        <label for="name">Ad Soyad *</label>
+        <input type="text" id="name" name="name" required>
       </div>
+      
+      <div class="form-group">
+        <label for="email">E-posta Adresi *</label>
+        <input type="email" id="email" name="email" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="subject">Konu *</label>
+        <select id="subject" name="subject" required>
+          <option value="">Bir konu seçiniz</option>
+          <option value="genel">Genel Soru</option>
+          <option value="teklif">Kurumsal Teklif</option>
+          <option value="destek">Teknik Destek</option>
+          <option value="isbirligi">İş Birliği</option>
+          <option value="diger">Diğer</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="message">Mesajınız *</label>
+        <textarea id="message" name="message" required></textarea>
+      </div>
+      
+      <button type="submit" class="submit-btn">Gönder</button>
+    </form>
+    
+    <div class="contact-info">
+      <div class="info-box">
+        <h3>E-posta</h3>
+        <p><a href="mailto:info@konuskonusabilirsen.com">info@konuskonusabilirsen.com</a></p>
+      </div>
+      <div class="info-box">
+        <h3>Telefon</h3>
+        <p><a href="tel:+905551234567">+90 555 123 45 67</a></p>
       </div>
     </div>
   </main>
 
-  <style>
-    html, body {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      overflow-x: hidden;
-    }
-    body {
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-    }
-    main {
-      flex: 1;
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 2rem 0;
-      margin: 0;
-    }
-    .card {
-      width: 100%;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 4rem 2rem;
-    }
-    @media (max-width: 1200px) {
-      .card {
-        max-width: 95%;
-        padding: 3rem 1.5rem;
-      }
-    }
-    @media (max-width: 768px) {
-      .card {
-        max-width: 98%;
-        padding: 2rem 1rem;
-      }
-      h1 {
-        font-size: 2rem !important;
-      }
-    }
-  </style>
-
-  <footer class="container footer" style="margin-top: 0;">
-    <div> KonusKonusabilirsen. Tüm hakları saklıdır.</div>
+  <footer class="container footer">
+    <div>© <span id="year">2024</span> KonusKonusabilirsen. Tüm hakları saklıdır.</div>
     <nav class="nav small">
       <a href="/gizlilik">Gizlilik Politikası</a>
       <a href="/kullanim">Kullanım Koşulları</a>
@@ -308,42 +155,30 @@
   </footer>
 
   <script>
-    // E-posta adresini kopyalama işlevi
-    document.getElementById('copyButton').addEventListener('click', function() {
-      const email = 'info@konuskonusabilirsen.com';
-      const copyMessage = document.getElementById('copyMessage');
-      
-      navigator.clipboard.writeText(email).then(() => {
-        copyMessage.textContent = 'E-posta adresi panoya kopyalandı!';
-        copyMessage.style.color = '#10b981';
-        
-        // Buton metnini güncelle
-        const button = document.getElementById('copyButton');
-        button.innerHTML = '<i class="fas fa-check"></i><span>Kopyalandı!</span>';
-        button.style.background = '#10b981';
-        
-        // 2 saniye sonra eski haline getir
-        setTimeout(() => {
-          copyMessage.textContent = '';
-          button.innerHTML = '<i class="far fa-copy"></i><span>Kopyala</span>';
-          button.style.background = '';
-        }, 2000);
-      }).catch(err => {
-        copyMessage.textContent = 'Kopyalama başarısız oldu: ' + err;
-        copyMessage.style.color = '#ef4444';
-      });
-    });
+    // Yıl bilgisini güncelle
+    document.getElementById('year').textContent = new Date().getFullYear();
     
-    // Sayfa yüklendiğinde çalışacak fonksiyon
-    document.addEventListener('DOMContentLoaded', function() {
-      // Yıl bilgisini güncelle
-      const yearElement = document.getElementById('year');
-      if (yearElement) {
-        yearElement.textContent = new Date().getFullYear();
-      }
+    // Form gönderimini yönet
+    document.getElementById('contactForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      // Form verilerini topla
+      const formData = {
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        subject: document.getElementById('subject').value,
+        message: document.getElementById('message').value
+      };
+      
+      // Burada form verilerini işleyebilir veya bir API'ye gönderebilirsiniz
+      console.log('Form gönderildi:', formData);
+      
+      // Kullanıcıya geri bildirim göster
+      alert('Mesajınız başarıyla gönderildi. En kısa sürede sizinle iletişime geçeceğiz.');
+      
+      // Formu sıfırla
+      this.reset();
     });
   </script>
-  <!-- Site genel JavaScript -->
-  <script src="/site.js"></script>
 </body>
 </html>

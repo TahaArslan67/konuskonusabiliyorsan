@@ -4,7 +4,7 @@ if (yearEl) yearEl.textContent = new Date().getFullYear();
 
 // Util
 const $ = (s) => document.querySelector(s);
-const backendBase = 'https://api.konuskonusabilirsen.com';
+const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : location.origin;
 
 function setToken(token){
   if (token) localStorage.setItem('hk_token', token);
@@ -274,15 +274,12 @@ function openAccount(){
     }
   }, 50);
 }
-const btnAccount = document.getElementById('btnAccount');
-if (btnAccount) {
-  btnAccount.addEventListener('click', (ev) => {
-    ev.preventDefault();
-    const token = getToken();
-    if (!token){ setPostLoginRedirect('/account.html'); openAuth(); showLogin(); return; }
-    window.location.href = '/account.html';
-  });
-}
+if (btnAccount) btnAccount.addEventListener('click', (ev) => {
+  ev.preventDefault();
+  const token = getToken();
+  if (!token){ setPostLoginRedirect('/account.html'); openAuth(); showLogin(); return; }
+  window.location.href = '/account.html';
+});
 
 if (formLogin){
   formLogin.addEventListener('submit', async (e) => {

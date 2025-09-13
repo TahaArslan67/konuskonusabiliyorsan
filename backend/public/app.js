@@ -789,60 +789,8 @@ async function wsConnect(){
 }
 
 function wsStop(){
-  // Update UI immediately for better responsiveness
-  const btnStart = $('#btnStartTalk');
-  const btnStop = $('#btnStopTalk');
-  if (btnStart) btnStart.disabled = false;
-  if (btnStop) btnStop.disabled = true;
-  
-  // Stop any ongoing audio
-  if (wsPlaybackCtx) {
-    try { wsPlaybackCtx.suspend(); } catch {}
-  }
-  
-  // Stop microphone
-  wsStopMic();
-  
-  // Update status
-  if (statusConnEl) statusConnEl.textContent = 'Bağlantı: Kapatılıyor...';
-  if (statusMicEl) statusMicEl.textContent = 'Mikrofon: Kapalı';
-  
-  // Send stop message to server
   wsForceSilence = true;
-  try { 
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      try { 
-        ws.send(JSON.stringify({ type: 'stop' }));
-        console.log('Sent stop message to server');
-        // Close the connection after a short delay to ensure the message is sent
-        setTimeout(() => {
-          try { ws.close(); } catch {}
-        }, 500);
-      } catch (e) {
-        console.error('Error sending stop message:', e);
-        try { ws.close(); } catch {}
-      }
-    } else if (ws) {
-      try { ws.close(); } catch {}
-    }
-  } catch (e) {
-    console.error('Error in wsStop:', e);
-  }
-  
-  // Update final status
-  if (statusConnEl) statusConnEl.textContent = 'Bağlantı: Kapalı';
-  
-  // Reset states
-  wsMicStreaming = false;
-  wsBotSpeaking = false;
-  wsBargeInPending = false;
-  wsBargeInConfirmed = false;
-  
-  // Update usage from server
-  updateUsageFromApi();
-  
-  // Force UI update after a short delay to ensure all states are updated
-  setTimeout(updateUsageFromApi, 1000);
+  try { if (ws) ws.close(); } catch {}
 }
 
 async function wsMicOn(){

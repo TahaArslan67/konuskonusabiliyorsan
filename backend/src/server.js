@@ -16,7 +16,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 import Iyzipay from 'iyzipay';
 import crypto from 'crypto';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import fs from 'fs';
 
 const app = express();
@@ -33,51 +33,6 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 const STRICT_REALTIME = String(process.env.STRICT_REALTIME || 'false').toLowerCase() === 'true';
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/hemekonus';
-
-// MongoDB bağlantı ayarları
-const mongooseOptions = {
-  maxPoolSize: 100,
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
-  connectTimeoutMS: 30000,
-  family: 4,
-  retryWrites: true,
-  w: 'majority'
-};
-
-// MongoDB bağlantısı olayları
-mongoose.connection.on('connected', () => {
-  console.log('MongoDB bağlantısı başarılı');
-});
-
-mongoose.connection.on('error', (err) => {
-  console.error('MongoDB bağlantı hatası:', err);
-});
-
-mongoose.connection.on('disconnected', () => {
-  console.log('MongoDB bağlantısı kesildi');
-});
-
-// Uygulama kapatılırken bağlantıyı kapat
-process.on('SIGINT', async () => {
-  try {
-    await mongoose.connection.close();
-    console.log('MongoDB bağlantısı kapatıldı');
-    process.exit(0);
-  } catch (err) {
-    console.error('MongoDB bağlantısı kapatılırken hata:', err);
-    process.exit(1);
-  }
-});
-
-// MongoDB'ye bağlan
-mongoose.connect(MONGODB_URI, mongooseOptions).then(() => {
-  console.log('MongoDB bağlantısı başarılı');
-}).catch(err => {
-  console.error('MongoDB bağlantı hatası:', err);
-  process.exit(1);
-});
-
 const IYZICO_API_KEY = process.env.IYZICO_API_KEY || '';
 const IYZICO_SECRET_KEY = process.env.IYZICO_SECRET_KEY || '';
 const IYZICO_BASE_URL = process.env.IYZICO_BASE_URL || 'https://sandbox-api.iyzipay.com';
@@ -85,37 +40,8 @@ const PAYTR_MERCHANT_ID = process.env.PAYTR_MERCHANT_ID || '';
 const PAYTR_MERCHANT_KEY = process.env.PAYTR_MERCHANT_KEY || '';
 const PAYTR_MERCHANT_SALT = process.env.PAYTR_MERCHANT_SALT || '';
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
-const MAIL_FROM = process.env.MAIL_FROM || 'no-reply@konuskonusabilirsen.com';
-
-// Resend client'ı oluştur
-let resend = null;
-if (RESEND_API_KEY) {
-  const { Resend } = await import('resend');
-  resend = new Resend(RESEND_API_KEY);
-}
-
-// E-posta göndericisini oluştur (Cloudflare Email Routing için)
-const transporter = nodemailer.createTransport({
-  host: 'smtp.sendgrid.net', // veya kendi SMTP sunucunuz
-  port: 587,
-  secure: false,
-  auth: {
-    user: 'apikey', // Genellikle 'apikey' kullanılır
-    pass: process.env.SENDGRID_API_KEY // veya SMTP şifreniz
-  }
-});
-
-// E-posta gönderme fonksiyonu
-const sendEmail = async (mailOptions) => {
-  try {
-    const info = await transporter.sendMail(mailOptions);
-    return { messageId: info.messageId };
-  } catch (error) {
-    console.error('E-posta gönderme hatası:', error);
-    throw error;
-  }
-};
-
+const MAIL_FROM = process.env.MAIL_FROM || 'no-reply@konuskonuşabilirsen.com';
+const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 // Admins (comma-separated emails)
 const ADMIN_EMAILS = new Set(String(process.env.ADMIN_EMAILS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
 
@@ -175,38 +101,13 @@ if (RESEND_API_KEY && !MAIL_FROM) {
 }
 
 // Middleware
-app.use(express.json({ limit: '10mb' }));
-
-// Tüm API istekleri için genel zaman aşımı (30 saniye)
-app.use((req, res, next) => {
-  res.setTimeout(30000, () => {
-    if (!res.headersSent) {
-      res.status(504).json({ error: 'İstek zaman aşımına uğradı' });
-    }
-  });
-  next();
-});
-
-// İstek sürelerini ölçmek için middleware
-app.use((req, res, next) => {
-  const start = Date.now();
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} başladı`);
-  
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${res.statusCode} [${duration}ms]`);
-  });
-  
-  next();
-});
-
+app.use(express.json({ limit: '1mb' }));
 app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
 // HTTP compression for text-based responses (tune level for balance)
 app.use(compression({
   level: 6,
   threshold: '1kb'
 }));
-
 // Security headers (CSP tuned for this app)
 app.use(helmet({
   contentSecurityPolicy: {
@@ -238,12 +139,24 @@ for (const o of allowedOriginsRaw) {
   } catch {}
 }
 
-// Allow all origins for now to ensure the contact form works
 app.use(cors({
-  origin: true, // Allow all origins
-  credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS', 'PATCH', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: function (origin, callback) {
+    // Allow requests without Origin (same-origin or curl)
+    if (!origin) return callback(null, true);
+    // Always allow local development origins
+    const localOk = /^(http:\/\/localhost:\d+|http:\/\/127\.0\.0\.1:\d+)$/.test(origin);
+    if (localOk) return callback(null, true);
+    if (allowedOriginsSet.size === 0) return callback(null, true);
+    if (allowedOriginsSet.has(origin)) return callback(null, true);
+    try {
+      const u = new URL(origin);
+      const asciiHost = toASCII(u.hostname);
+      const normalized = `${u.protocol}//${asciiHost}${u.port ? ':'+u.port : ''}`;
+      if (allowedOriginsSet.has(normalized)) return callback(null, true);
+    } catch {}
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true
 }));
 
 // Rate limit
@@ -441,242 +354,13 @@ function authRequired(req, res, next){
   }
 }
 
-// Plan limitlerini döndüren yardımcı fonksiyon
-function getPlanLimit(plan, type) {
-  const limits = {
-    free: { daily: 5, monthly: 30 },
-    starter: { daily: 30, monthly: 900 },
-    pro: { daily: 180, monthly: 5400 },
-    enterprise: { daily: 1000, monthly: 30000 }
-  };
-  return (limits[plan] && limits[plan][type]) || limits.free[type];
-}
-
-// Kullanıcı planını manuel olarak güncellemek için yeni endpoint
-app.post('/api/admin/update-user-plan', authRequired, async (req, res) => {
-  try {
-    const { userId, newPlan } = req.body || {};
-    
-    // Basit güvenlik kontrolü (sadece admin kullanıcılar için)
-    const adminUser = await User.findById(req.auth.uid);
-    if (!adminUser || !adminUser.isAdmin) {
-      return res.status(403).json({ error: 'Bu işlem için yetkiniz yok' });
-    }
-    
-    if (!userId || !['free', 'starter', 'pro', 'enterprise'].includes(newPlan)) {
-      return res.status(400).json({ error: 'Geçersiz istek' });
-    }
-    
-    // Kullanıcıyı bul
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
-    }
-    
-    // Eski planı kaydet
-    const oldPlan = user.plan;
-    
-    // Kullanıcının planını güncelle
-    user.plan = newPlan;
-    user.planUpdatedAt = new Date();
-    
-    // Kullanım sınırlarını güncelle
-    user.usage = user.usage || {};
-    user.usage.dailyLimit = getPlanLimit(newPlan, 'daily');
-    user.usage.monthlyLimit = getPlanLimit(newPlan, 'monthly');
-    user.usage.dailyUsed = 0;
-    user.usage.monthlyUsed = 0;
-    user.usage.lastReset = new Date();
-    user.usage.monthlyResetAt = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    
-    // Değişiklikleri kaydet
-    await user.save();
-    
-    console.log(`[${new Date().toISOString()}] ADMIN: Kullanıcı planı manuel olarak güncellendi`, {
-      admin: adminUser.email,
-      userId: user._id,
-      userEmail: user.email,
-      oldPlan,
-      newPlan,
-      ip: req.ip
-    });
-    
-    return res.json({ 
-      success: true, 
-      message: 'Kullanıcı planı başarıyla güncellendi',
-      userId: user._id,
-      email: user.email,
-      oldPlan,
-      newPlan
-    });
-    
-  } catch (error) {
-    console.error('Admin plan güncelleme hatası:', error);
-    return res.status(500).json({ error: 'Sunucu hatası', details: error.message });
-  }
-});
-
-// ---- Protected: Update user plan and reset usage ----
-app.post('/api/update-plan', authRequired, async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  
-  try {
-    const { plan } = req.body || {};
-    if (!['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
-      await session.abortTransaction();
-      return res.status(400).json({ error: 'Geçersiz plan seçimi' });
-    }
-
-    const user = await User.findById(req.auth.uid).session(session);
-    if (!user) {
-      await session.abortTransaction();
-      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
-    }
-
-    // Eski planı kaydet
-    const oldPlan = user.plan;
-    
-    // 1. Önce tüm aktif abonelikleri iptal et (silme, status'ü cancelled yap)
-    await Subscription.updateMany(
-      { 
-        userId: req.auth.uid,
-        status: 'active'
-      },
-      { 
-        $set: { 
-          status: 'cancelled',
-          cancelledAt: new Date(),
-          updatedAt: new Date()
-        } 
-      }
-    ).session(session);
-    
-    // 2. Yeni abonelik oluştur
-    const newSubscription = new Subscription({
-      userId: req.auth.uid,
-      plan: plan,
-      status: 'active',
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 gün sonra
-      paymentMethod: 'manual',
-      paymentStatus: 'paid',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-    
-    await newSubscription.save({ session });
-    
-    // 3. Kullanıcı bilgilerini güncelle
-    user.plan = plan;
-    user.planUpdatedAt = new Date();
-    
-    // Kullanım sınırlarını güncelle
-    user.usage = user.usage || {};
-    user.usage.dailyLimit = getPlanLimit(plan, 'daily');
-    user.usage.monthlyLimit = getPlanLimit(plan, 'monthly');
-    user.usage.dailyUsed = 0;
-    user.usage.monthlyUsed = 0;
-    user.usage.lastReset = new Date();
-    user.usage.monthlyResetAt = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    user.updatedAt = new Date();
-    
-    // Kullanıcıyı kaydet ve değişiklikleri onayla
-    await user.save({ session });
-    
-    // Transaction'ı tamamla
-    await session.commitTransaction();
-    
-    // Kullanıcı bilgilerini logla
-    console.log(`[${new Date().toISOString()}] Kullanıcı planı güncellendi:`, {
-      userId: req.auth.uid,
-      email: user.email,
-      oldPlan,
-      newPlan: plan,
-      newSubscriptionId: newSubscription._id
-    });
-    
-    // Yeni oluşturulan aboneliği logla
-    console.log(`[${new Date().toISOString()}] Yeni abonelik oluşturuldu:`, {
-      subscriptionId: newSubscription._id,
-      userId: req.auth.uid,
-      plan: newSubscription.plan,
-      status: newSubscription.status,
-      startDate: newSubscription.startDate,
-      endDate: newSubscription.endDate
-    });
-    
-    res.json({ 
-      success: true, 
-      message: 'Plan başarıyla güncellendi',
-      plan: {
-        current: plan,
-        previous: oldPlan,
-        updatedAt: user.planUpdatedAt,
-        limits: {
-          daily: user.usage.dailyLimit,
-          monthly: user.usage.monthlyLimit
-        }
-      }
-    });
-    
-  } catch (error) {
-    // Hata durumunda transaction'ı geri al
-    await session.abortTransaction();
-    console.error('Plan güncelleme hatası:', error);
-    res.status(500).json({ 
-      error: 'Plan güncellenirken bir hata oluştu',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  } finally {
-    // Session'ı kapat
-    await session.endSession();
-  }
-});
-
 // ---- Protected: Current user ----
 app.get('/me', authRequired, async (req, res) => {
   try {
-    // Kullanıcı bilgilerini al
     const userDoc = await User.findById(req.auth.uid).lean();
     if (!userDoc) return res.status(404).json({ error: 'not_found' });
-    
-    // Aktif aboneliği bul (en son oluşturulan aktif abonelik)
-    const subscription = await Subscription.findOne({ 
-      userId: req.auth.uid, 
-      status: 'active',
-      startDate: { $lte: new Date() },
-      endDate: { $gte: new Date() }
-    }).sort({ createdAt: -1 }).lean();
-    
-    // Kullanıcının mevcut planını al
-    let currentPlan = userDoc.plan || 'free';
-    
-    // Eğer aktif bir abonelik varsa ve kullanıcının mevcut planı abonelik planından farklıysa
-    if (subscription?.plan && subscription.plan !== currentPlan) {
-      // Kullanıcının planını abonelik planıyla güncelle
-      currentPlan = subscription.plan;
-      await User.findByIdAndUpdate(req.auth.uid, { 
-        $set: { 
-          plan: currentPlan,
-          planUpdatedAt: new Date() 
-        } 
-      });
-      console.log(`[${new Date().toISOString()}] Kullanıcı planı abonelik bilgileriyle güncellendi: ${userDoc.email} (${userDoc.plan} -> ${currentPlan})`);
-    } 
-    // Eğer aktif abonelik yoksa ve kullanıcı free plana düşürülmemişse
-    else if (!subscription && currentPlan !== 'free') {
-      currentPlan = 'free';
-      await User.findByIdAndUpdate(req.auth.uid, { 
-        $set: { 
-          plan: 'free',
-          planUpdatedAt: new Date() 
-        } 
-      });
-      console.log(`[${new Date().toISOString()}] Kullanıcı aktif aboneliği olmadığı için free plana çekildi: ${userDoc.email}`);
-    }
-    
-    // Kullanıcı bilgilerini döndür
+    const sub = await Subscription.findOne({ userId: req.auth.uid, status: 'active' }).lean();
+    const plan = sub?.plan || 'free';
     return res.json({
       id: String(userDoc._id),
       email: userDoc.email,
@@ -688,26 +372,9 @@ app.get('/me', authRequired, async (req, res) => {
       preferredNativeLanguage: userDoc.preferredNativeLanguage || 'tr',
       placementLevel: userDoc.placementLevel || null,
       placementCompletedAt: userDoc.placementCompletedAt || null,
-      plan: currentPlan, // Güncellenmiş plan
-      subscription: subscription ? {
-        plan: subscription.plan,
-        status: subscription.status,
-        startDate: subscription.startDate,
-        endDate: subscription.endDate,
-        paymentMethod: subscription.paymentMethod,
-        paymentStatus: subscription.paymentStatus
-      } : null,
-      usage: userDoc.usage || {
-        dailyLimit: getPlanLimit(currentPlan, 'daily'),
-        monthlyLimit: getPlanLimit(currentPlan, 'monthly'),
-        dailyUsed: 0,
-        monthlyUsed: 0,
-        lastReset: new Date(),
-        monthlyResetAt: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-      },
-      planUpdatedAt: userDoc.planUpdatedAt || new Date()
+      plan,
     });
-  } catch (e) {
+  } catch (e){
     return res.status(500).json({ error: 'server_error' });
   }
 });
@@ -917,166 +584,6 @@ app.use(express.static(publicDir, {
   }
 }));
 app.get('/', (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
-app.get('/contact', (_req, res) => res.sendFile(path.join(publicDir, 'contact.html')));
-
-// Redirect success.html to main domain
-app.get('/success.html', (req, res) => {
-  res.redirect(301, 'https://konuskonusabilirsen.com/konus');
-});
-
-// Handle contact form submission
-app.post('/api/contact', [
-  body('name').trim().notEmpty().withMessage('Lütfen adınızı girin'),
-  body('email').isEmail().withMessage('Lütfen geçerli bir e-posta adresi girin'),
-  body('message').trim().notEmpty().withMessage('Lütfen bir mesaj yazın')
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Geçersiz form verileri',
-        errors: errors.array()
-      });
-    }
-
-    const { name, email, message } = req.body;
-    
-    // Email options - send to admin
-    const mailOptions = {
-      from: 'noreply@konuskonusabilirsen.com', // Cloudflare'de onaylı gönderici adresi
-      replyTo: email, // Kullanıcının yanıt verebilmesi için
-      to: 'info@konuskonusabilirsen.com',
-      subject: `Yeni İletişim Formu: ${name}`,
-      text: `
-        İsim: ${name}
-        E-posta: ${email}
-        
-        Mesaj:
-        ${message}
-        
-        Bu mesajı yanıtlamak için e-posta istemcinizde "Yanıtla" butonuna tıklayın.
-      `,
-      html: `
-        <h2>Yeni İletişim Formu</h2>
-        <p><strong>İsim:</strong> ${name}</p>
-        <p><strong>E-posta:</strong> ${email}</p>
-        <p><strong>Mesaj:</strong></p>
-        <p>${message.replace(/\n/g, '<br>')}</p>
-        <p><em>Bu mesajı yanıtlamak için e-posta istemcinizde "Yanıtla" butonuna tıklayın.</em></p>
-      `
-    };
-
-    // Send email to admin
-    await transporter.sendMail(mailOptions);
-    
-    // Send a copy to the user from noreply address
-    const userMailOptions = {
-      from: `"KonusKonusabilirsen" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: 'Mesajınız Alındı - KonusKonusabilirsen',
-      text: `Merhaba ${name},
-
-İletişim formunuzu aldık. Size en kısa sürede dönüş yapacağız.
-
-Gönderdiğiniz mesaj:
-${message}
-
-Bu bir otomatik yanıttır. Lütfen bu e-postaya yanıt vermeyiniz.
-
-Saygılarımızla,
-KonusKonusabilirsen Ekibi`,
-      html: `
-        <p>Merhaba <strong>${name}</strong>,</p>
-        <p>İletişim formunuzu aldık. Size en kısa sürede dönüş yapacağız.</p>
-        <p><strong>Gönderdiğiniz mesaj:</strong></p>
-        <p>${message.replace(/\n/g, '<br>')}</p>
-        <p><em>Bu bir otomatik yanıttır. Lütfen bu e-postaya yanıt vermeyiniz.</em></p>
-        <p>Saygılarımızla,<br>KonusKonusabilirsen Ekibi</p>
-      `
-    };
-
-    // Send copy to user
-    await transporter.sendMail(userMailOptions);
-    
-    res.json({ 
-      success: true, 
-      message: 'Mesajınız başarıyla gönderildi. Teşekkür ederiz!' 
-    });
-    
-  } catch (error) {
-    console.error('Contact form error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Mesaj gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.' 
-    });
-  }
-});
-
-// Handle CORS preflight for contact form
-app.options('/api/contact', (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.status(200).end();
-});
-
-// Contact form submission
-app.post('/api/contact', express.json(), async (req, res) => {
-  try {
-    const { name, email, subject, message } = req.body || {};
-    console.log('Received contact form submission:', { name, email, subject, message });
-
-    // Basic validation
-    if (!name || !email || !subject || !message) {
-      return res.status(400).json({ error: 'Lütfen tüm alanları doldurunuz.' });
-    }
-
-    if (!/^\S+@\S+\.\S+$/.test(email)) {
-      return res.status(400).json({ error: 'Geçerli bir e-posta adresi giriniz.' });
-    }
-
-    // E-posta gönder
-    try {
-      const mailOptions = {
-        from: `"${name}" <${process.env.EMAIL_USER || 'noreply@konuskonusabilirsen.com'}>`,
-        to: 'info@konuskonusabilirsen.com',
-        replyTo: email,
-        subject: `İletişim Formu: ${subject}`,
-        html: `
-          <h2>Yeni İletişim Formu Gönderimi</h2>
-          <p><strong>Ad Soyad:</strong> ${name}</p>
-          <p><strong>E-posta:</strong> ${email}</p>
-          <p><strong>Konu:</strong> ${subject}</p>
-          <p><strong>Mesaj:</strong></p>
-          <p>${String(message).replace(/\n/g, '<br>')}</p>
-        `
-      };
-
-      console.log('E-posta gönderiliyor:', {
-        from: mailOptions.from,
-        to: mailOptions.to,
-        subject: mailOptions.subject
-      });
-
-      const info = await sendEmail(mailOptions);
-      console.log('E-posta gönderildi:', info.messageId);
-      
-      // Başarılı yanıt döndür
-      return res.json({ 
-        success: true, 
-        message: 'Mesajınız başarıyla gönderildi. En kısa sürede size dönüş yapacağız.' 
-      });
-      
-    } catch (error) {
-      console.error('E-posta gönderme hatası:', error);
-      throw new Error('E-posta gönderilirken bir hata oluştu: ' + error.message);
-    }
-  } catch (error) {
-    console.error('Contact form error:', error);
-    res.status(500).json({ 
-      error: error.message || 'Mesajınız gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.' 
-    });
-  }
-});
 // Fallback for browsers requesting /favicon.ico
 app.get('/favicon.ico', (_req, res) => {
   try {
@@ -1171,7 +678,14 @@ app.post('/auth/register',
       existing.verifyExpires = new Date(Date.now() + 24*60*60*1000);
       await existing.save();
       const url = `${req.protocol}://${req.get('host')}/verify.html?token=${existing.verifyToken}`;
-      console.log(`[mail] Doğrulama (${lower}): ${url}`);
+      if (resend) {
+        console.log(`[resend] sending verify email to ${lower} (existing-unverified)`);
+        const { data, error } = await resend.emails.send({ from: MAIL_FROM, to: lower, subject: 'E-posta Doğrulama - KonusKonusabilirsen', html: `<p>Hesabınızı doğrulamak için tıklayın:</p><p><a href="${url}">${url}</a></p>` });
+        if (error) { console.error('[resend] register verify email error:', error); }
+        else { console.log(`[resend] sent id=${data?.id || 'n/a'}`); }
+      } else {
+        console.log(`[mail] Doğrulama (${lower}): ${url}`);
+      }
       return res.json({ ok: true, verifySent: true });
     }
     const passwordHash = await bcrypt.hash(String(password), 10);
@@ -1179,34 +693,13 @@ app.post('/auth/register',
     const verifyExpires = new Date(Date.now() + 24*60*60*1000);
     const userDoc = await User.create({ email: lower, passwordHash, verifyToken, verifyExpires, emailVerified: false });
     const url = `${req.protocol}://${req.get('host')}/verify.html?token=${verifyToken}`;
-    console.log('[debug] Mail gönderiliyor:', { from: MAIL_FROM, to: lower, url });
-    console.log('[debug] Resend API Key var mı?', RESEND_API_KEY ? 'Evet' : 'Hayır');
-    console.log('[debug] Resend client başlatıldı mı?', resend ? 'Evet' : 'Hayır');
-    
-    try {
-      if (!resend) {
-        console.log('[debug] Resend client başlatılmamış, doğrulama bağlantısı konsola yazdırılıyor');
-        console.log(`[mail] Doğrulama Bağlantısı (${lower}): ${url}`);
-        return res.json({ ok: true, verifySent: true });
-      }
-      
-      console.log('[debug] Resend ile e-posta gönderiliyor...');
-      const { data, error } = await resend.emails.send({
-        from: MAIL_FROM,
-        to: lower,
-        subject: 'E-posta Doğrulama - KonusKonusabilirsen',
-        html: `<p>Hesabınızı doğrulamak için tıklayın:</p><p><a href="${url}">${url}</a></p>`
-      });
-      
-      if (error) {
-        console.error('[resend] E-posta gönderme hatası:', error);
-        console.log('[debug] Hata detayı:', JSON.stringify(error, null, 2));
-      } else {
-        console.log(`[resend] E-posta gönderildi. ID: ${data?.id || 'bilinmiyor'}`);
-      }
-    } catch (e) {
-      console.error('E-posta gönderilirken beklenmeyen hata:', e);
-      console.error('Hata detayı:', e.stack || 'Stack yok');
+    if (resend) {
+      console.log(`[resend] sending verify email to ${lower} (new-user)`);
+      const { data, error } = await resend.emails.send({ from: MAIL_FROM, to: lower, subject: 'E-posta Doğrulama - KonusKonusabilirsen', html: `<p>Hesabınızı doğrulamak için tıklayın:</p><p><a href="${url}">${url}</a></p>` });
+      if (error) { console.error('[resend] register verify email error:', error); }
+      else { console.log(`[resend] sent id=${data?.id || 'n/a'}`); }
+    } else {
+      console.log(`[mail] Doğrulama (${lower}): ${url}`);
     }
     // Kayıt olurken JWT DÖNDÜRME: doğrulama şart
     return res.json({ ok: true, verifySent: true });
@@ -1433,6 +926,8 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
     const user_name = 'Hemen Konus';
     const user_address = 'İstanbul';
     const user_phone = '+905555555555';
+    const merchant_ok_url = `${req.protocol}://${req.get('host')}/success.html`;
+    const merchant_fail_url = `${req.protocol}://${req.get('host')}/cancel.html`;
     const currency = 'TL';
     const test_mode = 1; // sandbox
     const non_3d = 0;
@@ -1451,11 +946,6 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
       .update(hash_str + PAYTR_MERCHANT_SALT, 'utf8')
       .digest('base64');
 
-    // Use main domain for callbacks
-    const baseUrl = 'https://konuskonusabilirsen.com';
-    const merchant_ok_url = `${baseUrl}/success.html`;
-    const merchant_fail_url = `${baseUrl}/?payment=failed`;
-    
     const form = new URLSearchParams({
       merchant_id: PAYTR_MERCHANT_ID,
       user_ip,
@@ -1515,133 +1005,21 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
       return res.end('OK'); // must respond OK regardless
     }
     if (status === 'success'){
-      console.log(`[paytr] Processing successful payment for merchant_oid: ${merchant_oid}`);
       const sess = iyzPending.get(merchant_oid);
-      if (!sess) {
-        console.error(`[paytr] No session found for merchant_oid: ${merchant_oid}`);
-        return res.end('OK');
-      }
-      
-      if (!sess.uid || !sess.plan) {
-        console.error(`[paytr] Invalid session data for merchant_oid: ${merchant_oid}`, sess);
-        return res.end('OK');
-      }
-      
-      console.log(`[paytr] Updating user ${sess.uid} to plan ${sess.plan}`);
-      
-      try {
-        // Calculate subscription end date (1 month from now)
-        const currentDate = new Date();
-        const endDate = new Date();
-        endDate.setMonth(endDate.getMonth() + 1);
-
-        // First, cancel any existing active subscription
-        await Subscription.updateMany(
-          { 
-            userId: sess.uid,
-            status: 'active',
-            plan: { $ne: sess.plan } // Only update if the plan is different
-          },
-          { 
-            $set: { 
-              status: 'cancelled',
-              cancelledAt: currentDate,
-              updatedAt: new Date()
-            }
-          }
-        );
-
-        // Then create or update the new subscription
+      if (sess && sess.uid){
         await Subscription.findOneAndUpdate(
-          { 
-            userId: sess.uid,
-            plan: sess.plan,
-            status: { $ne: 'cancelled' }
-          },
-          { 
-            $set: { 
-              plan: sess.plan,
-              status: 'active',
-              currentPeriodStart: currentDate,
-              currentPeriodEnd: endDate,
-              updatedAt: new Date(),
-              // Reset these fields when changing plans
-              cancelledAt: null,
-              cancellationReason: null
-            },
-            $setOnInsert: { 
-              createdAt: new Date()
-            }
-          },
-          { 
-            upsert: true, 
-            new: true 
-          }
-        );
-
-        // Reset usage for the new plan
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        
-        // Update user's plan and reset usage
-        await User.findByIdAndUpdate(sess.uid, { 
-          $set: { 
-            plan: sess.plan,
-            planUpdatedAt: now,
-            // Reset daily and monthly usage
-            'usage.dailyUsed': 0,
-            'usage.monthlyUsed': 0,
-            'usage.lastReset': now,
-            'usage.monthlyResetAt': startOfMonth
-          } 
-        });
-        
-        // Also update the Usage collection
-        await Usage.updateOne(
-          { userId: sess.uid },
-          { 
-            $set: {
-              'daily.used': 0,
-              'monthly.used': 0,
-              'daily.resetAt': now,
-              'monthly.resetAt': startOfMonth,
-              updatedAt: now
-            },
-            $setOnInsert: { 
-              userId: sess.uid,
-              createdAt: now
-            }
-          },
+          { userId: sess.uid, plan: sess.plan },
+          { $set: { status: 'active', currentPeriodEnd: null } },
           { upsert: true }
         );
-
         // Send email notification (best-effort)
-        try {
+        try{
           const userDoc = await User.findById(sess.uid).lean();
           const email = userDoc?.email || null;
           const amountTl = Number(total_amount) / 100;
-          if (email) {
-            await sendPaymentSuccessEmail(email, { 
-              plan: sess.plan, 
-              amountTl, 
-              oid: merchant_oid 
-            });
-            console.log(`[paytr] Success email sent to ${email} for plan ${sess.plan}`);
-          } else {
-            console.warn(`[paytr] No email found for user ${sess.uid}`);
-          }
-        } catch (e) { 
-          console.warn('[paytr] Email notification error:', e?.message || e); 
-        }
-        
-        console.log(`[paytr] Successfully updated user ${sess.uid} to plan ${sess.plan}`);
-      } catch (e) {
-        console.error(`[paytr] Error updating user ${sess.uid} to plan ${sess.plan}:`, e);
-        // Don't remove from pending so we can retry
-        return res.end('OK');
+          if (email) await sendPaymentSuccessEmail(email, { plan: sess.plan, amountTl, oid: merchant_oid });
+        } catch (e){ console.warn('[paytr] email notify error:', e?.message || e); }
       }
-      
-      // Only delete from pending if everything was successful
       iyzPending.delete(merchant_oid);
     }
     // PayTR expects plain 'OK'
@@ -1695,7 +1073,7 @@ app.post('/api/iyzico/checkout', authRequired, async (req, res) => {
         lastLoginDate: new Date().toISOString().slice(0,19).replace('T',' '),
         registrationDate: new Date().toISOString().slice(0,19).replace('T',' '),
         registrationAddress: 'İstanbul',
-        ip: req.ip || req.connection?.remoteAddress || '127.0.0.1',
+        ip: req.ip || '127.0.0.1',
         city: 'İstanbul',
         country: 'Türkiye',
         zipCode: '34000',
@@ -2377,30 +1755,9 @@ wss.on('connection', (clientWs, request) => {
         }
         return;
       }
-      if (t === 'stop' || t === 'audio_stop') {
-        // If this is a manual stop, always process it regardless of audio state
-        if (t === 'stop') {
-          console.log('[proxy] Received manual stop request');
-          // Force update usage when manual stop is received
-          if (speechStartTs) {
-            const seconds = Math.max(0, (Date.now() - speechStartTs) / 1000);
-            const usage = addUsageFromSeconds(seconds);
-            // Send updated usage to client
-            clientWs.send(JSON.stringify({ 
-              type: 'usage_update', 
-              usage: { 
-                usedDaily: usage.usedDaily, 
-                usedMonthly: usage.usedMonthly, 
-                limits: usage.limits 
-              } 
-            }));
-            speechStartTs = null;
-          }
-          // Clean up and close the connection
-          cleanup();
-          return;
-        } else if (!hasAppendedAudio || appendedBytes < 4800) {
-          // For audio_stop, only commit if we have sufficient audio
+      if (t === 'audio_stop') {
+        // Only commit if we actually appended audio; otherwise ignore to avoid empty-commit errors
+        if (!hasAppendedAudio || appendedBytes < 4800) {
           console.log('[proxy] audio_stop ignored (insufficient audio)');
           return;
         }
@@ -2580,7 +1937,11 @@ wss.on('connection', (clientWs, request) => {
     let obj;
     try {
       obj = JSON.parse(data.toString());
-    } catch { return; }
+    } catch (e) {
+      console.warn('[proxy] Non-JSON message from Azure, ignoring');
+      return;
+    }
+
     const t = obj?.type;
     if (t) console.log(`[proxy] Azure -> ${t}`);
     // Track which audio streaming variant Azure uses per response to avoid duplicates
@@ -2701,17 +2062,6 @@ wss.on('connection', (clientWs, request) => {
 
   clientWs.on('close', () => {
     console.log('[server] Client disconnected.');
-    // Ensure we save any remaining usage before cleaning up
-    if (sess && sess.usage) {
-      const usage = sess.usage;
-      if (usage.startTime) {
-        const endTime = new Date();
-        const seconds = Math.ceil((endTime - new Date(usage.startTime)) / 1000);
-        if (seconds > 0) {
-          addUsageFromSeconds(seconds);
-        }
-      }
-    }
     cleanup();
   });
 
@@ -2736,17 +2086,14 @@ wss.on('connection', (clientWs, request) => {
 mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 5000 })
   .then(() => {
     console.log('[mongo] connected');
-    server.listen(PORT, '0.0.0.0', () => {
-      console.log(`Sunucu ${PORT} portunda çalışıyor`);
-      console.log(`Ortam: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`MongoDB: ${MONGODB_URI}`);
-      console.log(`Tarih: ${new Date().toISOString()}`);
+    server.listen(PORT, () => {
+      console.log(`[server] Listening on http://localhost:${PORT}`);
     });
   })
   .catch((err) => {
     console.error('[mongo] connection error:', err?.message || err);
     // Still start the server to serve static pages, but auth/features will fail until DB is up
-    server.listen(PORT, '0.0.0.0', () => {
-      console.log(`Sunucu ${PORT} portunda çalışıyor (MongoDB bağlantısı yok)`);
+    server.listen(PORT, () => {
+      console.log(`[server] Listening (without DB) on http://localhost:${PORT}`);
     });
   });

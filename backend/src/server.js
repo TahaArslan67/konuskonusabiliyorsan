@@ -386,31 +386,63 @@ function authRequired(req, res, next){
 
 // ---- Protected: Update user plan and reset usage ----
 app.post('/api/update-plan', authRequired, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
   try {
     const { plan } = req.body || {};
     if (!['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ error: 'invalid_plan' });
     }
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    
-    // Update user's plan and reset usage
-    await User.findByIdAndUpdate(req.auth.uid, { 
+    const userId = req.auth.uid;
+
+    // 1. First, deactivate all existing subscriptions for this user
+    await Subscription.updateMany(
+      { userId, isActive: true },
+      { 
+        $set: { 
+          isActive: false,
+          cancelledAt: now,
+          updatedAt: now 
+        } 
+      },
+      { session }
+    );
+
+    // 2. Create new subscription for the selected plan
+    const newSub = new Subscription({
+      userId,
+      plan,
+      startDate: now,
+      endDate: plan === 'free' ? null : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000), // 30 days for non-free plans
+      isActive: true,
+      paymentStatus: 'completed',
+      paymentMethod: 'manual_update',
+      amount: 0,
+      currency: 'TRY'
+    });
+    await newSub.save({ session });
+
+    // 3. Update user's plan and reset usage
+    await User.findByIdAndUpdate(userId, { 
       $set: { 
         plan,
         planUpdatedAt: now,
-        // Reset daily and monthly usage
         'usage.dailyUsed': 0,
         'usage.monthlyUsed': 0,
         'usage.lastReset': now,
         'usage.monthlyResetAt': startOfMonth
       } 
-    });
+    }, { session });
     
-    // Also update the Usage collection
+    // 4. Also update the Usage collection
     await Usage.updateOne(
-      { userId: req.auth.uid },
+      { userId },
       { 
         $set: {
           'daily.used': 0,
@@ -420,17 +452,32 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
           updatedAt: now
         },
         $setOnInsert: { 
-          userId: req.auth.uid,
+          userId,
           createdAt: now
         }
       },
-      { upsert: true }
+      { upsert: true, session }
     );
 
-    return res.json({ success: true, message: 'Plan updated and usage reset' });
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.json({ 
+      success: true, 
+      message: 'Plan updated successfully',
+      plan,
+      resetAt: now,
+      monthlyResetAt: startOfMonth
+    });
   } catch (e) {
+    await session.abortTransaction();
+    session.endSession();
     console.error('[update-plan] error:', e);
-    return res.status(500).json({ error: 'server_error' });
+    return res.status(500).json({ 
+      error: 'server_error',
+      message: 'Plan güncellenirken bir hata oluştu',
+      details: e.message
+    });
   }
 });
 

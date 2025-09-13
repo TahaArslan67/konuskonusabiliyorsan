@@ -33,6 +33,51 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 const STRICT_REALTIME = String(process.env.STRICT_REALTIME || 'false').toLowerCase() === 'true';
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/hemekonus';
+
+// MongoDB bağlantı ayarları
+const mongooseOptions = {
+  maxPoolSize: 100,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+  connectTimeoutMS: 30000,
+  family: 4,
+  retryWrites: true,
+  w: 'majority'
+};
+
+// MongoDB bağlantısı olayları
+mongoose.connection.on('connected', () => {
+  console.log('MongoDB bağlantısı başarılı');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB bağlantı hatası:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('MongoDB bağlantısı kesildi');
+});
+
+// Uygulama kapatılırken bağlantıyı kapat
+process.on('SIGINT', async () => {
+  try {
+    await mongoose.connection.close();
+    console.log('MongoDB bağlantısı kapatıldı');
+    process.exit(0);
+  } catch (err) {
+    console.error('MongoDB bağlantısı kapatılırken hata:', err);
+    process.exit(1);
+  }
+});
+
+// MongoDB'ye bağlan
+mongoose.connect(MONGODB_URI, mongooseOptions).then(() => {
+  console.log('MongoDB bağlantısı başarılı');
+}).catch(err => {
+  console.error('MongoDB bağlantı hatası:', err);
+  process.exit(1);
+});
+
 const IYZICO_API_KEY = process.env.IYZICO_API_KEY || '';
 const IYZICO_SECRET_KEY = process.env.IYZICO_SECRET_KEY || '';
 const IYZICO_BASE_URL = process.env.IYZICO_BASE_URL || 'https://sandbox-api.iyzipay.com';
@@ -62,6 +107,7 @@ const sendEmail = async (mailOptions) => {
     throw error;
   }
 };
+
 // Admins (comma-separated emails)
 const ADMIN_EMAILS = new Set(String(process.env.ADMIN_EMAILS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
 
@@ -121,13 +167,38 @@ if (RESEND_API_KEY && !MAIL_FROM) {
 }
 
 // Middleware
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '10mb' }));
+
+// Tüm API istekleri için genel zaman aşımı (30 saniye)
+app.use((req, res, next) => {
+  res.setTimeout(30000, () => {
+    if (!res.headersSent) {
+      res.status(504).json({ error: 'İstek zaman aşımına uğradı' });
+    }
+  });
+  next();
+});
+
+// İstek sürelerini ölçmek için middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} başladı`);
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${res.statusCode} [${duration}ms]`);
+  });
+  
+  next();
+});
+
 app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
 // HTTP compression for text-based responses (tune level for balance)
 app.use(compression({
   level: 6,
   threshold: '1kb'
 }));
+
 // Security headers (CSP tuned for this app)
 app.use(helmet({
   contentSecurityPolicy: {
@@ -1381,6 +1452,7 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
       $set: { 
         plan,
         planUpdatedAt: now,
+        // Reset daily and monthly usage
         'usage.dailyUsed': 0,
         'usage.monthlyUsed': 0,
         'usage.lastReset': now,
@@ -1457,7 +1529,7 @@ app.post('/api/iyzico/checkout', authRequired, async (req, res) => {
         lastLoginDate: new Date().toISOString().slice(0,19).replace('T',' '),
         registrationDate: new Date().toISOString().slice(0,19).replace('T',' '),
         registrationAddress: 'İstanbul',
-        ip: req.ip || '127.0.0.1',
+        ip: req.ip || req.connection?.remoteAddress || '127.0.0.1',
         city: 'İstanbul',
         country: 'Türkiye',
         zipCode: '34000',
@@ -2342,11 +2414,7 @@ wss.on('connection', (clientWs, request) => {
     let obj;
     try {
       obj = JSON.parse(data.toString());
-    } catch (e) {
-      console.warn('[proxy] Non-JSON message from Azure, ignoring');
-      return;
-    }
-
+    } catch { return; }
     const t = obj?.type;
     if (t) console.log(`[proxy] Azure -> ${t}`);
     // Track which audio streaming variant Azure uses per response to avoid duplicates
@@ -2502,14 +2570,17 @@ wss.on('connection', (clientWs, request) => {
 mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 5000 })
   .then(() => {
     console.log('[mongo] connected');
-    server.listen(PORT, () => {
-      console.log(`[server] Listening on http://localhost:${PORT}`);
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`Sunucu ${PORT} portunda çalışıyor`);
+      console.log(`Ortam: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`MongoDB: ${MONGODB_URI}`);
+      console.log(`Tarih: ${new Date().toISOString()}`);
     });
   })
   .catch((err) => {
     console.error('[mongo] connection error:', err?.message || err);
     // Still start the server to serve static pages, but auth/features will fail until DB is up
-    server.listen(PORT, () => {
-      console.log(`[server] Listening (without DB) on http://localhost:${PORT}`);
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`Sunucu ${PORT} portunda çalışıyor (MongoDB bağlantısı yok)`);
     });
   });

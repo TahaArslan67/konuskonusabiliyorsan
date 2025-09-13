@@ -85,7 +85,15 @@ const PAYTR_MERCHANT_ID = process.env.PAYTR_MERCHANT_ID || '';
 const PAYTR_MERCHANT_KEY = process.env.PAYTR_MERCHANT_KEY || '';
 const PAYTR_MERCHANT_SALT = process.env.PAYTR_MERCHANT_SALT || '';
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
-const MAIL_FROM = process.env.MAIL_FROM || 'no-reply@konuskonuşabilirsen.com';
+const MAIL_FROM = process.env.MAIL_FROM || 'no-reply@konuskonusabilirsen.com';
+
+// Resend client'ı oluştur
+let resend = null;
+if (RESEND_API_KEY) {
+  const { Resend } = await import('resend');
+  resend = new Resend(RESEND_API_KEY);
+}
+
 // E-posta göndericisini oluştur (Cloudflare Email Routing için)
 const transporter = nodemailer.createTransport({
   host: 'smtp.sendgrid.net', // veya kendi SMTP sunucunuz
@@ -1129,14 +1137,7 @@ app.post('/auth/register',
       existing.verifyExpires = new Date(Date.now() + 24*60*60*1000);
       await existing.save();
       const url = `${req.protocol}://${req.get('host')}/verify.html?token=${existing.verifyToken}`;
-      if (resend) {
-        console.log(`[resend] sending verify email to ${lower} (existing-unverified)`);
-        const { data, error } = await resend.emails.send({ from: MAIL_FROM, to: lower, subject: 'E-posta Doğrulama - KonusKonusabilirsen', html: `<p>Hesabınızı doğrulamak için tıklayın:</p><p><a href="${url}">${url}</a></p>` });
-        if (error) { console.error('[resend] register verify email error:', error); }
-        else { console.log(`[resend] sent id=${data?.id || 'n/a'}`); }
-      } else {
-        console.log(`[mail] Doğrulama (${lower}): ${url}`);
-      }
+      console.log(`[mail] Doğrulama (${lower}): ${url}`);
       return res.json({ ok: true, verifySent: true });
     }
     const passwordHash = await bcrypt.hash(String(password), 10);
@@ -1144,13 +1145,20 @@ app.post('/auth/register',
     const verifyExpires = new Date(Date.now() + 24*60*60*1000);
     const userDoc = await User.create({ email: lower, passwordHash, verifyToken, verifyExpires, emailVerified: false });
     const url = `${req.protocol}://${req.get('host')}/verify.html?token=${verifyToken}`;
-    if (resend) {
-      console.log(`[resend] sending verify email to ${lower} (new-user)`);
-      const { data, error } = await resend.emails.send({ from: MAIL_FROM, to: lower, subject: 'E-posta Doğrulama - KonusKonusabilirsen', html: `<p>Hesabınızı doğrulamak için tıklayın:</p><p><a href="${url}">${url}</a></p>` });
-      if (error) { console.error('[resend] register verify email error:', error); }
-      else { console.log(`[resend] sent id=${data?.id || 'n/a'}`); }
-    } else {
-      console.log(`[mail] Doğrulama (${lower}): ${url}`);
+    try {
+      const { data, error } = await resend.emails.send({
+        from: MAIL_FROM,
+        to: lower,
+        subject: 'E-posta Doğrulama - KonusKonusabilirsen',
+        html: `<p>Hesabınızı doğrulamak için tıklayın:</p><p><a href="${url}">${url}</a></p>`
+      });
+      if (error) {
+        console.error('[resend] register verify email error:', error);
+      } else {
+        console.log(`[resend] sent id=${data?.id || 'n/a'}`);
+      }
+    } catch (e) {
+      console.error('E-posta gönderilirken hata oluştu:', e);
     }
     // Kayıt olurken JWT DÖNDÜRME: doğrulama şart
     return res.json({ ok: true, verifySent: true });

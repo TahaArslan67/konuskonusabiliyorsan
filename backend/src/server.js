@@ -440,67 +440,27 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
   
   try {
     const { plan } = req.body || {};
-    
-    // Geçerli plan kontrolü
-    const validPlans = ['free', 'starter', 'pro', 'enterprise'];
-    if (!validPlans.includes(plan)) {
+    if (!['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
       await session.abortTransaction();
-      return res.status(400).json({ 
-        error: 'invalid_plan',
-        message: 'Geçersiz plan seçimi',
-        validPlans: validPlans
-      });
+      return res.status(400).json({ error: 'Geçersiz plan seçimi' });
     }
 
-    // 1. Kullanıcıyı bul
     const user = await User.findById(req.auth.uid).session(session);
     if (!user) {
       await session.abortTransaction();
-      return res.status(404).json({ 
-        error: 'user_not_found',
-        message: 'Kullanıcı bulunamadı' 
-      });
+      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
     }
 
     // Eski planı kaydet
     const oldPlan = user.plan;
     
-    // 2. Tüm aktif abonelikleri bul
-    const activeSubs = await Subscription.find({
+    // 1. Önce tüm aktif abonelikleri kaldır
+    await Subscription.deleteMany({ 
       userId: req.auth.uid,
       status: 'active'
     }).session(session);
     
-    console.log(`[${new Date().toISOString()}] Mevcut aktif abonelikler (${activeSubs.length} adet):`, 
-      activeSubs.map(s => ({
-        _id: s._id,
-        plan: s.plan,
-        status: s.status,
-        startDate: s.startDate,
-        endDate: s.endDate
-      }))
-    );
-    
-    // 3. Tüm aktif abonelikleri iptal et
-    if (activeSubs.length > 0) {
-      const updateResult = await Subscription.updateMany(
-        { 
-          _id: { $in: activeSubs.map(s => s._id) },
-          status: 'active'
-        },
-        { 
-          $set: { 
-            status: 'cancelled',
-            cancelledAt: new Date(),
-            updatedAt: new Date()
-          } 
-        }
-      ).session(session);
-      
-      console.log(`[${new Date().toISOString()}] İptal edilen abonelikler:`, updateResult);
-    }
-    
-    // 4. Yeni abonelik oluştur
+    // 2. Yeni abonelik oluştur
     const newSubscription = new Subscription({
       userId: req.auth.uid,
       plan: plan,
@@ -508,75 +468,46 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
       startDate: new Date(),
       endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 gün sonra
       paymentMethod: 'manual',
-      paymentStatus: 'paid',
-      createdAt: new Date(),
-      updatedAt: new Date()
+      paymentStatus: 'paid'
     });
-    
     await newSubscription.save({ session });
     
-    console.log(`[${new Date().toISOString()}] Yeni abonelik oluşturuldu:`, {
-      userId: req.auth.uid,
-      plan: plan,
-      subscriptionId: newSubscription._id
-    });
-    
-    // 5. Kullanıcı bilgilerini güncelle
-    const updateData = {
-      plan: plan,
-      planUpdatedAt: new Date(),
-      updatedAt: new Date()
-    };
+    // 3. Kullanıcı bilgilerini güncelle
+    user.plan = plan;
+    user.planUpdatedAt = new Date();
     
     // Kullanım sınırlarını güncelle
-    updateData.usage = user.usage || {};
-    updateData.usage.dailyLimit = getPlanLimit(plan, 'daily');
-    updateData.usage.monthlyLimit = getPlanLimit(plan, 'monthly');
-    updateData.usage.dailyUsed = 0;
-    updateData.usage.monthlyUsed = 0;
-    updateData.usage.lastReset = new Date();
-    updateData.usage.monthlyResetAt = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    user.usage = user.usage || {};
+    user.usage.dailyLimit = getPlanLimit(plan, 'daily');
+    user.usage.monthlyLimit = getPlanLimit(plan, 'monthly');
+    user.usage.dailyUsed = 0;
+    user.usage.monthlyUsed = 0;
+    user.usage.lastReset = new Date();
+    user.usage.monthlyResetAt = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     
-    const updateResult = await User.updateOne(
-      { _id: req.auth.uid },
-      { $set: updateData }
-    ).session(session);
+    await user.save({ session });
     
-    console.log(`[${new Date().toISOString()}] Kullanıcı güncelleme sonucu:`, updateResult);
-    
-    // 6. Kullanım kaydını güncelle
+    // Kullanım kaydını güncelle
     await updateUsageRecord(req.auth.uid, plan, session);
     
-    // 7. Transaction'ı tamamla
+    // Transaction'ı tamamla
     await session.commitTransaction();
     
-    // 8. Plan değişikliğini logla
-    console.log(`[${new Date().toISOString()}] Plan güncellendi:`, {
-      userId: req.auth.uid,
-      email: user.email,
-      oldPlan: oldPlan,
-      newPlan: plan,
-      timestamp: new Date()
-    });
+    // Plan değişikliğini logla
+    console.log(`[${new Date().toISOString()}] Kullanıcı planı güncellendi: ${user.email} (${oldPlan} -> ${plan})`);
     
-    // 9. Başarılı yanıt dön
     res.json({ 
       success: true, 
       message: 'Plan başarıyla güncellendi',
       plan: {
         current: plan,
         previous: oldPlan,
-        updatedAt: updateData.planUpdatedAt,
+        updatedAt: user.planUpdatedAt,
         limits: {
-          daily: updateData.usage.dailyLimit,
-          monthly: updateData.usage.monthlyLimit
+          daily: user.usage.dailyLimit,
+          monthly: user.usage.monthlyLimit
         }
-      },
-      debug: process.env.NODE_ENV === 'development' ? {
-        updateResult,
-        subscriptionId: newSubscription._id,
-        cancelledSubscriptions: activeSubs.length
-      } : undefined
+      }
     });
     
   } catch (error) {
@@ -591,79 +522,22 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
 // ---- Protected: Current user ----
 app.get('/me', authRequired, async (req, res) => {
   try {
-    console.log(`[${new Date().toISOString()}] /me endpointi çağrıldı: ${req.auth.uid}`);
-    
-    // 1. Kullanıcı bilgilerini al
+    // Önce kullanıcı bilgilerini al
     const userDoc = await User.findById(req.auth.uid).lean();
-    if (!userDoc) {
-      console.error(`[${new Date().toISOString()}] Kullanıcı bulunamadı: ${req.auth.uid}`);
-      return res.status(404).json({ error: 'not_found' });
-    }
+    if (!userDoc) return res.status(404).json({ error: 'not_found' });
     
-    // 2. Tüm abonelik bilgilerini al
-    const allSubs = await Subscription.find({ userId: req.auth.uid }).lean();
-    console.log(`[${new Date().toISOString()}] Tüm abonelikler (${allSubs.length} adet):`, 
-      allSubs.map(s => ({
-        _id: s._id,
-        plan: s.plan,
-        status: s.status,
-        startDate: s.startDate,
-        endDate: s.endDate
-      }))
-    );
-    
-    // 3. Aktif abonelikleri filtrele
-    const activeSubs = allSubs.filter(s => s.status === 'active');
-    const sub = activeSubs[0]; // En son aktif abonelik
-    
-    console.log(`[${new Date().toISOString()}] Aktif abonelik:`, 
-      sub ? {
-        plan: sub.plan,
-        status: sub.status,
-        startDate: sub.startDate,
-        endDate: sub.endDate
-      } : 'Yok'
-    );
-    
-    // 4. Plan bilgisini belirle
+    // Abonelik bilgilerini al (eğer yoksa, kullanıcının kendi plan bilgisini kullan)
     let plan = userDoc.plan || 'free';
-    console.log(`[${new Date().toISOString()}] Kullanıcı planı: ${plan}`);
+    const sub = await Subscription.findOne({ userId: req.auth.uid, status: 'active' }).lean();
     
-    // 5. Eğer abonelik bilgisi varsa ve userDoc'taki plandan farklıysa, userDoc'u güncelle
-    if (sub?.plan) {
-      console.log(`[${new Date().toISOString()}] Abonelik planı: ${sub.plan}, Kullanıcı planı: ${plan}`);
-      
-      if (sub.plan !== plan) {
-        console.log(`[${new Date().toISOString()}] Plan uyumsuzluğu tespit edildi. Güncelleniyor...`);
-        const result = await User.updateOne(
-          { _id: req.auth.uid },
-          { 
-            $set: { 
-              plan: sub.plan,
-              planUpdatedAt: new Date()
-            } 
-          }
-        );
-        console.log(`[${new Date().toISOString()}] Güncelleme sonucu:`, result);
-        plan = sub.plan;
-      }
-      
-      // Eğer birden fazla aktif abonelik varsa, diğerlerini devre dışı bırak
-      if (activeSubs.length > 1) {
-        console.log(`[${new Date().toISOString()}] Birden fazla aktif abonelik bulundu (${activeSubs.length} adet). Diğerleri devre dışı bırakılıyor...`);
-        await Subscription.updateMany(
-          { 
-            _id: { $ne: sub._id },
-            userId: req.auth.uid,
-            status: 'active'
-          },
-          { $set: { status: 'cancelled' }}
-        );
-      }
+    // Eğer abonelik bilgisi varsa ve userDoc'taki plandan farklıysa, userDoc'u güncelle
+    if (sub?.plan && sub.plan !== plan) {
+      await User.findByIdAndUpdate(req.auth.uid, { plan: sub.plan });
+      plan = sub.plan;
+      console.log(`[${new Date().toISOString()}] Kullanıcı planı abonelik bilgileriyle senkronize edildi: ${userDoc.email} (${plan})`);
     }
     
-    // Kullanıcı yanıtını oluştur
-    const response = {
+    return res.json({
       id: String(userDoc._id),
       email: userDoc.email,
       emailVerified: !!userDoc.emailVerified,
@@ -678,202 +552,10 @@ app.get('/me', authRequired, async (req, res) => {
       subscriptionPlan: sub?.plan,
       userPlan: userDoc.plan,
       subscriptionStatus: sub?.status,
-      subscriptionEndDate: sub?.endDate,
-      debug: process.env.NODE_ENV === 'development' ? {
-        hasActiveSubscription: !!sub,
-        activeSubscriptionCount: activeSubs.length,
-        allSubscriptionPlans: allSubs.map(s => ({
-          id: s._id,
-          plan: s.plan,
-          status: s.status,
-          startDate: s.startDate,
-          endDate: s.endDate
-        }))
-      } : undefined
-    };
-
-    // Debug log
-    console.log(`[${new Date().toISOString()}] /me yanıtı:`, JSON.stringify({
-      ...response,
-      email: '***@***.com', // Hassas bilgileri gizle
-      debug: '...' // Debug bilgilerini kısalt
-    }));
-
-    return res.json(response);
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] /me hatası:`, error);
-    return res.status(500).json({ 
-      error: 'server_error',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      subscriptionEndDate: sub?.endDate
     });
-  }
-});
-
-
-// ---- Admin: Force update user plan (temporary) ----
-app.post('/admin/force-update-plan', authRequired, async (req, res) => {
-  try {
-    // Only allow admin users to use this endpoint
-    const user = await User.findById(req.auth.uid);
-    if (!user || user.email !== 'arslantaha67@gmail.com') {
-      return res.status(403).json({ error: 'unauthorized' });
-    }
-
-    const { userId, newPlan } = req.body;
-    
-    if (!['free', 'starter', 'pro', 'enterprise'].includes(newPlan)) {
-      return res.status(400).json({ error: 'invalid_plan' });
-    }
-
-    // Start a session for transaction
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      // 1. Update user's plan
-      const result = await User.updateOne(
-        { _id: userId },
-        { 
-          $set: { 
-            plan: newPlan,
-            planUpdatedAt: new Date(),
-            updatedAt: new Date(),
-            'usage.dailyLimit': getPlanLimit(newPlan, 'daily'),
-            'usage.monthlyLimit': getPlanLimit(newPlan, 'monthly'),
-            'usage.dailyUsed': 0,
-            'usage.monthlyUsed': 0,
-            'usage.lastReset': new Date(),
-            'usage.monthlyResetAt': new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-          }
-        }
-      ).session(session);
-
-      // 2. Cancel all existing subscriptions
-      await Subscription.updateMany(
-        { userId: userId, status: 'active' },
-        { 
-          $set: { 
-            status: 'cancelled',
-            cancelledAt: new Date(),
-            updatedAt: new Date() 
-          } 
-        }
-      ).session(session);
-
-      // 3. Create new subscription
-      const newSubscription = new Subscription({
-        userId: userId,
-        plan: newPlan,
-        status: 'active',
-        startDate: new Date(),
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-        paymentMethod: 'manual',
-        paymentStatus: 'paid',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-      await newSubscription.save({ session });
-
-      // 4. Update usage record
-      await updateUsageRecord(userId, newPlan, session);
-
-      // Commit transaction
-      await session.commitTransaction();
-      session.endSession();
-
-      // Get updated user data
-      const updatedUser = await User.findById(userId).lean();
-      const activeSubscription = await Subscription.findOne({ 
-        userId: userId, 
-        status: 'active' 
-      }).lean();
-
-      return res.json({
-        success: true,
-        message: 'Plan successfully updated',
-        user: {
-          _id: updatedUser._id,
-          email: updatedUser.email,
-          plan: updatedUser.plan,
-          planUpdatedAt: updatedUser.planUpdatedAt,
-          usage: updatedUser.usage
-        },
-        subscription: activeSubscription ? {
-          _id: activeSubscription._id,
-          plan: activeSubscription.plan,
-          status: activeSubscription.status,
-          startDate: activeSubscription.startDate,
-          endDate: activeSubscription.endDate
-        } : null
-      });
-
-    } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
-      throw error;
-    }
-
-  } catch (error) {
-    console.error('Force update plan error:', error);
-    return res.status(500).json({ 
-      error: 'update_failed',
-      message: error.message
-    });
-  }
-});
-
-// ---- Debug: Check user plan and subscriptions ----
-app.get('/debug/user-plan', authRequired, async (req, res) => {
-  try {
-    // 1. Get user document
-    const user = await User.findById(req.auth.uid).lean();
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    // 2. Get all subscriptions
-    const subscriptions = await Subscription.find({ userId: req.auth.uid }).lean();
-    
-    // 3. Get usage information
-    const usage = await Usage.findOne({ userId: req.auth.uid }).lean();
-    
-    // 4. Get plan limits
-    const planLimits = {
-      daily: getPlanLimit(user.plan, 'daily'),
-      monthly: getPlanLimit(user.plan, 'monthly')
-    };
-    
-    // 5. Response with all information
-    res.json({
-      user: {
-        _id: user._id,
-        email: user.email,
-        plan: user.plan,
-        planUpdatedAt: user.planUpdatedAt,
-        usage: user.usage || {}
-      },
-      subscriptions: subscriptions.map(sub => ({
-        _id: sub._id,
-        plan: sub.plan,
-        status: sub.status,
-        startDate: sub.startDate,
-        endDate: sub.endDate,
-        paymentStatus: sub.paymentStatus,
-        createdAt: sub.createdAt,
-        updatedAt: sub.updatedAt
-      })),
-      usage: usage || {},
-      planLimits: planLimits,
-      serverTime: new Date()
-    });
-    
-  } catch (error) {
-    console.error('Debug endpoint error:', error);
-    res.status(500).json({ 
-      error: 'debug_error',
-      message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+  } catch (e){
+    return res.status(500).json({ error: 'server_error' });
   }
 });
 

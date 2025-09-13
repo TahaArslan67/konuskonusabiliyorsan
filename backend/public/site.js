@@ -4,7 +4,7 @@ if (yearEl) yearEl.textContent = new Date().getFullYear();
 
 // Util
 const $ = (s) => document.querySelector(s);
-const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : location.origin;
+const backendBase = 'https://api.konuskonusabilirsen.com';
 
 function setToken(token){
   if (token) localStorage.setItem('hk_token', token);

@@ -889,6 +889,173 @@ app.get('/favicon.png', (_req, res) => {
   }
 });
 
+// ---- Debug: Get user data by email (admin only) ----
+app.get('/api/admin/user', authRequired, async (req, res) => {
+  try {
+    const caller = String(req.auth?.email || '').toLowerCase();
+    if (!ADMIN_EMAILS.has(caller)) {
+      return res.status(403).json({ error: 'forbidden', message: 'Admin yetkisi gerekli' });
+    }
+    
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({ error: 'email_required', message: 'E-posta adresi gerekli' });
+    }
+    
+    const user = await User.findOne({ email: email.toLowerCase() }).lean();
+    if (!user) {
+      return res.status(404).json({ error: 'user_not_found', message: 'Kullanıcı bulunamadı' });
+    }
+    
+    const subscription = await Subscription.findOne({ userId: user._id, isActive: true }).sort({ createdAt: -1 }).lean();
+    const usage = await Usage.findOne({ userId: user._id }).lean();
+    
+    return res.json({
+      user: {
+        _id: user._id,
+        email: user.email,
+        plan: user.plan,
+        planUpdatedAt: user.planUpdatedAt,
+        emailVerified: user.emailVerified,
+        createdAt: user.createdAt
+      },
+      subscription: subscription ? {
+        plan: subscription.plan,
+        isActive: subscription.isActive,
+        startDate: subscription.startDate,
+        endDate: subscription.endDate,
+        paymentStatus: subscription.paymentStatus
+      } : null,
+      usage: usage ? {
+        daily: usage.daily,
+        monthly: usage.monthly
+      } : null
+    });
+  } catch (e) {
+    console.error('[debug] get user error:', e);
+    return res.status(500).json({ error: 'server_error', message: e.message });
+  }
+});
+
+// ---- Debug: Update user plan by email (admin only) ----
+app.post('/api/admin/update-plan', authRequired, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    const caller = String(req.auth?.email || '').toLowerCase();
+    if (!ADMIN_EMAILS.has(caller)) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(403).json({ error: 'forbidden', message: 'Admin yetkisi gerekli' });
+    }
+    
+    const { email, plan } = req.body;
+    if (!email || !['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ 
+        error: 'invalid_input', 
+        message: 'Geçersiz istek. E-posta ve geçerli bir plan gerekli.' 
+      });
+    }
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    // Find user
+    const user = await User.findOne({ email: email.toLowerCase() }).session(session);
+    if (!user) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ error: 'user_not_found', message: 'Kullanıcı bulunamadı' });
+    }
+    
+    const userId = user._id;
+
+    // 1. Deactivate all existing subscriptions
+    await Subscription.updateMany(
+      { userId, isActive: true },
+      { 
+        $set: { 
+          isActive: false,
+          cancelledAt: now,
+          updatedAt: now 
+        } 
+      },
+      { session }
+    );
+
+    // 2. Create new subscription
+    const newSub = new Subscription({
+      userId,
+      plan,
+      startDate: now,
+      endDate: plan === 'free' ? null : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+      isActive: true,
+      paymentStatus: 'completed',
+      paymentMethod: 'admin_manual_update',
+      amount: 0,
+      currency: 'TRY',
+      notes: `Plan updated by admin (${caller})`
+    });
+    await newSub.save({ session });
+
+    // 3. Update user's plan and reset usage
+    await User.findByIdAndUpdate(userId, { 
+      $set: { 
+        plan,
+        planUpdatedAt: now,
+        'usage.dailyUsed': 0,
+        'usage.monthlyUsed': 0,
+        'usage.lastReset': now,
+        'usage.monthlyResetAt': startOfMonth
+      } 
+    }, { session });
+    
+    // 4. Update Usage collection
+    await Usage.updateOne(
+      { userId },
+      { 
+        $set: {
+          'daily.used': 0,
+          'monthly.used': 0,
+          'daily.resetAt': now,
+          'monthly.resetAt': startOfMonth,
+          updatedAt: now
+        },
+        $setOnInsert: { 
+          userId,
+          createdAt: now
+        }
+      },
+      { upsert: true, session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.json({ 
+      success: true, 
+      message: 'Plan başarıyla güncellendi',
+      userId: String(userId),
+      email: user.email,
+      newPlan: plan,
+      resetAt: now,
+      monthlyResetAt: startOfMonth
+    });
+  } catch (e) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error('[admin/update-plan] error:', e);
+    return res.status(500).json({ 
+      error: 'server_error',
+      message: 'Plan güncellenirken bir hata oluştu',
+      details: e.message
+    });
+  }
+});
+
 // ---- Admin: set plan for a user (no payment) ----
 app.post('/admin/set-plan', authRequired, async (req, res) => {
   try {

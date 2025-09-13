@@ -441,6 +441,17 @@ function authRequired(req, res, next){
   }
 }
 
+// Plan limitlerini döndüren yardımcı fonksiyon
+function getPlanLimit(plan, type) {
+  const limits = {
+    free: { daily: 5, monthly: 30 },
+    starter: { daily: 30, monthly: 900 },
+    pro: { daily: 180, monthly: 5400 },
+    enterprise: { daily: 1000, monthly: 30000 }
+  };
+  return (limits[plan] && limits[plan][type]) || limits.free[type];
+}
+
 // Kullanıcı planını manuel olarak güncellemek için yeni endpoint
 app.post('/api/admin/update-user-plan', authRequired, async (req, res) => {
   try {
@@ -610,41 +621,52 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
     });
     
   } catch (error) {
+    // Hata durumunda transaction'ı geri al
+    await session.abortTransaction();
     console.error('Plan güncelleme hatası:', error);
     res.status(500).json({ 
       error: 'Plan güncellenirken bir hata oluştu',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
+  } finally {
+    // Session'ı kapat
+    await session.endSession();
   }
 });
 
 // ---- Protected: Current user ----
 app.get('/me', authRequired, async (req, res) => {
   try {
-    // Önce kullanıcı bilgilerini al
+    // Kullanıcı bilgilerini al
     const userDoc = await User.findById(req.auth.uid).lean();
     if (!userDoc) return res.status(404).json({ error: 'not_found' });
     
-    // Abonelik bilgilerini al (öncelikle aktif aboneliğe göre planı belirle)
-    const sub = await Subscription.findOne({ userId: req.auth.uid, status: 'active' }).sort({ createdAt: -1 }).lean();
-    let plan = 'free';
+    // Aktif aboneliği bul (en son oluşturulan aktif abonelik)
+    const subscription = await Subscription.findOne({ 
+      userId: req.auth.uid, 
+      status: 'active',
+      startDate: { $lte: new Date() },
+      endDate: { $gte: new Date() }
+    }).sort({ createdAt: -1 }).lean();
     
-    // Eğer aktif abonelik varsa, planı aboneliğe göre güncelle
-    if (sub?.plan) {
-      plan = sub.plan;
-      // Kullanıcının plan bilgisini güncelle (eğer farklıysa veya yoksa)
-      if (userDoc.plan !== plan) {
-        await User.findByIdAndUpdate(req.auth.uid, { 
-          $set: { 
-            plan: plan,
-            planUpdatedAt: new Date() 
-          } 
-        });
-        console.log(`[${new Date().toISOString()}] Kullanıcı planı abonelik bilgileriyle güncellendi: ${userDoc.email} (${userDoc.plan} -> ${plan})`);
-      }
-    } else if (userDoc.plan !== 'free') {
-      // Eğer aktif abonelik yoksa ve kullanıcı free plana düşürülmemişse, free plana çek
-      plan = 'free';
+    // Kullanıcının mevcut planını al
+    let currentPlan = userDoc.plan || 'free';
+    
+    // Eğer aktif bir abonelik varsa ve kullanıcının mevcut planı abonelik planından farklıysa
+    if (subscription?.plan && subscription.plan !== currentPlan) {
+      // Kullanıcının planını abonelik planıyla güncelle
+      currentPlan = subscription.plan;
+      await User.findByIdAndUpdate(req.auth.uid, { 
+        $set: { 
+          plan: currentPlan,
+          planUpdatedAt: new Date() 
+        } 
+      });
+      console.log(`[${new Date().toISOString()}] Kullanıcı planı abonelik bilgileriyle güncellendi: ${userDoc.email} (${userDoc.plan} -> ${currentPlan})`);
+    } 
+    // Eğer aktif abonelik yoksa ve kullanıcı free plana düşürülmemişse
+    else if (!subscription && currentPlan !== 'free') {
+      currentPlan = 'free';
       await User.findByIdAndUpdate(req.auth.uid, { 
         $set: { 
           plan: 'free',
@@ -652,10 +674,9 @@ app.get('/me', authRequired, async (req, res) => {
         } 
       });
       console.log(`[${new Date().toISOString()}] Kullanıcı aktif aboneliği olmadığı için free plana çekildi: ${userDoc.email}`);
-    } else {
-      plan = 'free';
     }
     
+    // Kullanıcı bilgilerini döndür
     return res.json({
       id: String(userDoc._id),
       email: userDoc.email,
@@ -667,13 +688,26 @@ app.get('/me', authRequired, async (req, res) => {
       preferredNativeLanguage: userDoc.preferredNativeLanguage || 'tr',
       placementLevel: userDoc.placementLevel || null,
       placementCompletedAt: userDoc.placementCompletedAt || null,
-      plan: plan,
-      subscriptionPlan: sub?.plan,
-      userPlan: userDoc.plan,
-      subscriptionStatus: sub?.status,
-      subscriptionEndDate: sub?.endDate
+      plan: currentPlan, // Güncellenmiş plan
+      subscription: subscription ? {
+        plan: subscription.plan,
+        status: subscription.status,
+        startDate: subscription.startDate,
+        endDate: subscription.endDate,
+        paymentMethod: subscription.paymentMethod,
+        paymentStatus: subscription.paymentStatus
+      } : null,
+      usage: userDoc.usage || {
+        dailyLimit: getPlanLimit(currentPlan, 'daily'),
+        monthlyLimit: getPlanLimit(currentPlan, 'monthly'),
+        dailyUsed: 0,
+        monthlyUsed: 0,
+        lastReset: new Date(),
+        monthlyResetAt: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+      },
+      planUpdatedAt: userDoc.planUpdatedAt || new Date()
     });
-  } catch (e){
+  } catch (e) {
     return res.status(500).json({ error: 'server_error' });
   }
 });

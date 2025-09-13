@@ -1396,6 +1396,69 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
   }
 });
 
+// Kullanıcının abonelik durumunu kontrol etme ve güncelleme endpoint'i
+app.get('/api/admin/fix-subscription/:userId', authRequired, async (req, res) => {
+  try {
+    const userId = req.params.userId || req.auth.uid;
+    const now = new Date();
+    
+    // Kullanıcı bilgilerini getir
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+    }
+
+    // Aktif abonelikleri kontrol et
+    const activeSubs = await Subscription.find({
+      userId,
+      isActive: true,
+      endDate: { $gt: now }
+    }).sort({ endDate: -1 });
+
+    // Eğer aktif abonelik yoksa veya kullanıcının planı güncel değilse
+    if (activeSubs.length === 0 || activeSubs[0].plan !== user.plan) {
+      const latestSub = activeSubs[0];
+      
+      if (latestSub) {
+        // Kullanıcının planını güncelle
+        await User.findByIdAndUpdate(userId, {
+          $set: { 
+            plan: latestSub.plan,
+            planUpdatedAt: now
+          }
+        });
+
+        return res.json({
+          success: true,
+          message: `Plan güncellendi: ${latestSub.plan}`,
+          previousPlan: user.plan,
+          newPlan: latestSub.plan,
+          subscription: latestSub
+        });
+      } else {
+        return res.status(400).json({
+          error: 'Aktif abonelik bulunamadı',
+          currentPlan: user.plan,
+          subscriptions: activeSubs
+        });
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: 'Plan zaten güncel',
+      currentPlan: user.plan,
+      subscriptions: activeSubs
+    });
+  } catch (e) {
+    console.error('[fix-subscription] error:', e);
+    return res.status(500).json({ 
+      error: 'server_error',
+      message: 'Abonelik kontrolü sırasında bir hata oluştu'
+    });
+  }
+});
+
 // Debug endpoint to check user and subscription data
 app.get('/api/debug/user-plan', async (req, res) => {
   try {

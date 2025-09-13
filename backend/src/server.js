@@ -458,14 +458,29 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
     user.usage.dailyLimit = getPlanLimit(plan, 'daily');
     user.usage.monthlyLimit = getPlanLimit(plan, 'monthly');
     
-    // Eğer daha yüksek plana geçiliyorsa kullanım sayacını sıfırla
-    const planOrder = { 'free': 0, 'starter': 1, 'pro': 2, 'enterprise': 3 };
-    if (planOrder[plan] > planOrder[oldPlan]) {
-      user.usage.dailyUsed = 0;
-      user.usage.monthlyUsed = 0;
-      user.usage.lastReset = new Date();
-      user.usage.monthlyResetAt = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    }
+    // Tüm plan geçişlerinde kullanım sayaçlarını sıfırla
+    user.usage.dailyUsed = 0;
+    user.usage.monthlyUsed = 0;
+    user.usage.lastReset = new Date();
+    user.usage.monthlyResetAt = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    
+    // Subscription modelini de güncelle
+    await Subscription.findOneAndUpdate(
+      { userId: req.auth.uid },
+      { 
+        $set: { 
+          plan: plan,
+          updatedAt: new Date()
+        },
+        $setOnInsert: {
+          userId: req.auth.uid,
+          status: 'active',
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 gün sonra
+        }
+      },
+      { upsert: true, new: true }
+    );
     
     await user.save();
     
@@ -481,7 +496,11 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
       plan: {
         current: plan,
         previous: oldPlan,
-        updatedAt: user.planUpdatedAt
+        updatedAt: user.planUpdatedAt,
+        limits: {
+          daily: user.usage.dailyLimit,
+          monthly: user.usage.monthlyLimit
+        }
       }
     });
     

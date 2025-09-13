@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { toASCII } from 'punycode';
-// express-rate-limit import edildi
+import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -20,34 +20,12 @@ import nodemailer from 'nodemailer';
 import fs from 'fs';
 
 const app = express();
-
-// Güvenli trust proxy ayarı
-app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal']);
-
-// Rate limiting middleware
-import rateLimit from 'express-rate-limit';
-
-// API rotalarına rate limit uygula
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 dakika
-  max: 100, // Her IP için maksimum 100 istek
-  message: 'Çok fazla istek yaptınız, lütfen 15 dakika sonra tekrar deneyin.',
-  trustProxy: false
-});
-
-app.use('/api/', apiLimiter);
 const server = createServer(app);
-// Güvenlik başlıklarını ve proxy ayarlarını düzenle
+// Trust proxy headers (Render/Heroku/Nginx vb.) so rate-limit and req.ip work correctly
+// This fixes ERR_ERL_UNEXPECTED_X_FORWARDED_FOR from express-rate-limit
+app.set('trust proxy', 1);
+// Remove X-Powered-By header
 app.disable('x-powered-by');
-
-// CORS ayarları
-app.use((req, res, next) => {
-  res.header('X-Content-Type-Options', 'nosniff');
-  res.header('X-Frame-Options', 'DENY');
-  res.header('X-XSS-Protection', '1; mode=block');
-  res.header('Content-Security-Policy', "default-src 'self'");
-  next();
-});
 
 // Env
 const PORT = process.env.PORT || 8080;
@@ -386,63 +364,31 @@ function authRequired(req, res, next){
 
 // ---- Protected: Update user plan and reset usage ----
 app.post('/api/update-plan', authRequired, async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  
   try {
     const { plan } = req.body || {};
     if (!['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ error: 'invalid_plan' });
     }
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const userId = req.auth.uid;
-
-    // 1. First, deactivate all existing subscriptions for this user
-    await Subscription.updateMany(
-      { userId, isActive: true },
-      { 
-        $set: { 
-          isActive: false,
-          cancelledAt: now,
-          updatedAt: now 
-        } 
-      },
-      { session }
-    );
-
-    // 2. Create new subscription for the selected plan
-    const newSub = new Subscription({
-      userId,
-      plan,
-      startDate: now,
-      endDate: plan === 'free' ? null : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000), // 30 days for non-free plans
-      isActive: true,
-      paymentStatus: 'completed',
-      paymentMethod: 'manual_update',
-      amount: 0,
-      currency: 'TRY'
-    });
-    await newSub.save({ session });
-
-    // 3. Update user's plan and reset usage
-    await User.findByIdAndUpdate(userId, { 
+    
+    // Update user's plan and reset usage
+    await User.findByIdAndUpdate(req.auth.uid, { 
       $set: { 
         plan,
         planUpdatedAt: now,
+        // Reset daily and monthly usage
         'usage.dailyUsed': 0,
         'usage.monthlyUsed': 0,
         'usage.lastReset': now,
         'usage.monthlyResetAt': startOfMonth
       } 
-    }, { session });
+    });
     
-    // 4. Also update the Usage collection
+    // Also update the Usage collection
     await Usage.updateOne(
-      { userId },
+      { userId: req.auth.uid },
       { 
         $set: {
           'daily.used': 0,
@@ -452,32 +398,17 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
           updatedAt: now
         },
         $setOnInsert: { 
-          userId,
+          userId: req.auth.uid,
           createdAt: now
         }
       },
-      { upsert: true, session }
+      { upsert: true }
     );
 
-    await session.commitTransaction();
-    session.endSession();
-
-    return res.json({ 
-      success: true, 
-      message: 'Plan updated successfully',
-      plan,
-      resetAt: now,
-      monthlyResetAt: startOfMonth
-    });
+    return res.json({ success: true, message: 'Plan updated and usage reset' });
   } catch (e) {
-    await session.abortTransaction();
-    session.endSession();
     console.error('[update-plan] error:', e);
-    return res.status(500).json({ 
-      error: 'server_error',
-      message: 'Plan güncellenirken bir hata oluştu',
-      details: e.message
-    });
+    return res.status(500).json({ error: 'server_error' });
   }
 });
 
@@ -889,163 +820,6 @@ app.get('/favicon.png', (_req, res) => {
   }
 });
 
-// ---- Debug: Get user data by email (public access for debugging) ----
-app.get('/api/admin/user', async (req, res) => {
-  try {
-    
-    const { email } = req.query;
-    if (!email) {
-      return res.status(400).json({ error: 'email_required', message: 'E-posta adresi gerekli' });
-    }
-    
-    const user = await User.findOne({ email: email.toLowerCase() }).lean();
-    if (!user) {
-      return res.status(404).json({ error: 'user_not_found', message: 'Kullanıcı bulunamadı' });
-    }
-    
-    const subscription = await Subscription.findOne({ userId: user._id, isActive: true }).sort({ createdAt: -1 }).lean();
-    const usage = await Usage.findOne({ userId: user._id }).lean();
-    
-    return res.json({
-      user: {
-        _id: user._id,
-        email: user.email,
-        plan: user.plan,
-        planUpdatedAt: user.planUpdatedAt,
-        emailVerified: user.emailVerified,
-        createdAt: user.createdAt
-      },
-      subscription: subscription ? {
-        plan: subscription.plan,
-        isActive: subscription.isActive,
-        startDate: subscription.startDate,
-        endDate: subscription.endDate,
-        paymentStatus: subscription.paymentStatus
-      } : null,
-      usage: usage ? {
-        daily: usage.daily,
-        monthly: usage.monthly
-      } : null
-    });
-  } catch (e) {
-    console.error('[debug] get user error:', e);
-    return res.status(500).json({ error: 'server_error', message: e.message });
-  }
-});
-
-// ---- Debug: Update user plan by email (public access for debugging) ----
-app.post('/api/admin/update-plan', async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  
-  try {
-    
-    const { email, plan } = req.body;
-    if (!email || !['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({ 
-        error: 'invalid_input', 
-        message: 'Geçersiz istek. E-posta ve geçerli bir plan gerekli.' 
-      });
-    }
-
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    
-    // Find user
-    const user = await User.findOne({ email: email.toLowerCase() }).session(session);
-    if (!user) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(404).json({ error: 'user_not_found', message: 'Kullanıcı bulunamadı' });
-    }
-    
-    const userId = user._id;
-
-    // 1. Deactivate all existing subscriptions
-    await Subscription.updateMany(
-      { userId, isActive: true },
-      { 
-        $set: { 
-          isActive: false,
-          cancelledAt: now,
-          updatedAt: now 
-        } 
-      },
-      { session }
-    );
-
-    // 2. Create new subscription
-    const newSub = new Subscription({
-      userId,
-      plan,
-      startDate: now,
-      endDate: plan === 'free' ? null : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
-      isActive: true,
-      paymentStatus: 'completed',
-      paymentMethod: 'admin_manual_update',
-      amount: 0,
-      currency: 'TRY',
-      notes: `Plan updated by admin (${caller})`
-    });
-    await newSub.save({ session });
-
-    // 3. Update user's plan and reset usage
-    await User.findByIdAndUpdate(userId, { 
-      $set: { 
-        plan,
-        planUpdatedAt: now,
-        'usage.dailyUsed': 0,
-        'usage.monthlyUsed': 0,
-        'usage.lastReset': now,
-        'usage.monthlyResetAt': startOfMonth
-      } 
-    }, { session });
-    
-    // 4. Update Usage collection
-    await Usage.updateOne(
-      { userId },
-      { 
-        $set: {
-          'daily.used': 0,
-          'monthly.used': 0,
-          'daily.resetAt': now,
-          'monthly.resetAt': startOfMonth,
-          updatedAt: now
-        },
-        $setOnInsert: { 
-          userId,
-          createdAt: now
-        }
-      },
-      { upsert: true, session }
-    );
-
-    await session.commitTransaction();
-    session.endSession();
-
-    return res.json({ 
-      success: true, 
-      message: 'Plan başarıyla güncellendi',
-      userId: String(userId),
-      email: user.email,
-      newPlan: plan,
-      resetAt: now,
-      monthlyResetAt: startOfMonth
-    });
-  } catch (e) {
-    await session.abortTransaction();
-    session.endSession();
-    console.error('[admin/update-plan] error:', e);
-    return res.status(500).json({ 
-      error: 'server_error',
-      message: 'Plan güncellenirken bir hata oluştu',
-      details: e.message
-    });
-  }
-});
-
 // ---- Admin: set plan for a user (no payment) ----
 app.post('/admin/set-plan', authRequired, async (req, res) => {
   try {
@@ -1454,11 +1228,8 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
     if (status === 'success'){
       console.log(`[paytr] Processing successful payment for merchant_oid: ${merchant_oid}`);
       const sess = iyzPending.get(merchant_oid);
-      console.log(`[paytr] Session data from iyzPending:`, sess);
-      
       if (!sess) {
         console.error(`[paytr] No session found for merchant_oid: ${merchant_oid}`);
-        console.log(`[paytr] Current iyzPending keys:`, Array.from(iyzPending.keys()));
         return res.end('OK');
       }
       
@@ -1491,8 +1262,8 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
           }
         );
 
-        console.log(`[paytr] Creating/updating subscription for user ${sess.uid} to plan ${sess.plan}`);
-        const updateResult = await Subscription.findOneAndUpdate(
+        // Then create or update the new subscription
+        await Subscription.findOneAndUpdate(
           { 
             userId: sess.uid,
             plan: sess.plan,
@@ -1510,7 +1281,6 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
               cancellationReason: null
             },
             $setOnInsert: { 
-              userId: sess.uid,
               createdAt: new Date()
             }
           },
@@ -1519,13 +1289,6 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
             new: true 
           }
         );
-        
-        console.log(`[paytr] Subscription update result:`, {
-          matchedCount: updateResult?.matchedCount,
-          modifiedCount: updateResult?.modifiedCount,
-          upsertedCount: updateResult?.upsertedCount,
-          upsertedId: updateResult?.upsertedId
-        });
 
         // Reset usage for the new plan
         const now = new Date();
@@ -1600,262 +1363,21 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
   }
 });
 
-// Kullanıcının abonelik durumunu kontrol etme ve güncelleme endpoint'i
-app.get('/api/admin/fix-subscription/:userId', authRequired, async (req, res) => {
-  try {
-    const userId = req.params.userId || req.auth.uid;
-    const now = new Date();
-    
-    // Kullanıcı bilgilerini getir
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
-    }
-
-    // Aktif abonelikleri kontrol et
-    const activeSubs = await Subscription.find({
-      userId,
-      isActive: true,
-      endDate: { $gt: now }
-    }).sort({ endDate: -1 });
-
-    // Eğer aktif abonelik yoksa veya kullanıcının planı güncel değilse
-    if (activeSubs.length === 0 || activeSubs[0].plan !== user.plan) {
-      const latestSub = activeSubs[0];
-      
-      if (latestSub) {
-        // Kullanıcının planını güncelle
-        await User.findByIdAndUpdate(userId, {
-          $set: { 
-            plan: latestSub.plan,
-            planUpdatedAt: now
-          }
-        });
-
-        return res.json({
-          success: true,
-          message: `Plan güncellendi: ${latestSub.plan}`,
-          previousPlan: user.plan,
-          newPlan: latestSub.plan,
-          subscription: latestSub
-        });
-      } else {
-        return res.status(400).json({
-          error: 'Aktif abonelik bulunamadı',
-          currentPlan: user.plan,
-          subscriptions: activeSubs
-        });
-      }
-    }
-
-    return res.json({
-      success: true,
-      message: 'Plan zaten güncel',
-      currentPlan: user.plan,
-      subscriptions: activeSubs
-    });
-  } catch (e) {
-    console.error('[fix-subscription] error:', e);
-    return res.status(500).json({ 
-      error: 'server_error',
-      message: 'Abonelik kontrolü sırasında bir hata oluştu'
-    });
-  }
-});
-
-// Debug endpoint to check user and subscription data
-app.get('/api/debug/user-plan', async (req, res) => {
-  try {
-    const { email } = req.query;
-    if (!email) return res.status(400).json({ error: 'email_required' });
-    
-    const user = await User.findOne({ email }).lean();
-    if (!user) return res.status(404).json({ error: 'user_not_found' });
-    
-    const subscriptions = await Subscription.find({ userId: user._id })
-      .sort({ currentPeriodStart: -1 })
-      .lean();
-      
-    const usage = await Usage.findOne({ userId: user._id }).lean();
-    
-    return res.json({
-      user: {
-        _id: user._id,
-        email: user.email,
-        plan: user.plan,
-        planUpdatedAt: user.planUpdatedAt,
-        usage: user.usage
-      },
-      subscriptions,
-      usage,
-      serverTime: new Date()
-    });
-  } catch (e) {
-    console.error('[debug/user-plan] error:', e);
-    return res.status(500).json({ error: 'server_error' });
-  }
-});
-
-// Manual plan update (for admin/troubleshooting)
-app.post('/api/admin/update-plan', authRequired, async (req, res) => {
-  try {
-    // Check if user is admin
-    const user = await User.findById(req.auth.uid);
-    if (!user.isAdmin) {
-      return res.status(403).json({ error: 'forbidden' });
-    }
-
-    const { userId, plan } = req.body;
-    if (!userId || !['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
-      return res.status(400).json({ error: 'invalid_parameters' });
-    }
-
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    // Update user
-    await User.findByIdAndUpdate(userId, {
-      $set: {
-        plan,
-        planUpdatedAt: now,
-        'usage.dailyUsed': 0,
-        'usage.monthlyUsed': 0,
-        'usage.lastReset': now,
-        'usage.monthlyResetAt': startOfMonth
-      }
-    });
-
-    // Update usage collection
-    await Usage.updateOne(
-      { userId },
-      {
-        $set: {
-          'daily.used': 0,
-          'monthly.used': 0,
-          'daily.resetAt': now,
-          'monthly.resetAt': startOfMonth,
-          updatedAt: now
-        },
-        $setOnInsert: {
-          userId,
-          createdAt: now
-        }
-      },
-      { upsert: true }
-    );
-
-    // Update subscription
-    await Subscription.updateMany(
-      { userId },
-      { $set: { status: 'cancelled', updatedAt: now } }
-    );
-
-    await Subscription.findOneAndUpdate(
-      { userId, plan },
-      {
-        $set: {
-          status: 'active',
-          currentPeriodStart: now,
-          currentPeriodEnd: new Date(now.setMonth(now.getMonth() + 1)),
-          updatedAt: now
-        },
-        $setOnInsert: {
-          userId,
-          plan,
-          createdAt: now
-        }
-      },
-      { upsert: true, new: true }
-    );
-
-    return res.json({ success: true, message: 'Plan updated successfully' });
-  } catch (e) {
-    console.error('[admin/update-plan] error:', e);
-    return res.status(500).json({ error: 'server_error' });
-  }
-});
-
-// Get current subscription status
-app.get('/api/subscription/status', authRequired, async (req, res) => {
-  try {
-    const user = await User.findById(req.auth.uid).lean();
-    if (!user) return res.status(404).json({ error: 'user_not_found' });
-    
-    const subscription = await Subscription.findOne({ 
-      userId: req.auth.uid,
-      status: 'active'
-    }).sort({ currentPeriodStart: -1 }).lean();
-    
-    const usage = await Usage.findOne({ userId: req.auth.uid }).lean();
-    
-    return res.json({
-      user: {
-        _id: user._id,
-        email: user.email,
-        plan: user.plan,
-        planUpdatedAt: user.planUpdatedAt,
-        usage: user.usage
-      },
-      subscription,
-      usage
-    });
-  } catch (e) {
-    console.error('[subscription/status] error:', e);
-    return res.status(500).json({ error: 'server_error' });
-  }
-});
-
 // Update user plan and reset usage
 app.post('/api/update-plan', authRequired, async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  
   try {
     const { plan } = req.body || {};
     
     // Validate plan
     if (!['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
-      await session.abortTransaction();
       return res.status(400).json({ error: 'invalid_plan' });
     }
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const userId = req.auth.uid;
-
-    // Find and deactivate current active subscription if exists
-    const currentSub = await Subscription.findOneAndUpdate(
-      { 
-        userId,
-        isActive: true,
-        endDate: { $gt: now } // Only consider active subscriptions
-      },
-      { 
-        $set: { 
-          isActive: false,
-          cancelledAt: now,
-          updatedAt: now 
-        } 
-      },
-      { session, new: true }
-    );
-
-    // Create new subscription for the new plan
-    const newSub = new Subscription({
-      userId,
-      plan,
-      startDate: now,
-      endDate: plan === 'free' ? null : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000), // 30 days for non-free plans
-      isActive: true,
-      paymentStatus: 'completed',
-      paymentMethod: 'manual_update',
-      amount: 0, // Free plan or manual update
-      currency: 'TRY'
-    });
-    await newSub.save({ session });
-
+    
     // Update user's plan and reset usage
-    await User.findByIdAndUpdate(userId, { 
+    await User.findByIdAndUpdate(req.auth.uid, { 
       $set: { 
         plan,
         planUpdatedAt: now,
@@ -1864,11 +1386,11 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
         'usage.lastReset': now,
         'usage.monthlyResetAt': startOfMonth
       } 
-    }, { session });
+    });
     
     // Also update the Usage collection
     await Usage.updateOne(
-      { userId },
+      { userId: req.auth.uid },
       { 
         $set: {
           'daily.used': 0,
@@ -1878,30 +1400,17 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
           updatedAt: now
         },
         $setOnInsert: { 
-          userId,
+          userId: req.auth.uid,
           createdAt: now
         }
       },
-      { upsert: true, session }
+      { upsert: true }
     );
 
-    await session.commitTransaction();
-    session.endSession();
-
-    return res.json({ 
-      success: true, 
-      message: 'Plan updated successfully',
-      previousPlan: currentSub ? currentSub.plan : null,
-      newPlan: plan
-    });
+    return res.json({ success: true, message: 'Plan updated and usage reset' });
   } catch (e) {
-    await session.abortTransaction();
-    session.endSession();
     console.error('[update-plan] error:', e);
-    return res.status(500).json({ 
-      error: 'server_error',
-      message: 'Plan güncellenirken bir hata oluştu'
-    });
+    return res.status(500).json({ error: 'server_error' });
   }
 });
 

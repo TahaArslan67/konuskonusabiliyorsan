@@ -49,23 +49,25 @@ async function init(){
   try {
     try{ console.log('[account] init başlıyor', { backendBase, token: getToken()? 'VAR':'YOK' }); }catch{}
     const me = await loadMe();
-    try{ console.log('[account] me yüklendi', me); }catch{}
+    // API /me yanıtı { user: { ... } } şeklinde; eski sürümlere uyum için me.user || me kullan
+    const u = me && me.user ? me.user : me;
+    try{ console.log('[account] me yüklendi', u); }catch{}
     const badgePlan = $('#accBadgePlan');
     const badgeLevel = $('#accBadgeLevel');
     const emailEl = $('#accEmail');
     const verEl = $('#accVerified');
-    if (badgePlan) badgePlan.textContent = `Plan: ${me.plan || 'free'}`;
-    if (badgeLevel) badgeLevel.textContent = `Seviye: ${me.placementLevel || '-'}`;
-    if (emailEl) emailEl.textContent = me.email || '-';
-    if (verEl) verEl.textContent = `Doğrulama: ${me.emailVerified ? 'Doğrulandı' : 'Bekliyor'}`;
-    const planText = document.getElementById('planText'); if (planText) planText.textContent = me.plan || 'free';
-    const levelText = document.getElementById('levelText'); if (levelText) levelText.textContent = me.placementLevel || '-';
+    if (badgePlan) badgePlan.textContent = `Plan: ${u.plan || 'free'}`;
+    if (badgeLevel) badgeLevel.textContent = `Seviye: ${u.placementLevel || '-'}`;
+    if (emailEl) emailEl.textContent = u.email || '-';
+    if (verEl) verEl.textContent = `Doğrulama: ${u.emailVerified ? 'Doğrulandı' : 'Bekliyor'}`;
+    const planText = document.getElementById('planText'); if (planText) planText.textContent = u.plan || 'free';
+    const levelText = document.getElementById('levelText'); if (levelText) levelText.textContent = u.placementLevel || '-';
 
     // Preferences
-    fillLangSelect($('#accLearnLang'), me.preferredLearningLanguage || 'tr');
-    fillLangSelect($('#accNativeLang'), me.preferredNativeLanguage || 'tr');
-    const voice = $('#accVoice'); if (voice) voice.value = me.preferredVoice || '';
-    const corr = $('#accCorrection'); if (corr) corr.value = me.preferredCorrectionMode || 'gentle';
+    fillLangSelect($('#accLearnLang'), u.preferredLearningLanguage || 'tr');
+    fillLangSelect($('#accNativeLang'), u.preferredNativeLanguage || 'tr');
+    const voice = $('#accVoice'); if (voice) voice.value = u.preferredVoice || '';
+    const corr = $('#accCorrection'); if (corr) corr.value = u.preferredCorrectionMode || 'gentle';
 
     const usage = await loadUsage();
     if (usage){

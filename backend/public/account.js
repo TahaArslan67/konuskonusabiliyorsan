@@ -75,6 +75,13 @@ async function init(){
       const d = $('#accUsageDaily'); const m = $('#accUsageMonthly');
       if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)} / ${usage.limits?.daily ?? '-' } dk`;
       if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)} / ${usage.limits?.monthly ?? '-' } dk`;
+      // Eğer backend /me ve /usage plan alanları farklı gelirse, /usage.plan'ı kaynak olarak kullan
+      try {
+        const planText = document.getElementById('planText');
+        if (planText && usage.plan) {
+          planText.textContent = usage.plan;
+        }
+      } catch {}
     }
 
     const btnSave = $('#accSave');

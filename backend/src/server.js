@@ -1539,7 +1539,22 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
 });
 
 // PayTR callback
+// Debug: Track callback invocations
+let callbackInvocations = [];
+
 app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req, res) => {
+  const callbackId = Date.now();
+  const logEntry = {
+    id: callbackId,
+    timestamp: new Date().toISOString(),
+    body: { ...req.body },
+    status: 'started'
+  };
+  
+  // Store only last 10 invocations
+  callbackInvocations = [logEntry, ...callbackInvocations].slice(0, 10);
+  
+  console.log(`[paytr][${callbackId}] Callback received:`, JSON.stringify(req.body, null, 2));
   console.log('[paytr] Received callback with body:', JSON.stringify(req.body));
   try{
     const {
@@ -1552,7 +1567,10 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
       console.error('[paytr] invalid hash for oid', merchant_oid);
       return res.end('OK'); // must respond OK regardless
     }
-    if (status === 'success' || payment_status === 'success'){
+    const isSuccess = status === 'success' || payment_status === 'success';
+    logEntry.isSuccess = isSuccess;
+    
+    if (isSuccess) {
       console.log(`[paytr] Processing successful payment for merchant_oid: ${merchant_oid}`);
       console.log(`[paytr] Pending sessions in memory:`, Array.from(iyzPending.entries()));
       const sess = iyzPending.get(merchant_oid);
@@ -1704,11 +1722,21 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
       // Only delete from pending if everything was successful
       iyzPending.delete(merchant_oid);
     }
+    // Log the completion
+    logEntry.status = 'completed';
+    logEntry.completedAt = new Date().toISOString();
+    
     // PayTR expects plain 'OK'
+    console.log(`[paytr][${callbackId}] Sending OK response`);
     return res.end('OK');
   }catch(e){
-    console.error('[paytr] callback error:', e);
-    console.error('[paytr] Error stack:', e.stack);
+    const errorMsg = e?.message || String(e);
+    logEntry.error = errorMsg;
+    logEntry.status = 'error';
+    logEntry.stack = e?.stack;
+    
+    console.error(`[paytr][${callbackId}] Callback error:`, errorMsg);
+    console.error(`[paytr][${callbackId}] Error stack:`, e?.stack);
     return res.end('OK');
   }
 });
@@ -1718,6 +1746,11 @@ function getIyzico() {
   if (!IYZICO_API_KEY || !IYZICO_SECRET_KEY) return null;
   return new Iyzipay({ apiKey: IYZICO_API_KEY, secretKey: IYZICO_SECRET_KEY, uri: IYZICO_BASE_URL });
 }
+
+// Debug endpoint to check recent callback invocations
+app.get('/api/debug/paytr-callbacks', (req, res) => {
+  return res.json(callbackInvocations);
+});
 
 // Track pending Iyzico checkouts: conversationId -> { uid, plan }
 const iyzPending = new Map();

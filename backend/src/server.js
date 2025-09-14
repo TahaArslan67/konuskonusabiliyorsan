@@ -803,8 +803,8 @@ function loadScenarios(){
   }
 }
 loadScenarios();
-// Enable trust proxy for correct req.ip behind proxies
-try { app.set('trust proxy', true); } catch {}
+// Enable trust proxy for correct req.ip behind proxies (set explicit hop count instead of boolean true)
+try { app.set('trust proxy', 1); } catch {}
 
 // --- In-house analytics middleware (non-blocking) ---
 function hashIp(ip){

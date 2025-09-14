@@ -444,15 +444,95 @@ function authRequired(req, res, next){
 // Plan limitlerini döndüren yardımcı fonksiyon
 function getPlanLimit(plan, type) {
   const limits = {
-    free: { daily: 5, monthly: 30 },
-    starter: { daily: 30, monthly: 900 },
+    free: { daily: 3, monthly: 30 },
+    starter: { daily: 60, monthly: 1800 },
     pro: { daily: 180, monthly: 5400 },
     enterprise: { daily: 1000, monthly: 30000 }
   };
   return (limits[plan] && limits[plan][type]) || limits.free[type];
 }
 
-// Kullanıcı planını manuel olarak güncellemek için yeni endpoint
+// Kullanıcı planını güncelleme endpoint'i
+app.post('/api/update-plan', authRequired, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    const { plan } = req.body || {};
+    
+    if (!['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
+      await session.abortTransaction();
+      return res.status(400).json({ error: 'Geçersiz plan seçimi' });
+    }
+
+    const user = await User.findById(req.auth.uid).session(session);
+    if (!user) {
+      await session.abortTransaction();
+      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+    }
+
+    // Eski planı kaydet
+    const oldPlan = user.plan;
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    // Kullanıcı bilgilerini güncelle
+    user.plan = plan;
+    user.planUpdatedAt = now;
+    
+    // Kullanım sınırlarını güncelle
+    user.usage = user.usage || {};
+    user.usage.dailyLimit = getPlanLimit(plan, 'daily');
+    user.usage.monthlyLimit = getPlanLimit(plan, 'monthly');
+    user.usage.dailyUsed = 0;
+    user.usage.monthlyUsed = 0;
+    user.usage.lastReset = now;
+    user.usage.monthlyResetAt = startOfMonth;
+    user.updatedAt = now;
+    
+    // Kullanıcıyı kaydet ve değişiklikleri onayla
+    await user.save({ session });
+    
+    // Transaction'ı tamamla
+    await session.commitTransaction();
+    
+    // Kullanıcı bilgilerini logla
+    console.log(`[${new Date().toISOString()}] Kullanıcı planı güncellendi:`, {
+      userId: req.auth.uid,
+      email: user.email,
+      oldPlan,
+      newPlan: plan
+    });
+    
+    return res.json({ 
+      success: true, 
+      message: 'Plan başarıyla güncellendi',
+      plan: {
+        current: plan,
+        previous: oldPlan,
+        updatedAt: user.planUpdatedAt,
+        limits: {
+          daily: user.usage.dailyLimit,
+          monthly: user.usage.monthlyLimit
+        }
+      }
+    });
+    
+  } catch (error) {
+    // Hata durumunda transaction'ı geri al
+    await session.abortTransaction();
+    console.error('Plan güncelleme hatası:', error);
+    return res.status(500).json({ 
+      error: 'Plan güncellenirken bir hata oluştu',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  } finally {
+    // Session'ı kapat
+    await session.endSession();
+  }
+});
+
+// Kullanıcı planını manuel olarak güncellemek için admin endpoint'i
 app.post('/api/admin/update-user-plan', authRequired, async (req, res) => {
   try {
     const { userId, newPlan } = req.body || {};
@@ -517,198 +597,126 @@ app.post('/api/admin/update-user-plan', authRequired, async (req, res) => {
 });
 
 // ---- Protected: Update user plan and reset usage ----
-app.post('/api/update-plan', authRequired, async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  
-  try {
-    const { plan } = req.body || {};
-    if (!['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
-      await session.abortTransaction();
-      return res.status(400).json({ error: 'Geçersiz plan seçimi' });
-    }
-
-    const user = await User.findById(req.auth.uid).session(session);
-    if (!user) {
-      await session.abortTransaction();
-      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
-    }
-
-    // Eski planı kaydet
-    const oldPlan = user.plan;
-    
-    // 1. Önce tüm aktif abonelikleri iptal et (silme, status'ü cancelled yap)
-    await Subscription.updateMany(
-      { 
-        userId: req.auth.uid,
-        status: 'active'
-      },
-      { 
-        $set: { 
-          status: 'cancelled',
-          cancelledAt: new Date(),
-          updatedAt: new Date()
-        } 
-      }
-    ).session(session);
-    
-    // 2. Yeni abonelik oluştur
-    const newSubscription = new Subscription({
-      userId: req.auth.uid,
-      plan: plan,
-      status: 'active',
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 gün sonra
-      paymentMethod: 'manual',
-      paymentStatus: 'paid',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-    
-    await newSubscription.save({ session });
-    
-    // 3. Kullanıcı bilgilerini güncelle
-    user.plan = plan;
-    user.planUpdatedAt = new Date();
-    
-    // Kullanım sınırlarını güncelle
-    user.usage = user.usage || {};
-    user.usage.dailyLimit = getPlanLimit(plan, 'daily');
-    user.usage.monthlyLimit = getPlanLimit(plan, 'monthly');
-    user.usage.dailyUsed = 0;
-    user.usage.monthlyUsed = 0;
-    user.usage.lastReset = new Date();
-    user.usage.monthlyResetAt = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    user.updatedAt = new Date();
-    
-    // Kullanıcıyı kaydet ve değişiklikleri onayla
-    await user.save({ session });
-    
-    // Transaction'ı tamamla
-    await session.commitTransaction();
-    
-    // Kullanıcı bilgilerini logla
-    console.log(`[${new Date().toISOString()}] Kullanıcı planı güncellendi:`, {
-      userId: req.auth.uid,
-      email: user.email,
-      oldPlan,
-      newPlan: plan,
-      newSubscriptionId: newSubscription._id
-    });
-    
-    // Yeni oluşturulan aboneliği logla
-    console.log(`[${new Date().toISOString()}] Yeni abonelik oluşturuldu:`, {
-      subscriptionId: newSubscription._id,
-      userId: req.auth.uid,
-      plan: newSubscription.plan,
-      status: newSubscription.status,
-      startDate: newSubscription.startDate,
-      endDate: newSubscription.endDate
-    });
-    
-    res.json({ 
-      success: true, 
-      message: 'Plan başarıyla güncellendi',
-      plan: {
-        current: plan,
-        previous: oldPlan,
-        updatedAt: user.planUpdatedAt,
-        limits: {
-          daily: user.usage.dailyLimit,
-          monthly: user.usage.monthlyLimit
-        }
-      }
-    });
-    
-  } catch (error) {
-    // Hata durumunda transaction'ı geri al
-    await session.abortTransaction();
-    console.error('Plan güncelleme hatası:', error);
-    res.status(500).json({ 
-      error: 'Plan güncellenirken bir hata oluştu',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  } finally {
-    // Session'ı kapat
-    await session.endSession();
-  }
-});
 
 // ---- Protected: Current user ----
 app.get('/me', authRequired, async (req, res) => {
   try {
     // Kullanıcı bilgilerini al
-    const userDoc = await User.findById(req.auth.uid).lean();
-    if (!userDoc) return res.status(404).json({ error: 'not_found' });
+    const user = await User.findById(req.auth.uid);
+    if (!user) return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
     
-    // Aktif aboneliği bul (en son oluşturulan aktif abonelik)
-    const subscription = await Subscription.findOne({ 
-      userId: req.auth.uid, 
-      status: 'active',
-      startDate: { $lte: new Date() },
-      endDate: { $gte: new Date() }
-    }).sort({ createdAt: -1 }).lean();
+    // Kullanım sıfırlama kontrolleri
+    const now = new Date();
+    const lastReset = new Date(user.usage.lastReset);
+    const monthlyReset = new Date(user.usage.monthlyResetAt);
     
-    // Kullanıcının mevcut planını al
-    let currentPlan = userDoc.plan || 'free';
-    
-    // Eğer aktif bir abonelik varsa ve kullanıcının mevcut planı abonelik planından farklıysa
-    if (subscription?.plan && subscription.plan !== currentPlan) {
-      // Kullanıcının planını abonelik planıyla güncelle
-      currentPlan = subscription.plan;
-      await User.findByIdAndUpdate(req.auth.uid, { 
-        $set: { 
-          plan: currentPlan,
-          planUpdatedAt: new Date() 
-        } 
-      });
-      console.log(`[${new Date().toISOString()}] Kullanıcı planı abonelik bilgileriyle güncellendi: ${userDoc.email} (${userDoc.plan} -> ${currentPlan})`);
-    } 
-    // Eğer aktif abonelik yoksa ve kullanıcı free plana düşürülmemişse
-    else if (!subscription && currentPlan !== 'free') {
-      currentPlan = 'free';
-      await User.findByIdAndUpdate(req.auth.uid, { 
-        $set: { 
-          plan: 'free',
-          planUpdatedAt: new Date() 
-        } 
-      });
-      console.log(`[${new Date().toISOString()}] Kullanıcı aktif aboneliği olmadığı için free plana çekildi: ${userDoc.email}`);
+    // Günlük kullanımı sıfırla (eğer yeni bir gün başladıysa)
+    if (now.toDateString() !== lastReset.toDateString()) {
+      user.usage.dailyUsed = 0;
+      user.usage.lastReset = now;
     }
+    
+    // Aylık kullanımı sıfırla (eğer yeni bir ay başladıysa)
+    if (now > monthlyReset) {
+      user.usage.monthlyUsed = 0;
+      user.usage.monthlyResetAt = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    }
+    
+    // Değişiklikleri kaydet
+    await user.save();
     
     // Kullanıcı bilgilerini döndür
     return res.json({
-      id: String(userDoc._id),
-      email: userDoc.email,
-      emailVerified: !!userDoc.emailVerified,
-      preferredLanguage: userDoc.preferredLanguage || null,
-      preferredVoice: userDoc.preferredVoice || null,
-      preferredCorrectionMode: userDoc.preferredCorrectionMode || 'gentle',
-      preferredLearningLanguage: userDoc.preferredLearningLanguage || 'en',
-      preferredNativeLanguage: userDoc.preferredNativeLanguage || 'tr',
-      placementLevel: userDoc.placementLevel || null,
-      placementCompletedAt: userDoc.placementCompletedAt || null,
-      plan: currentPlan, // Güncellenmiş plan
-      subscription: subscription ? {
-        plan: subscription.plan,
-        status: subscription.status,
-        startDate: subscription.startDate,
-        endDate: subscription.endDate,
-        paymentMethod: subscription.paymentMethod,
-        paymentStatus: subscription.paymentStatus
-      } : null,
-      usage: userDoc.usage || {
-        dailyLimit: getPlanLimit(currentPlan, 'daily'),
-        monthlyLimit: getPlanLimit(currentPlan, 'monthly'),
-        dailyUsed: 0,
-        monthlyUsed: 0,
-        lastReset: new Date(),
-        monthlyResetAt: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-      },
-      planUpdatedAt: userDoc.planUpdatedAt || new Date()
+      user: {
+        id: user._id,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        plan: user.plan || 'free',
+        planUpdatedAt: user.planUpdatedAt,
+        usage: {
+          dailyUsed: user.usage.dailyUsed || 0,
+          dailyLimit: user.usage.dailyLimit || getPlanLimit(user.plan || 'free', 'daily'),
+          monthlyUsed: user.usage.monthlyUsed || 0,
+          monthlyLimit: user.usage.monthlyLimit || getPlanLimit(user.plan || 'free', 'monthly'),
+          lastReset: user.usage.lastReset,
+          monthlyResetAt: user.usage.monthlyResetAt
+        },
+        preferredLanguage: user.preferredLanguage,
+        preferredVoice: user.preferredVoice,
+        preferredCorrectionMode: user.preferredCorrectionMode || 'gentle',
+        preferredLearningLanguage: user.preferredLearningLanguage || 'en',
+        preferredNativeLanguage: user.preferredNativeLanguage || 'tr',
+        placementLevel: user.placementLevel,
+        placementCompletedAt: user.placementCompletedAt,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+      }
     });
-  } catch (e) {
-    return res.status(500).json({ error: 'server_error' });
+  } catch (error) {
+    console.error('Kullanıcı bilgileri alınırken hata:', error);
+    return res.status(500).json({ error: 'Sunucu hatası' });
+  }
+});
+
+// Kullanım takibi için endpoint
+app.post('/api/track-usage', authRequired, async (req, res) => {
+  try {
+    const { minutes } = req.body;
+    
+    if (typeof minutes !== 'number' || minutes <= 0) {
+      return res.status(400).json({ error: 'Geçersiz süre değeri' });
+    }
+    
+    const user = await User.findById(req.auth.uid);
+    if (!user) {
+      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+    }
+    
+    // Kullanım sıfırlama kontrolleri
+    const now = new Date();
+    const lastReset = new Date(user.usage.lastReset);
+    const monthlyReset = new Date(user.usage.monthlyResetAt);
+    
+    // Günlük kullanımı sıfırla (eğer yeni bir gün başladıysa)
+    if (now.toDateString() !== lastReset.toDateString()) {
+      user.usage.dailyUsed = 0;
+      user.usage.lastReset = now;
+    }
+    
+    // Aylık kullanımı sıfırla (eğer yeni bir ay başladıysa)
+    if (now > monthlyReset) {
+      user.usage.monthlyUsed = 0;
+      user.usage.monthlyResetAt = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    }
+    
+    // Kullanımı güncelle
+    user.usage.dailyUsed += minutes;
+    user.usage.monthlyUsed += minutes;
+    
+    // Kullanım limitlerini aşıp aşmadığını kontrol et
+    const isDailyLimitExceeded = user.usage.dailyUsed > user.usage.dailyLimit;
+    const isMonthlyLimitExceeded = user.usage.monthlyUsed > user.usage.monthlyLimit;
+    
+    // Değişiklikleri kaydet
+    await user.save();
+    
+    return res.json({
+      success: true,
+      usage: {
+        dailyUsed: user.usage.dailyUsed,
+        dailyLimit: user.usage.dailyLimit,
+        monthlyUsed: user.usage.monthlyUsed,
+        monthlyLimit: user.usage.monthlyLimit,
+        lastReset: user.usage.lastReset,
+        monthlyResetAt: user.usage.monthlyResetAt,
+        isDailyLimitExceeded,
+        isMonthlyLimitExceeded
+      }
+    });
+    
+  } catch (error) {
+    console.error('Kullanım takip hatası:', error);
+    return res.status(500).json({ error: 'Kullanım takip edilirken bir hata oluştu' });
   }
 });
 

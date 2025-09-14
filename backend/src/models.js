@@ -8,46 +8,45 @@ const userSchema = new Schema(
     email: { type: String, required: true, unique: true, index: true },
     passwordHash: { type: String, required: true },
     emailVerified: { type: Boolean, default: false },
-    preferredLanguage: { type: String, default: null }, // e.g., 'tr', 'en'
-    preferredVoice: { type: String, default: null }, // e.g., 'alloy'
-    preferredCorrectionMode: { type: String, default: 'gentle' }, // 'off' | 'gentle' | 'strict'
-    preferredLearningLanguage: { type: String, default: 'en' }, // hedef/öğrenilen dil (BCP-47)
-    preferredNativeLanguage: { type: String, default: 'tr' }, // kullanıcının ana dili (BCP-47)
-    placementLevel: { type: String, default: null }, // A1 | A2 | B1 | B2 | C1 | C2 (kısa test sonucu)
+    preferredLanguage: { type: String, default: null },
+    preferredVoice: { type: String, default: null },
+    preferredCorrectionMode: { type: String, default: 'gentle' },
+    preferredLearningLanguage: { type: String, default: 'en' },
+    preferredNativeLanguage: { type: String, default: 'tr' },
+    placementLevel: { type: String, default: null },
     placementCompletedAt: { type: Date, default: null },
     verifyToken: { type: String, default: null },
     verifyExpires: { type: Date, default: null },
     resetToken: { type: String, default: null },
     resetExpires: { type: Date, default: null },
+    
+    // Plan ve kullanım bilgileri
+    plan: { 
+      type: String, 
+      enum: ['free', 'starter', 'pro'], 
+      default: 'free' 
+    },
+    planUpdatedAt: { type: Date, default: null },
+    usage: {
+      dailyUsed: { type: Number, default: 0 },
+      dailyLimit: { type: Number, default: 3 }, // Ücretsiz kullanım limiti (dakika)
+      monthlyUsed: { type: Number, default: 0 },
+      monthlyLimit: { type: Number, default: 30 }, // Ücretsiz aylık limit (dakika)
+      lastReset: { type: Date, default: () => new Date() },
+      monthlyResetAt: { type: Date, default: () => {
+        const now = new Date();
+        return new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      }},
+    },
   },
   { timestamps: true }
 );
 
-// Subscription schema
-const subscriptionSchema = new Schema(
-  {
-    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    plan: { type: String, required: true }, // starter | pro | enterprise
-    status: { type: String, required: true }, // active | canceled | past_due | trialing
-    currentPeriodEnd: { type: Date, default: null },
-    stripeCustomerId: { type: String, default: null },
-    stripeSubId: { type: String, default: null },
-  },
-  { timestamps: true }
-);
+// Eski abonelik modelini kullanmayacağız, ancak mevcut verileri korumak için şimdilik siliyoruz
+const subscriptionSchema = new Schema({}, { strict: false });
 
-// Usage schema (daily/monthly minutes per user)
-const usageSchema = new Schema(
-  {
-    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    dateBucket: { type: String, required: true, index: true }, // YYYY-MM-DD
-    monthBucket: { type: String, required: true, index: true }, // YYYY-MM
-    minutes: { type: Number, default: 0 },
-  },
-  { timestamps: true }
-);
-usageSchema.index({ userId: 1, dateBucket: 1 }, { unique: true });
-usageSchema.index({ userId: 1, monthBucket: 1 });
+// Eski kullanım modelini kullanmayacağız, ancak mevcut verileri korumak için şimdilik siliyoruz
+const usageSchema = new Schema({}, { strict: false });
 
 export const User = model('User', userSchema);
 export const Subscription = model('Subscription', subscriptionSchema);

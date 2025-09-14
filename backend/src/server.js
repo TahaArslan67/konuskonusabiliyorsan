@@ -1511,9 +1511,10 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
 
 // PayTR callback
 app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req, res) => {
+  console.log('[paytr] Received callback with body:', JSON.stringify(req.body));
   try{
     const {
-      merchant_oid = '', status = '', total_amount = '', hash = ''
+      merchant_oid = '', status = '', total_amount = '', hash = '', payment_status = ''
     } = req.body || {};
     // Verify hash
     const hash_str = `${merchant_oid}${PAYTR_MERCHANT_SALT}${status}${total_amount}`;
@@ -1522,16 +1523,20 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
       console.error('[paytr] invalid hash for oid', merchant_oid);
       return res.end('OK'); // must respond OK regardless
     }
-    if (status === 'success'){
+    if (status === 'success' || payment_status === 'success'){
       console.log(`[paytr] Processing successful payment for merchant_oid: ${merchant_oid}`);
+      console.log(`[paytr] Pending sessions in memory:`, Array.from(iyzPending.entries()));
       const sess = iyzPending.get(merchant_oid);
+      console.log(`[paytr] Found session for merchant_oid ${merchant_oid}:`, sess);
       if (!sess) {
         console.error(`[paytr] No session found for merchant_oid: ${merchant_oid}`);
         return res.end('OK');
       }
       
-      if (!sess.uid || !sess.plan) {
+      if (!sess?.uid || !sess?.plan) {
         console.error(`[paytr] Invalid session data for merchant_oid: ${merchant_oid}`, sess);
+        // Try to find user from payment amount or other available data
+        console.log(`[paytr] Available payment data:`, { merchant_oid, status, total_amount });
         return res.end('OK');
       }
       
@@ -1592,19 +1597,35 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         
         // Update user's plan, set limits and reset usage
-        await User.findByIdAndUpdate(sess.uid, { 
-          $set: { 
-            plan: sess.plan,
-            planUpdatedAt: now,
-            // Set plan limits and reset usage
-            'usage.dailyLimit': getPlanLimit(sess.plan, 'daily'),
-            'usage.monthlyLimit': getPlanLimit(sess.plan, 'monthly'),
-            'usage.dailyUsed': 0,
-            'usage.monthlyUsed': 0,
-            'usage.lastReset': now,
-            'usage.monthlyResetAt': startOfMonth
-          } 
-        });
+        console.log(`[paytr] Updating user ${sess.uid} to plan ${sess.plan}`);
+        console.log(`[paytr] New limits - daily: ${getPlanLimit(sess.plan, 'daily')}, monthly: ${getPlanLimit(sess.plan, 'monthly')}`);
+        
+        const updateResult = await User.findByIdAndUpdate(
+          sess.uid, 
+          { 
+            $set: { 
+              plan: sess.plan,
+              planUpdatedAt: now,
+              // Set plan limits and reset usage
+              'usage.dailyLimit': getPlanLimit(sess.plan, 'daily'),
+              'usage.monthlyLimit': getPlanLimit(sess.plan, 'monthly'),
+              'usage.dailyUsed': 0,
+              'usage.monthlyUsed': 0,
+              'usage.lastReset': now,
+              'usage.monthlyResetAt': startOfMonth
+            } 
+          },
+          { new: true, runValidators: true }
+        );
+        
+        console.log(`[paytr] User update result:`, updateResult ? 'Success' : 'Failed');
+        if (updateResult) {
+          console.log(`[paytr] User ${sess.uid} plan updated to ${sess.plan}`);
+          // Remove from pending after successful update
+          iyzPending.delete(merchant_oid);
+        } else {
+          console.error(`[paytr] Failed to update user ${sess.uid}`);
+        }
         
         // Also update the Usage collection
         await Usage.updateOne(
@@ -1658,6 +1679,7 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
     return res.end('OK');
   }catch(e){
     console.error('[paytr] callback error:', e);
+    console.error('[paytr] Error stack:', e.stack);
     return res.end('OK');
   }
 });

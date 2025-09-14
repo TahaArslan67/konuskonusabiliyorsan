@@ -1591,12 +1591,14 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         
-        // Update user's plan and reset usage
+        // Update user's plan, set limits and reset usage
         await User.findByIdAndUpdate(sess.uid, { 
           $set: { 
             plan: sess.plan,
             planUpdatedAt: now,
-            // Reset daily and monthly usage
+            // Set plan limits and reset usage
+            'usage.dailyLimit': getPlanLimit(sess.plan, 'daily'),
+            'usage.monthlyLimit': getPlanLimit(sess.plan, 'monthly'),
             'usage.dailyUsed': 0,
             'usage.monthlyUsed': 0,
             'usage.lastReset': now,

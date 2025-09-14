@@ -598,7 +598,36 @@ app.post('/api/admin/update-user-plan', authRequired, async (req, res) => {
 
 // ---- Protected: Update user plan and reset usage ----
 
-// ---- Protected: Current user ----
+// ---- Protected:// Kullanıcı bilgilerini debug etmek için endpoint
+app.get('/api/debug/user', authRequired, async (req, res) => {
+  try {
+    const user = await User.findById(req.auth.uid).lean();
+    if (!user) {
+      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+    }
+    
+    // Hassas bilgileri temizle
+    const { passwordHash, verifyToken, resetToken, ...safeUser } = user;
+    
+    return res.json({
+      ...safeUser,
+      _id: safeUser._id.toString(),
+      createdAt: safeUser.createdAt?.toISOString(),
+      updatedAt: safeUser.updatedAt?.toISOString(),
+      planUpdatedAt: safeUser.planUpdatedAt?.toISOString(),
+      'usage.lastReset': safeUser.usage?.lastReset?.toISOString(),
+      'usage.monthlyResetAt': safeUser.usage?.monthlyResetAt?.toISOString()
+    });
+  } catch (error) {
+    console.error('Debug user error:', error);
+    return res.status(500).json({ 
+      error: 'Bir hata oluştu',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Kullanıcı bilgilerini getir
 app.get('/me', authRequired, async (req, res) => {
   try {
     // Kullanıcı bilgilerini al

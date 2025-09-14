@@ -10,7 +10,7 @@ import { body, validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { User, Subscription, Usage, Streak, Achievement, Goal } from './models.js';
+import { User, Subscription, Usage, Streak, Achievement, Goal, Payment } from './models.js';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
@@ -1331,7 +1331,7 @@ app.post('/auth/forgot', [body('email').isEmail()], async (req, res) => {
         from: MAIL_FROM,
         to: lower,
         subject: 'Şifre Sıfırlama - KonusKonusabilirsen',
-        html: `<p>Şifrenizi sıfırlamak için aşağıdaki bağlantıya tıklayın:</p><p><a href="${url}">${url}</a></p><p>Bu bağlantı 1 saat geçerlidir.</p>`
+        html: `<p>Şifrenizi sıfırlamak için aşağıdaki bağlantıya tıklayın:</p><p><a href="${url}">${url}</a></p><p>Bağlantı 1 saat geçerlidir.</p>`
       });
       if (error) { console.error('[resend] forgot email error:', error); }
       else { console.log(`[resend] sent id=${data?.id || 'n/a'}`); }
@@ -1527,13 +1527,19 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
       console.error('[paytr] get-token error:', data);
       return res.status(500).json({ error: 'paytr_error', detail: data.reason || 'unknown' });
     }
-    // Track pending for callback (merchant_oid -> { uid, plan, timestamp })
-    iyzPending.set(merchant_oid, { 
-      uid: req.auth.uid, 
-      plan,
-      timestamp: new Date()
-    });
-    console.log(`[paytr] Pending payment set for merchant_oid: ${merchant_oid}`, { uid: req.auth.uid, plan });
+    // Persist pending payment in DB for cross-instance reliability
+    try {
+      await Payment.create({
+        provider: 'paytr',
+        merchant_oid,
+        uid: req.auth.uid,
+        plan,
+        status: 'pending',
+      });
+      console.log(`[paytr] Payment pending saved to DB for merchant_oid: ${merchant_oid}`, { uid: req.auth.uid, plan });
+    } catch (dbErr) {
+      console.error('[paytr] Failed to create Payment record (may already exist):', dbErr?.message || dbErr);
+    }
     const token = data.token;
     const iframe_url = `https://www.paytr.com/odeme/guvenli/${token}`;
     return res.json({ token, iframe_url });
@@ -1597,23 +1603,20 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
     
     if (isSuccess) {
       console.log(`[paytr] Processing successful payment for merchant_oid: ${merchant_oid}`);
-      console.log(`[paytr] Pending sessions in memory:`, Array.from(iyzPending.entries()));
-      const sess = iyzPending.get(merchant_oid);
-    logEntry.foundSession = !!sess;
-    logEntry.sessionData = sess;
-      console.log(`[paytr] Found session for merchant_oid ${merchant_oid}:`, sess);
-      if (!sess) {
-        console.error(`[paytr] No session found for merchant_oid: ${merchant_oid}`);
-        return res.end('OK');
+      // Find Payment from DB
+      const pay = await Payment.findOne({ merchant_oid }).lean();
+      logEntry.paymentDocFound = !!pay;
+      if (!pay) {
+        console.error(`[paytr] Payment doc not found for merchant_oid: ${merchant_oid}`);
+        return sendOk();
       }
-      
-      if (!sess?.uid || !sess?.plan) {
-        console.error(`[paytr] Invalid session data for merchant_oid: ${merchant_oid}`, sess);
-        // Try to find user from payment amount or other available data
-        console.log(`[paytr] Available payment data:`, { merchant_oid, status, total_amount });
-        return res.end('OK');
+      // Idempotency: if already success, do nothing
+      if (pay.status === 'success') {
+        console.log(`[paytr] Payment already processed for merchant_oid: ${merchant_oid}`);
+        return sendOk();
       }
-      
+      const sess = { uid: pay.uid, plan: pay.plan };
+      logEntry.sessionData = sess;
       console.log(`[paytr] Updating user ${sess.uid} to plan ${sess.plan}`);
       
       try {
@@ -1703,8 +1706,15 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
         console.log(`[paytr] User update result:`, updateResult ? 'Success' : 'Failed');
         if (updateResult) {
           console.log(`[paytr] User ${sess.uid} plan updated to ${sess.plan}`);
-          // Remove from pending after successful update
-          iyzPending.delete(merchant_oid);
+          // Mark payment as success in DB
+          try {
+            await Payment.updateOne(
+              { merchant_oid },
+              { $set: { status: 'success', total_amount: Number(total_amount) || null, paidAt: new Date(), raw: req.body } }
+            );
+          } catch (e) {
+            console.error('[paytr] Failed to update Payment doc to success:', e);
+          }
         } else {
           console.error(`[paytr] Failed to update user ${sess.uid}`);
         }
@@ -1754,8 +1764,16 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
         return res.end('OK');
       }
       
-      // Only delete from pending if everything was successful
-      iyzPending.delete(merchant_oid);
+      // If not successful or early return, still attempt to mark failure
+    } else {
+      try {
+        await Payment.updateOne(
+          { merchant_oid },
+          { $set: { status: 'failed', raw: req.body } }
+        );
+      } catch (e) {
+        console.error('[paytr] Failed to update Payment doc to failed:', e);
+      }
     }
     // Log the completion
     logEntry.status = 'completed';
@@ -1785,6 +1803,52 @@ function getIyzico() {
 // Debug endpoint to check recent callback invocations
 app.get('/api/debug/paytr-callbacks', (req, res) => {
   return res.json(callbackInvocations);
+});
+
+// Debug: list recent payments
+app.get('/api/debug/payments', async (req, res) => {
+  try {
+    const { limit = 20 } = req.query || {};
+    const lmt = Math.max(1, Math.min(100, Number(limit) || 20));
+    const items = await Payment.find({}).sort({ createdAt: -1 }).limit(lmt).lean();
+    return res.json({ items });
+  } catch (e) {
+    console.error('[debug/payments] error:', e);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// Debug: reprocess a PayTR payment by merchant_oid (idempotent)
+app.post('/api/debug/paytr/reprocess', authRequired, async (req, res) => {
+  try {
+    const { merchant_oid } = req.body || {};
+    if (!merchant_oid) return res.status(400).json({ error: 'invalid_input', message: 'merchant_oid gerekli' });
+    const pay = await Payment.findOne({ merchant_oid });
+    if (!pay) return res.status(404).json({ error: 'not_found' });
+    if (pay.status !== 'success') {
+      return res.status(400).json({ error: 'not_success', message: `Durum: ${pay.status}` });
+    }
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const updateData = {
+      $set: {
+        plan: pay.plan,
+        planUpdatedAt: now,
+        'usage.dailyLimit': getPlanLimit(pay.plan, 'daily'),
+        'usage.monthlyLimit': getPlanLimit(pay.plan, 'monthly'),
+        'usage.dailyUsed': 0,
+        'usage.monthlyUsed': 0,
+        'usage.lastReset': now,
+        'usage.monthlyResetAt': startOfMonth
+      }
+    };
+    const result = await User.findByIdAndUpdate(pay.uid, updateData, { new: true, runValidators: true });
+    if (!result) return res.status(404).json({ error: 'user_not_found' });
+    return res.json({ ok: true, plan: result.plan, userId: String(result._id) });
+  } catch (e) {
+    console.error('[debug/paytr/reprocess] error:', e);
+    return res.status(500).json({ error: 'server_error' });
+  }
 });
 
 // Debug endpoint to check pending payments

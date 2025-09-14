@@ -52,6 +52,24 @@ export const User = model('User', userSchema);
 export const Subscription = model('Subscription', subscriptionSchema);
 export const Usage = model('Usage', usageSchema);
 
+// Payments: PayTR (and others) payment records for idempotency and cross-instance persistence
+const paymentSchema = new Schema(
+  {
+    provider: { type: String, default: 'paytr', index: true },
+    merchant_oid: { type: String, required: true, unique: true, index: true },
+    uid: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    plan: { type: String, enum: ['free', 'starter', 'pro'], required: true },
+    status: { type: String, enum: ['pending', 'success', 'failed'], default: 'pending', index: true },
+    total_amount: { type: Number, default: null },
+    currency: { type: String, default: 'TL' },
+    paidAt: { type: Date, default: null },
+    raw: { type: Schema.Types.Mixed, default: null },
+  },
+  { timestamps: true }
+);
+
+export const Payment = model('Payment', paymentSchema);
+
 // Gamification: Streak (consecutive active days)
 const streakSchema = new Schema(
   {

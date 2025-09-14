@@ -2016,11 +2016,15 @@ app.get('/usage', authRequired, async (req, res) => {
     ]);
     const usedDaily = dayDoc?.minutes || 0;
     const usedMonthly = monthAgg?.[0]?.minutes || 0;
-    // Determine plan limits
-    const sub = await Subscription.findOne({ userId: req.auth.uid, status: 'active' }).lean();
-    const plan = sub?.plan || 'free';
-    const limitMap = { free: { daily: 5, monthly: 5 }, starter: { daily: 10, monthly: 300 }, pro: { daily: 60, monthly: 1800 } };
-    const limits = limitMap[String(plan)] || limitMap.free;
+    // Determine plan: prefer User.plan, fallback to active Subscription
+    const userDoc = await User.findById(req.auth.uid).lean();
+    let plan = userDoc?.plan || null;
+    if (!plan) {
+      const sub = await Subscription.findOne({ userId: req.auth.uid, status: 'active' }).lean();
+      plan = sub?.plan || 'free';
+    }
+    // Limits via helper
+    const limits = { daily: getPlanLimit(plan, 'daily'), monthly: getPlanLimit(plan, 'monthly') };
     return res.json({ plan, usedDaily, usedMonthly, limits, range: { month: monthBucket, from: from || null, to: to || null } });
   } catch (e) {
     return res.status(500).json({ error: 'server_error' });

@@ -1527,8 +1527,13 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
       console.error('[paytr] get-token error:', data);
       return res.status(500).json({ error: 'paytr_error', detail: data.reason || 'unknown' });
     }
-    // Track pending for callback (merchant_oid -> { uid, plan })
-    iyzPending.set(merchant_oid, { uid: req.auth.uid, plan });
+    // Track pending for callback (merchant_oid -> { uid, plan, timestamp })
+    iyzPending.set(merchant_oid, { 
+      uid: req.auth.uid, 
+      plan,
+      timestamp: new Date()
+    });
+    console.log(`[paytr] Pending payment set for merchant_oid: ${merchant_oid}`, { uid: req.auth.uid, plan });
     const token = data.token;
     const iframe_url = `https://www.paytr.com/odeme/guvenli/${token}`;
     return res.json({ token, iframe_url });
@@ -1543,16 +1548,37 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
 let callbackInvocations = [];
 
 app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req, res) => {
-  const callbackId = Date.now();
+  const callbackId = `cb_${Date.now()}`;
+  const startTime = Date.now();
+  
   const logEntry = {
     id: callbackId,
     timestamp: new Date().toISOString(),
     body: { ...req.body },
-    status: 'started'
+    status: 'started',
+    headers: req.headers,
+    ip: req.ip
   };
   
-  // Store only last 10 invocations
-  callbackInvocations = [logEntry, ...callbackInvocations].slice(0, 10);
+  // Store only last 20 invocations
+  callbackInvocations = [logEntry, ...callbackInvocations].slice(0, 20);
+  
+  console.log(`[${callbackId}] PayTR callback received`, {
+    merchant_oid: req.body.merchant_oid,
+    status: req.body.status,
+    payment_status: req.body.payment_status
+  });
+  
+  // Always respond with OK to prevent retries
+  const sendOk = () => {
+    logEntry.status = 'completed';
+    logEntry.durationMs = Date.now() - startTime;
+    logEntry.completedAt = new Date().toISOString();
+    console.log(`[${callbackId}] Sending OK response`);
+    res.end('OK');
+  };
+  
+  try {
   
   console.log(`[paytr][${callbackId}] Callback received:`, JSON.stringify(req.body, null, 2));
   console.log('[paytr] Received callback with body:', JSON.stringify(req.body));
@@ -1569,11 +1595,14 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
     }
     const isSuccess = status === 'success' || payment_status === 'success';
     logEntry.isSuccess = isSuccess;
+    logEntry.paymentStatus = { status, payment_status };
     
     if (isSuccess) {
       console.log(`[paytr] Processing successful payment for merchant_oid: ${merchant_oid}`);
       console.log(`[paytr] Pending sessions in memory:`, Array.from(iyzPending.entries()));
       const sess = iyzPending.get(merchant_oid);
+    logEntry.foundSession = !!sess;
+    logEntry.sessionData = sess;
       console.log(`[paytr] Found session for merchant_oid ${merchant_oid}:`, sess);
       if (!sess) {
         console.error(`[paytr] No session found for merchant_oid: ${merchant_oid}`);
@@ -1647,23 +1676,31 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
         console.log(`[paytr] Updating user ${sess.uid} to plan ${sess.plan}`);
         console.log(`[paytr] New limits - daily: ${getPlanLimit(sess.plan, 'daily')}, monthly: ${getPlanLimit(sess.plan, 'monthly')}`);
         
+        const updateData = { 
+          $set: { 
+            plan: sess.plan,
+            planUpdatedAt: now,
+            // Set plan limits and reset usage
+            'usage.dailyLimit': getPlanLimit(sess.plan, 'daily'),
+            'usage.monthlyLimit': getPlanLimit(sess.plan, 'monthly'),
+            'usage.dailyUsed': 0,
+            'usage.monthlyUsed': 0,
+            'usage.lastReset': now,
+            'usage.monthlyResetAt': startOfMonth
+          } 
+        };
+        
+        logEntry.updateData = updateData;
+        console.log(`[${callbackId}] Updating user ${sess.uid} with:`, JSON.stringify(updateData, null, 2));
+        
         const updateResult = await User.findByIdAndUpdate(
           sess.uid, 
-          { 
-            $set: { 
-              plan: sess.plan,
-              planUpdatedAt: now,
-              // Set plan limits and reset usage
-              'usage.dailyLimit': getPlanLimit(sess.plan, 'daily'),
-              'usage.monthlyLimit': getPlanLimit(sess.plan, 'monthly'),
-              'usage.dailyUsed': 0,
-              'usage.monthlyUsed': 0,
-              'usage.lastReset': now,
-              'usage.monthlyResetAt': startOfMonth
-            } 
-          },
+          updateData,
           { new: true, runValidators: true }
         );
+        
+        logEntry.updateResult = updateResult ? 'success' : 'failed';
+        logEntry.updatedUser = updateResult;
         
         console.log(`[paytr] User update result:`, updateResult ? 'Success' : 'Failed');
         if (updateResult) {
@@ -1726,18 +1763,18 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
     logEntry.status = 'completed';
     logEntry.completedAt = new Date().toISOString();
     
-    // PayTR expects plain 'OK'
-    console.log(`[paytr][${callbackId}] Sending OK response`);
-    return res.end('OK');
+    return sendOk();
   }catch(e){
     const errorMsg = e?.message || String(e);
     logEntry.error = errorMsg;
     logEntry.status = 'error';
     logEntry.stack = e?.stack;
     
-    console.error(`[paytr][${callbackId}] Callback error:`, errorMsg);
-    console.error(`[paytr][${callbackId}] Error stack:`, e?.stack);
-    return res.end('OK');
+    console.error(`[${callbackId}] Error:`, errorMsg);
+    if (e?.stack) {
+      console.error(`[${callbackId}] Stack:`, e.stack);
+    }
+    return sendOk();
   }
 });
 
@@ -1750,6 +1787,17 @@ function getIyzico() {
 // Debug endpoint to check recent callback invocations
 app.get('/api/debug/paytr-callbacks', (req, res) => {
   return res.json(callbackInvocations);
+});
+
+// Debug endpoint to check pending payments
+app.get('/api/debug/pending-payments', (req, res) => {
+  return res.json({
+    paytrPending: Array.from(iyzPending.entries()).map(([key, value]) => ({
+      merchant_oid: key,
+      ...value,
+      timestamp: value.timestamp?.toISOString()
+    }))
+  });
 });
 
 // Track pending Iyzico checkouts: conversationId -> { uid, plan }

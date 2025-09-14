@@ -1579,10 +1579,8 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
   };
   
   try {
-  
-  console.log(`[paytr][${callbackId}] Callback received:`, JSON.stringify(req.body, null, 2));
-  console.log('[paytr] Received callback with body:', JSON.stringify(req.body));
-  try{
+    console.log(`[paytr][${callbackId}] Callback received:`, JSON.stringify(req.body, null, 2));
+    console.log('[paytr] Received callback with body:', JSON.stringify(req.body));
     const {
       merchant_oid = '', status = '', total_amount = '', hash = '', payment_status = ''
     } = req.body || {};
@@ -1764,7 +1762,7 @@ app.post('/paytr/callback', express.urlencoded({ extended: false }), async (req,
     logEntry.completedAt = new Date().toISOString();
     
     return sendOk();
-  }catch(e){
+  } catch(e) {
     const errorMsg = e?.message || String(e);
     logEntry.error = errorMsg;
     logEntry.status = 'error';

@@ -159,7 +159,8 @@ const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || '';
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY || '';
 const AZURE_OPENAI_API_VERSION = process.env.AZURE_OPENAI_API_VERSION || '2024-10-01-preview';
 const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-realtime';
-// Auth middleware
+// Azure OpenAI kullanılıp kullanılmayacağını belirleyen değişken
+const USE_AZURE = String(process.env.USE_AZURE || 'false').toLowerCase() === 'true';
 const authRequired = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;

@@ -558,6 +558,111 @@ app.post('/api/dev/activate-plan', authRequired, async (req, res) => {
   }
 });
 
+// ---- Protected: Get user info ----
+app.get('/me', authRequired, async (req, res) => {
+  try {
+    const user = await User.findById(req.auth.uid).lean();
+    if (!user) {
+      return res.status(404).json({ error: 'user_not_found' });
+    }
+
+    res.json({
+      id: String(user._id),
+      email: user.email,
+      preferredLanguage: user.preferredLanguage,
+      preferredVoice: user.preferredVoice,
+      preferredCorrectionMode: user.preferredCorrectionMode,
+      preferredLearningLanguage: user.preferredLearningLanguage,
+      preferredNativeLanguage: user.preferredNativeLanguage,
+      placementLevel: user.placementLevel,
+      placementCompletedAt: user.placementCompletedAt,
+      plan: user.plan,
+      usage: user.usage
+    });
+  } catch (error) {
+    console.error('[me] error:', error);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ---- Protected: Update preferences ----
+app.patch('/me/preferences', authRequired, async (req, res) => {
+  try {
+    const {
+      preferredLearningLanguage,
+      preferredNativeLanguage,
+      preferredCorrectionMode,
+      preferredLanguage,
+      preferredVoice
+    } = req.body;
+
+    const updateData = {};
+    if (preferredLearningLanguage !== undefined) updateData.preferredLearningLanguage = preferredLearningLanguage;
+    if (preferredNativeLanguage !== undefined) updateData.preferredNativeLanguage = preferredNativeLanguage;
+    if (preferredCorrectionMode !== undefined) updateData.preferredCorrectionMode = preferredCorrectionMode;
+    if (preferredLanguage !== undefined) updateData.preferredLanguage = preferredLanguage;
+    if (preferredVoice !== undefined) updateData.preferredVoice = preferredVoice;
+
+    const user = await User.findByIdAndUpdate(
+      req.auth.uid,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).lean();
+
+    if (!user) {
+      return res.status(404).json({ error: 'user_not_found' });
+    }
+
+    res.json({
+      id: String(user._id),
+      email: user.email,
+      preferredLanguage: user.preferredLanguage,
+      preferredVoice: user.preferredVoice,
+      preferredCorrectionMode: user.preferredCorrectionMode,
+      preferredLearningLanguage: user.preferredLearningLanguage,
+      preferredNativeLanguage: user.preferredNativeLanguage
+    });
+  } catch (error) {
+    console.error('[me/preferences] error:', error);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ---- Protected: Update placement ----
+app.patch('/me/placement', authRequired, async (req, res) => {
+  try {
+    const { placementLevel } = req.body;
+
+    if (!placementLevel || typeof placementLevel !== 'string') {
+      return res.status(400).json({ error: 'invalid_placement_level' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.auth.uid,
+      {
+        $set: {
+          placementLevel: placementLevel,
+          placementCompletedAt: new Date()
+        }
+      },
+      { new: true, runValidators: true }
+    ).lean();
+
+    if (!user) {
+      return res.status(404).json({ error: 'user_not_found' });
+    }
+
+    res.json({
+      id: String(user._id),
+      placementLevel: user.placementLevel,
+      placementCompletedAt: user.placementCompletedAt
+    });
+  } catch (error) {
+    console.error('[me/placement] error:', error);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
 // ---- JWT Auth Middleware ----
 
 // Plan limitlerini döndüren yardımcı fonksiyon

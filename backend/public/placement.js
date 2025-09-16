@@ -149,7 +149,7 @@ async function submitPlacement(){
     const r = await fetch(`${backendBase}/me/placement`, {
       method: 'PATCH',
       headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ level })
+      body: JSON.stringify({ placementLevel: level })
     });
     if (!r.ok) {
       alert('Kaydetme hatası. Lütfen tekrar deneyin.');

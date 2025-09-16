@@ -159,8 +159,137 @@ const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || '';
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY || '';
 const AZURE_OPENAI_API_VERSION = process.env.AZURE_OPENAI_API_VERSION || '2024-10-01-preview';
 const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-realtime';
-// Force OpenAI-only as requested
-const USE_AZURE = false;
+// Auth middleware
+const authRequired = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'unauthorized', message: 'Token gerekli' });
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    const user = await User.findById(decoded.uid).lean();
+    if (!user) {
+      return res.status(401).json({ error: 'unauthorized', message: 'Kullanıcı bulunamadı' });
+    }
+    
+    req.auth = {
+      uid: String(user._id),
+      email: user.email,
+      user: user
+    };
+    
+    next();
+  } catch (error) {
+    console.error('[auth] middleware error:', error);
+    return res.status(401).json({ error: 'unauthorized', message: 'Geçersiz token' });
+  }
+};
+
+// User endpoints
+app.get('/me', authRequired, async (req, res) => {
+  try {
+    const user = await User.findById(req.auth.uid).lean();
+    if (!user) {
+      return res.status(404).json({ error: 'user_not_found' });
+    }
+    
+    res.json({
+      id: String(user._id),
+      email: user.email,
+      preferredLanguage: user.preferredLanguage,
+      preferredVoice: user.preferredVoice,
+      preferredCorrectionMode: user.preferredCorrectionMode,
+      preferredLearningLanguage: user.preferredLearningLanguage,
+      preferredNativeLanguage: user.preferredNativeLanguage,
+      placementLevel: user.placementLevel,
+      placementCompletedAt: user.placementCompletedAt,
+      plan: user.plan,
+      usage: user.usage
+    });
+  } catch (error) {
+    console.error('[me] error:', error);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+app.patch('/me/preferences', authRequired, async (req, res) => {
+  try {
+    const {
+      preferredLearningLanguage,
+      preferredNativeLanguage,
+      preferredCorrectionMode,
+      preferredLanguage,
+      preferredVoice
+    } = req.body;
+    
+    const updateData = {};
+    if (preferredLearningLanguage !== undefined) updateData.preferredLearningLanguage = preferredLearningLanguage;
+    if (preferredNativeLanguage !== undefined) updateData.preferredNativeLanguage = preferredNativeLanguage;
+    if (preferredCorrectionMode !== undefined) updateData.preferredCorrectionMode = preferredCorrectionMode;
+    if (preferredLanguage !== undefined) updateData.preferredLanguage = preferredLanguage;
+    if (preferredVoice !== undefined) updateData.preferredVoice = preferredVoice;
+    
+    const user = await User.findByIdAndUpdate(
+      req.auth.uid,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).lean();
+    
+    if (!user) {
+      return res.status(404).json({ error: 'user_not_found' });
+    }
+    
+    res.json({
+      id: String(user._id),
+      email: user.email,
+      preferredLanguage: user.preferredLanguage,
+      preferredVoice: user.preferredVoice,
+      preferredCorrectionMode: user.preferredCorrectionMode,
+      preferredLearningLanguage: user.preferredLearningLanguage,
+      preferredNativeLanguage: user.preferredNativeLanguage
+    });
+  } catch (error) {
+    console.error('[me/preferences] error:', error);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+app.patch('/me/placement', authRequired, async (req, res) => {
+  try {
+    const { placementLevel } = req.body;
+    
+    if (!placementLevel || typeof placementLevel !== 'string') {
+      return res.status(400).json({ error: 'invalid_placement_level' });
+    }
+    
+    const user = await User.findByIdAndUpdate(
+      req.auth.uid,
+      {
+        $set: {
+          placementLevel: placementLevel,
+          placementCompletedAt: new Date()
+        }
+      },
+      { new: true, runValidators: true }
+    ).lean();
+    
+    if (!user) {
+      return res.status(404).json({ error: 'user_not_found' });
+    }
+    
+    res.json({
+      id: String(user._id),
+      placementLevel: user.placementLevel,
+      placementCompletedAt: user.placementCompletedAt
+    });
+  } catch (error) {
+    console.error('[me/placement] error:', error);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
 
 // Basic validations
 if (!USE_AZURE && !OPENAI_API_KEY) {

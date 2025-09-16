@@ -355,16 +355,21 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// CORS - Tüm origin'lere izin ver ve credentials'ı destekle
+// CORS - Tüm origin'lere izin ver ve cross-origin API çağrılarını destekle
 app.use((req, res, next) => {
-  // Tüm origin'lere izin ver
-  res.header('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin || req.headers.referer || '*';
+
+  // CORS headers'larını tüm yanıtlara ekle
+  res.header('Access-Control-Allow-Origin', origin);
   res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, X-HTTP-Method-Override');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, X-HTTP-Method-Override, Accept-Language, Accept-Encoding');
+  res.header('Access-Control-Expose-Headers', 'Content-Length, X-Kuma-Revision');
+  res.header('Access-Control-Max-Age', '86400'); // 24 saat cache
 
   // OPTIONS preflight isteklerini doğrudan yanıtla
   if (req.method === 'OPTIONS') {
+    console.log('[CORS] Preflight request handled for:', req.path);
     res.sendStatus(200);
     return;
   }
@@ -372,12 +377,19 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS middleware (yedek)
+// CORS middleware (yedek olarak bırak)
 app.use(cors({
-  origin: true, // Allow all origins
+  origin: function (origin, callback) {
+    // Tüm origin'lere izin ver
+    callback(null, true);
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS', 'PATCH', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept', 'Cache-Control']
+  methods: ['GET', 'POST', 'OPTIONS', 'PATCH', 'PUT', 'DELETE', 'HEAD'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept', 'Cache-Control', 'Accept-Language', 'Accept-Encoding'],
+  exposedHeaders: ['Content-Length', 'X-Kuma-Revision'],
+  optionsSuccessStatus: 200, // IE11 için
+  preflightContinue: false,
+  maxAge: 86400 // 24 saat cache
 }));
 
 // Rate limit

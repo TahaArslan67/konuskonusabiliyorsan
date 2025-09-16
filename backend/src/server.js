@@ -355,27 +355,29 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// CORS
-const allowedOriginsRaw = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
-// Build a set with both Unicode and punycode (ASCII) origin forms
-const allowedOriginsSet = new Set();
-for (const o of allowedOriginsRaw) {
-  if (!o) continue;
-  allowedOriginsSet.add(o);
-  try {
-    const u = new URL(o);
-    const asciiHost = toASCII(u.hostname);
-    const normalized = `${u.protocol}//${asciiHost}${u.port ? ':'+u.port : ''}`;
-    allowedOriginsSet.add(normalized);
-  } catch {}
-}
+// CORS - Tüm origin'lere izin ver ve credentials'ı destekle
+app.use((req, res, next) => {
+  // Tüm origin'lere izin ver
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, X-HTTP-Method-Override');
 
-// Allow all origins for now to ensure the contact form works
+  // OPTIONS preflight isteklerini doğrudan yanıtla
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+    return;
+  }
+
+  next();
+});
+
+// CORS middleware (yedek)
 app.use(cors({
   origin: true, // Allow all origins
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS', 'PATCH', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept', 'Cache-Control']
 }));
 
 // Rate limit

@@ -3114,7 +3114,7 @@ wss.on('connection', (clientWs, request) => {
 });
 
 // Connect to MongoDB then start server
-mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 5000 })
+mongoose.connect(MONGODB_URI, mongooseOptions)
   .then(() => {
     console.log('[mongo] connected');
     server.listen(PORT, '0.0.0.0', () => {

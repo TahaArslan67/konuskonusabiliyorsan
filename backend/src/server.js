@@ -558,19 +558,6 @@ app.post('/api/dev/activate-plan', authRequired, async (req, res) => {
 });
 
 // ---- JWT Auth Middleware ----
-function authRequired(req, res, next){
-  try {
-    const h = req.headers['authorization'] || '';
-    const m = /^Bearer\s+(.+)/i.exec(h);
-    if (!m) return res.status(401).json({ error: 'missing_token' });
-    const token = m[1];
-    const payload = jwt.verify(token, JWT_SECRET);
-    req.auth = { uid: payload.uid, email: payload.email };
-    next();
-  } catch (e){
-    return res.status(401).json({ error: 'invalid_token' });
-  }
-}
 
 // Plan limitlerini döndüren yardımcı fonksiyon
 function getPlanLimit(plan, type) {

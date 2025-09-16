@@ -42,7 +42,9 @@ const mongooseOptions = {
   connectTimeoutMS: 30000,
   family: 4,
   retryWrites: true,
-  w: 'majority'
+  w: 'majority',
+  // Index çakışmalarını önlemek için
+  autoIndex: false
 };
 
 // MongoDB bağlantısı olayları
@@ -147,7 +149,7 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
 
 // OpenAI (public) envs
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
-const REALTIME_MODEL = process.env.OPENAI_REALTIME_MODEL || 'gpt-4o-realtime-preview-2025-08-28';
+const REALTIME_MODEL = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime';
 const RESPONSE_TEXT_ENABLED = (process.env.RESPONSE_TEXT_ENABLED ?? 'true').toLowerCase() !== 'false';
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || '';
 const IPINFO_TOKEN = process.env.IPINFO_TOKEN || '';

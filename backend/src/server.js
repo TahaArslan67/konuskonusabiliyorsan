@@ -304,58 +304,11 @@ if (!RESEND_API_KEY) {
 }
 if (RESEND_API_KEY && !MAIL_FROM) {
   console.warn('[WARN] MAIL_FROM is empty; set MAIL_FROM to a verified sender (e.g., no-reply@yourdomain.com).');
-}
 
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 
-// Tüm API istekleri için genel zaman aşımı (30 saniye)
-app.use((req, res, next) => {
-  res.setTimeout(30000, () => {
-    if (!res.headersSent) {
-      res.status(504).json({ error: 'İstek zaman aşımına uğradı' });
-    }
-  });
-  next();
-});
-
-// İstek sürelerini ölçmek için middleware
-app.use((req, res, next) => {
-  const start = Date.now();
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} başladı`);
-  
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${res.statusCode} [${duration}ms]`);
-  });
-  
-  next();
-});
-
-app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
-// HTTP compression for text-based responses (tune level for balance)
-app.use(compression({
-  level: 6,
-  threshold: '1kb'
-}));
-
-// Security headers (CSP tuned for this app)
-app.use(helmet({
-  contentSecurityPolicy: {
-    useDefaults: true,
-    directives: {
-      "default-src": ["'self'"],
-      "script-src": ["'self'", "'unsafe-inline'"],
-      "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      "font-src": ["'self'", "https://fonts.gstatic.com"],
-      "img-src": ["'self'", "data:"] ,
-      "connect-src": ["'self'", "https://api.openai.com", "wss:", "ws:"]
-    }
-  },
-  crossOriginEmbedderPolicy: false,
-}));
-
-// CORS - Tüm origin'lere izin ver ve cross-origin API çağrılarını destekle
+// CORS - EN ÖNEMLİ: Tüm middleware'lardan önce çalışmalı
 app.use((req, res, next) => {
   const origin = req.headers.origin || req.headers.referer || '*';
 
@@ -369,28 +322,13 @@ app.use((req, res, next) => {
 
   // OPTIONS preflight isteklerini doğrudan yanıtla
   if (req.method === 'OPTIONS') {
-    console.log('[CORS] Preflight request handled for:', req.path);
+    console.log('[CORS] Preflight request handled for:', req.path, 'from:', origin);
     res.sendStatus(200);
     return;
   }
 
   next();
 });
-
-// CORS middleware (yedek olarak bırak)
-app.use(cors({
-  origin: function (origin, callback) {
-    // Tüm origin'lere izin ver
-    callback(null, true);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS', 'PATCH', 'PUT', 'DELETE', 'HEAD'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept', 'Cache-Control', 'Accept-Language', 'Accept-Encoding'],
-  exposedHeaders: ['Content-Length', 'X-Kuma-Revision'],
-  optionsSuccessStatus: 200, // IE11 için
-  preflightContinue: false,
-  maxAge: 86400 // 24 saat cache
-}));
 
 // Rate limit
 const limiter = rateLimit({

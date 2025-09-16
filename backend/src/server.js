@@ -1,23 +1,24 @@
-import 'dotenv/config';
-import express from 'express';
-import cors from 'cors';
-import { toASCII } from 'punycode';
-import rateLimit from 'express-rate-limit';
-import morgan from 'morgan';
-import helmet from 'helmet';
-import compression from 'compression';
-import { body, validationResult } from 'express-validator';
-import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { User, Subscription, Usage, Streak, Achievement, Goal, Payment } from './models.js';
-import { createServer } from 'http';
-import { WebSocketServer, WebSocket } from 'ws';
-import { v4 as uuidv4 } from 'uuid';
-import Iyzipay from 'iyzipay';
-import crypto from 'crypto';
-import nodemailer from 'nodemailer';
-import fs from 'fs';
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const { toASCII } = require('punycode');
+const rateLimit = require('express-rate-limit');
+const morgan = require('morgan');
+const helmet = require('helmet');
+const compression = require('compression');
+const { body, validationResult } = require('express-validator');
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { User, Subscription, Usage, Streak, Achievement, Goal, Payment } = require('./models.js');
+const { createServer } = require('http');
+const { WebSocketServer, WebSocket } = require('ws');
+const { v4: uuidv4 } = require('uuid');
+const Iyzipay = require('iyzipay');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const server = createServer(app);
@@ -92,7 +93,7 @@ const MAIL_FROM = process.env.MAIL_FROM || 'no-reply@konuskonusabilirsen.com';
 // Resend client'ı oluştur
 let resend = null;
 if (RESEND_API_KEY) {
-  const { Resend } = await import('resend');
+  const { Resend } = require('resend');
   resend = new Resend(RESEND_API_KEY);
 }
 
@@ -951,23 +952,21 @@ app.patch('/me/preferences', authRequired, async (req, res) => {
 app.use(limiter);
 
 // Static web client
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { Analytics } from './models.js';
+const { Analytics } = require('./models.js');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const publicDir = join(__dirname, '..', 'public');
+const __filename = __filename;
+const __dirname = path.dirname(__filename);
+const publicDir = path.join(__dirname, '..', 'public');
 // Load scenarios from filesystem (src/scenarios/*.json)
 const scenarios = new Map();
 function loadScenarios(){
   try {
-    const scenariosDir = join(__dirname, 'scenarios');
+    const scenariosDir = path.join(__dirname, 'scenarios');
     if (!fs.existsSync(scenariosDir)) return;
     const files = fs.readdirSync(scenariosDir).filter(f => f.endsWith('.json'));
     for (const f of files) {
       try {
-        const raw = fs.readFileSync(join(scenariosDir, f), 'utf8');
+        const raw = fs.readFileSync(path.join(scenariosDir, f), 'utf8');
         const obj = JSON.parse(raw);
         if (obj && obj.id) scenarios.set(String(obj.id), obj);
       } catch (e) {
@@ -1099,7 +1098,7 @@ app.use((req, res, next) => {
 });
 
   app.get(['/realtime', '/realtime/'], (_req, res) => {
-    return res.sendFile(join(publicDir, 'realtime.html'));
+    return res.sendFile(path.join(publicDir, 'realtime.html'));
   });
   // Redirect legacy .html path to pretty URL
   app.get('/realtime.html', (_req, res) => res.redirect(301, '/realtime'));
@@ -1127,8 +1126,8 @@ app.use(express.static(publicDir, {
     }
   }
 }));
-app.get('/', (_req, res) => res.sendFile(join(publicDir, 'index.html')));
-app.get('/contact', (_req, res) => res.sendFile(join(publicDir, 'contact.html')));
+app.get('/', (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
+app.get('/contact', (_req, res) => res.sendFile(path.join(publicDir, 'contact.html')));
 
 // Redirect success.html to main domain
 app.get('/success.html', (req, res) => {
@@ -1283,14 +1282,15 @@ app.post('/api/contact', express.json(), async (req, res) => {
     }
   } catch (error) {
     console.error('Contact form error:', error);
-      error: error.message || 'Mesajınız gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.' 
+    return res.status(500).json({
+      error: error.message || 'Mesajınız gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.'
     });
   }
 });
 // Fallback for browsers requesting /favicon.ico
 app.get('/favicon.ico', (_req, res) => {
   try {
-    return res.sendFile(join(publicDir, 'favicon.png'));
+    return res.sendFile(path.join(publicDir, 'favicon.png'));
   } catch {
     return res.status(404).end();
   }
@@ -1299,7 +1299,7 @@ app.get('/favicon.ico', (_req, res) => {
 app.get('/favicon.png', (_req, res) => {
   try {
     res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
-    return res.sendFile(join(publicDir, 'favicon.png'));
+    return res.sendFile(path.join(publicDir, 'favicon.png'));
   } catch {
     return res.status(404).end();
   }

@@ -2,8 +2,7 @@
   "name": "lingoflow-backend",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
-  "description": "Realtime language practice backend proxy (Express + WebSocket)",
+  "description": "Realtime language practice backend proxy",
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",

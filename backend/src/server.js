@@ -1,24 +1,23 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const { toASCII } = require('punycode');
-const rateLimit = require('express-rate-limit');
-const morgan = require('morgan');
-const helmet = require('helmet');
-const compression = require('compression');
-const { body, validationResult } = require('express-validator');
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { User, Subscription, Usage, Streak, Achievement, Goal, Payment } = require('./models.js');
-const { createServer } = require('http');
-const { WebSocketServer, WebSocket } = require('ws');
-const { v4: uuidv4 } = require('uuid');
-const Iyzipay = require('iyzipay');
-const crypto = require('crypto');
-const nodemailer = require('nodemailer');
-const fs = require('fs');
-const path = require('path');
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import { toASCII } from 'punycode';
+import rateLimit from 'express-rate-limit';
+import morgan from 'morgan';
+import helmet from 'helmet';
+import compression from 'compression';
+import { body, validationResult } from 'express-validator';
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { User, Subscription, Usage, Streak, Achievement, Goal, Payment } from './models.js';
+import { createServer } from 'http';
+import { WebSocketServer, WebSocket } from 'ws';
+import { v4 as uuidv4 } from 'uuid';
+import Iyzipay from 'iyzipay';
+import crypto from 'crypto';
+import nodemailer from 'nodemailer';
+import fs from 'fs';
 
 const app = express();
 const server = createServer(app);
@@ -93,7 +92,7 @@ const MAIL_FROM = process.env.MAIL_FROM || 'no-reply@konuskonusabilirsen.com';
 // Resend client'ı oluştur
 let resend = null;
 if (RESEND_API_KEY) {
-  const { Resend } = require('resend');
+  const { Resend } = await import('resend');
   resend = new Resend(RESEND_API_KEY);
 }
 
@@ -305,11 +304,58 @@ if (!RESEND_API_KEY) {
 }
 if (RESEND_API_KEY && !MAIL_FROM) {
   console.warn('[WARN] MAIL_FROM is empty; set MAIL_FROM to a verified sender (e.g., no-reply@yourdomain.com).');
+}
 
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 
-// CORS - EN ÖNEMLİ: Tüm middleware'lardan önce çalışmalı
+// Tüm API istekleri için genel zaman aşımı (30 saniye)
+app.use((req, res, next) => {
+  res.setTimeout(30000, () => {
+    if (!res.headersSent) {
+      res.status(504).json({ error: 'İstek zaman aşımına uğradı' });
+    }
+  });
+  next();
+});
+
+// İstek sürelerini ölçmek için middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} başladı`);
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${res.statusCode} [${duration}ms]`);
+  });
+  
+  next();
+});
+
+app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
+// HTTP compression for text-based responses (tune level for balance)
+app.use(compression({
+  level: 6,
+  threshold: '1kb'
+}));
+
+// Security headers (CSP tuned for this app)
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      "default-src": ["'self'"],
+      "script-src": ["'self'", "'unsafe-inline'"],
+      "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      "font-src": ["'self'", "https://fonts.gstatic.com"],
+      "img-src": ["'self'", "data:"] ,
+      "connect-src": ["'self'", "https://api.openai.com", "wss:", "ws:"]
+    }
+  },
+  crossOriginEmbedderPolicy: false,
+}));
+
+// CORS - Tüm origin'lere izin ver ve cross-origin API çağrılarını destekle
 app.use((req, res, next) => {
   const origin = req.headers.origin || req.headers.referer || '*';
 
@@ -323,13 +369,28 @@ app.use((req, res, next) => {
 
   // OPTIONS preflight isteklerini doğrudan yanıtla
   if (req.method === 'OPTIONS') {
-    console.log('[CORS] Preflight request handled for:', req.path, 'from:', origin);
+    console.log('[CORS] Preflight request handled for:', req.path);
     res.sendStatus(200);
     return;
   }
 
   next();
 });
+
+// CORS middleware (yedek olarak bırak)
+app.use(cors({
+  origin: function (origin, callback) {
+    // Tüm origin'lere izin ver
+    callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS', 'PATCH', 'PUT', 'DELETE', 'HEAD'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept', 'Cache-Control', 'Accept-Language', 'Accept-Encoding'],
+  exposedHeaders: ['Content-Length', 'X-Kuma-Revision'],
+  optionsSuccessStatus: 200, // IE11 için
+  preflightContinue: false,
+  maxAge: 86400 // 24 saat cache
+}));
 
 // Rate limit
 const limiter = rateLimit({
@@ -952,9 +1013,10 @@ app.patch('/me/preferences', authRequired, async (req, res) => {
 app.use(limiter);
 
 // Static web client
-const { Analytics } = require('./models.js');
-
-const __filename = __filename;
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { Analytics } from './models.js';
+const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.join(__dirname, '..', 'public');
 // Load scenarios from filesystem (src/scenarios/*.json)
@@ -1097,11 +1159,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// Pretty URL for realtime (hide .html in address bar) — must be BEFORE static middleware
+try {
   app.get(['/realtime', '/realtime/'], (_req, res) => {
     return res.sendFile(path.join(publicDir, 'realtime.html'));
   });
   // Redirect legacy .html path to pretty URL
   app.get('/realtime.html', (_req, res) => res.redirect(301, '/realtime'));
+} catch {}
 // Static with Cache-Control
 app.use(express.static(publicDir, {
   etag: true,
@@ -1282,8 +1347,8 @@ app.post('/api/contact', express.json(), async (req, res) => {
     }
   } catch (error) {
     console.error('Contact form error:', error);
-    return res.status(500).json({
-      error: error.message || 'Mesajınız gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.'
+    res.status(500).json({ 
+      error: error.message || 'Mesajınız gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.' 
     });
   }
 });
@@ -3114,7 +3179,7 @@ wss.on('connection', (clientWs, request) => {
 });
 
 // Connect to MongoDB then start server
-mongoose.connect(MONGODB_URI, mongooseOptions)
+mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 5000 })
   .then(() => {
     console.log('[mongo] connected');
     server.listen(PORT, '0.0.0.0', () => {

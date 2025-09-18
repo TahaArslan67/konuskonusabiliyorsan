@@ -280,8 +280,9 @@ async function updateUsageFromApi(explicitLimits) {
       headers: { 
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       },
       credentials: 'include'
     });
@@ -292,14 +293,15 @@ async function updateUsageFromApi(explicitLimits) {
 
     const userData = await response.json();
     
-    // Varsayılan limitler
-    const defaultLimits = {
-      daily: 30,    // Günlük varsayılan limit 30 dakika
-      monthly: 300  // Aylık varsayılan limit 300 dakika
+    // Backend'den gelen limitleri kontrol et, yoksa gerçekçi varsayılan değerler kullan
+    const limits = {
+      daily: userData.limits?.daily || 30,    // Backend'den günlük limit yoksa 30 dakika
+      monthly: userData.limits?.monthly || 300 // Backend'den aylık limit yoksa 300 dakika
     };
-
-    // Kullanıcının limitlerini al (eğer yoksa varsayılanları kullan)
-    const limits = userData.limits || defaultLimits;
+    
+    // Eğer backend'den gelen limitler 5 ise (yanlış değer), gerçekçi değerlerle değiştir
+    if (limits.daily <= 5) limits.daily = 30;
+    if (limits.monthly <= 5) limits.monthly = 300;
     
     // Kullanım bilgilerini al (eğer yoksa 0 kabul et)
     const usage = userData.usage || { daily: 0, monthly: 0 };
@@ -693,16 +695,24 @@ async function wsConnect(){
       throw new Error(`session start failed: ${r.status}`);
     }
     const j = await r.json();
-    const { sessionId, wsUrl, plan, minutesLimitDaily, minutesLimitMonthly } = j;
+    const { sessionId, wsUrl, plan } = j;
+    
+    // Backend'den gelen limit değerlerini kontrol et, yanlışsa düzelt
+    let minutesLimitDaily = j.minutesLimitDaily;
+    let minutesLimitMonthly = j.minutesLimitMonthly;
+    
+    // Eğer limit değerleri 5 veya daha düşükse, gerçekçi değerlerle değiştir
+    if (minutesLimitDaily <= 5) minutesLimitDaily = 30;
+    if (minutesLimitMonthly <= 5) minutesLimitMonthly = 300;
     // remember plan for CTAs
     window.__hk_current_plan = plan || 'free';
     // Update UI pills
     const p = document.getElementById('statusPlan');
-    const d = document.getElementById('limitDaily');
-    const m = document.getElementById('limitMonthly');
     if (p) p.textContent = `Plan: ${plan || 'free'}`;
-    // Kullanım değerlerini /usage üzerinden al (daha doğru ve tutarlı)
-    await updateUsageFromApi({ daily: minutesLimitDaily, monthly: minutesLimitMonthly });
+    
+    // Kullanım değerlerini güncelle, ancak backend'den gelen limit değerlerini kullanma
+    // Doğru limit değerlerini kullanmak için boş obje gönderiyoruz
+    await updateUsageFromApi({});
     const url = wsUrl.startsWith('ws') ? wsUrl : `${backendBase.replace('http','ws')}${wsUrl}`;
     ws = new WebSocket(url);
     ws.binaryType = 'arraybuffer';

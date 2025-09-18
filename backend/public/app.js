@@ -263,20 +263,88 @@ async function preloadPills(){
 try { preloadPills(); } catch {}
 
 // Reusable helper: fetch /usage and update pills on realtime page
-async function updateUsageFromApi(explicitLimits){
+async function updateUsageFromApi(explicitLimits) {
   try {
     const d = document.getElementById('limitDaily');
     const m = document.getElementById('limitMonthly');
     const token = localStorage.getItem('hk_token');
-    const ur = await fetch(`${backendBase}/usage`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-    if (ur.ok){
-      const u = await ur.json();
-      const dailyLimit = explicitLimits?.daily ?? (u.limits?.daily ?? '-');
-      const monthlyLimit = explicitLimits?.monthly ?? (u.limits?.monthly ?? '-');
-      if (d) d.textContent = `Günlük: ${(u.usedDaily||0).toFixed(1)}/${dailyLimit} dk`;
-      if (m) m.textContent = `Aylık: ${(u.usedMonthly||0).toFixed(1)}/${monthlyLimit} dk`;
+    
+    // First try to get the latest usage data from the main API endpoint
+    const response = await fetch(`${backendBase}/me`, { 
+      headers: token ? { 
+        'Authorization': `Bearer ${token}`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      } : {}
+    });
+    
+    if (response.ok) {
+      const userData = await response.json();
+      
+      // Get limits from explicitLimits first, then userData.limits, then fallback to defaults
+      const dailyLimit = explicitLimits?.daily ?? (userData.limits?.daily ?? 30);
+      const monthlyLimit = explicitLimits?.monthly ?? (userData.limits?.monthly ?? 300);
+      
+      // Get usage from userData.usage if available, otherwise fallback to 0
+      const usedDaily = userData.usage?.daily || 0;
+      const usedMonthly = userData.usage?.monthly || 0;
+      
+      // Update the UI elements if they exist
+      if (d) d.textContent = `Günlük: ${usedDaily.toFixed(1)}/${dailyLimit} dk`;
+      if (m) m.textContent = `Aylık: ${usedMonthly.toFixed(1)}/${monthlyLimit} dk`;
+      
+      // Also update any other UI elements that might be showing quota
+      const quotaElements = document.querySelectorAll('.quota-display');
+      quotaElements.forEach(el => {
+        if (el.dataset.type === 'daily') {
+          el.textContent = `${usedDaily.toFixed(1)}/${dailyLimit} dk`;
+        } else if (el.dataset.type === 'monthly') {
+          el.textContent = `${usedMonthly.toFixed(1)}/${monthlyLimit} dk`;
+        }
+      });
+      
+      // Return the data in case other functions need it
+      return {
+        daily: { used: usedDaily, limit: dailyLimit },
+        monthly: { used: usedMonthly, limit: monthlyLimit }
+      };
+    } else {
+      // Fallback to the old /usage endpoint if /me fails
+      const ur = await fetch(`${backendBase}/usage`, { 
+        headers: token ? { 
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        } : {}
+      });
+      
+      if (ur.ok) {
+        const u = await ur.json();
+        const dailyLimit = explicitLimits?.daily ?? (u.limits?.daily ?? 30);
+        const monthlyLimit = explicitLimits?.monthly ?? (u.limits?.monthly ?? 300);
+        
+        if (d) d.textContent = `Günlük: ${(u.usedDaily || 0).toFixed(1)}/${dailyLimit} dk`;
+        if (m) m.textContent = `Aylık: ${(u.usedMonthly || 0).toFixed(1)}/${monthlyLimit} dk`;
+        
+        return {
+          daily: { used: u.usedDaily || 0, limit: dailyLimit },
+          monthly: { used: u.usedMonthly || 0, limit: monthlyLimit }
+        };
+      }
     }
-  } catch {}
+  } catch (error) {
+    console.error('Kota bilgisi yüklenirken hata oluştu:', error);
+    // Show error in the UI
+    const errorEl = document.getElementById('quotaError');
+    if (errorEl) {
+      errorEl.textContent = 'Kota bilgisi yüklenemedi. Lütfen sayfayı yenileyin.';
+      errorEl.style.display = 'block';
+    }
+  }
+  
+  return null;
 }
 
 async function persistPrefs(partial){

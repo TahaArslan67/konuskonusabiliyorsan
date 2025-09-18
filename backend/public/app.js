@@ -262,89 +262,111 @@ async function preloadPills(){
 }
 try { preloadPills(); } catch {}
 
-// Reusable helper: fetch /usage and update pills on realtime page
+// Kullanım bilgilerini güncellemek için yardımcı fonksiyon
 async function updateUsageFromApi(explicitLimits) {
   try {
     const d = document.getElementById('limitDaily');
     const m = document.getElementById('limitMonthly');
     const token = localStorage.getItem('hk_token');
     
-    // First try to get the latest usage data from the main API endpoint
-    const response = await fetch(`${backendBase}/me`, { 
-      headers: token ? { 
+    if (!token) {
+      console.log('Kullanıcı girişi yapılmamış');
+      return;
+    }
+
+    // API'den kullanım bilgilerini çek
+    const response = await fetch('https://api.konuskonusabilirsen.com/me', { 
+      method: 'GET',
+      headers: { 
         'Authorization': `Bearer ${token}`,
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      } : {}
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      },
+      credentials: 'include'
     });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const userData = await response.json();
     
-    if (response.ok) {
-      const userData = await response.json();
-      
-      // Get limits from explicitLimits first, then userData.limits, then fallback to defaults
-      const dailyLimit = explicitLimits?.daily ?? (userData.limits?.daily ?? 30);
-      const monthlyLimit = explicitLimits?.monthly ?? (userData.limits?.monthly ?? 300);
-      
-      // Get usage from userData.usage if available, otherwise fallback to 0
-      const usedDaily = userData.usage?.daily || 0;
-      const usedMonthly = userData.usage?.monthly || 0;
-      
-      // Update the UI elements if they exist
-      if (d) d.textContent = `Günlük: ${usedDaily.toFixed(1)}/${dailyLimit} dk`;
-      if (m) m.textContent = `Aylık: ${usedMonthly.toFixed(1)}/${monthlyLimit} dk`;
-      
-      // Also update any other UI elements that might be showing quota
-      const quotaElements = document.querySelectorAll('.quota-display');
-      quotaElements.forEach(el => {
-        if (el.dataset.type === 'daily') {
-          el.textContent = `${usedDaily.toFixed(1)}/${dailyLimit} dk`;
-        } else if (el.dataset.type === 'monthly') {
-          el.textContent = `${usedMonthly.toFixed(1)}/${monthlyLimit} dk`;
-        }
-      });
-      
-      // Return the data in case other functions need it
-      return {
-        daily: { used: usedDaily, limit: dailyLimit },
-        monthly: { used: usedMonthly, limit: monthlyLimit }
-      };
-    } else {
-      // Fallback to the old /usage endpoint if /me fails
-      const ur = await fetch(`${backendBase}/usage`, { 
-        headers: token ? { 
-          'Authorization': `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        } : {}
-      });
-      
-      if (ur.ok) {
-        const u = await ur.json();
-        const dailyLimit = explicitLimits?.daily ?? (u.limits?.daily ?? 30);
-        const monthlyLimit = explicitLimits?.monthly ?? (u.limits?.monthly ?? 300);
-        
-        if (d) d.textContent = `Günlük: ${(u.usedDaily || 0).toFixed(1)}/${dailyLimit} dk`;
-        if (m) m.textContent = `Aylık: ${(u.usedMonthly || 0).toFixed(1)}/${monthlyLimit} dk`;
-        
-        return {
-          daily: { used: u.usedDaily || 0, limit: dailyLimit },
-          monthly: { used: u.usedMonthly || 0, limit: monthlyLimit }
-        };
+    // Varsayılan limitler
+    const defaultLimits = {
+      daily: 30,    // Günlük varsayılan limit 30 dakika
+      monthly: 300  // Aylık varsayılan limit 300 dakika
+    };
+
+    // Kullanıcının limitlerini al (eğer yoksa varsayılanları kullan)
+    const limits = userData.limits || defaultLimits;
+    
+    // Kullanım bilgilerini al (eğer yoksa 0 kabul et)
+    const usage = userData.usage || { daily: 0, monthly: 0 };
+
+    // Günlük ve aylık kullanım bilgilerini hesapla
+    const dailyUsed = Math.min(usage.daily || 0, limits.daily);
+    const monthlyUsed = Math.min(usage.monthly || 0, limits.monthly);
+
+    // Kullanıcı arayüzünü güncelle
+    if (d) d.textContent = `Günlük: ${dailyUsed.toFixed(1)}/${limits.daily} dk`;
+    if (m) m.textContent = `Aylık: ${monthlyUsed.toFixed(1)}/${limits.monthly} dk`;
+
+    // Diğer kota göstergelerini de güncelle
+    document.querySelectorAll('.quota-display').forEach(el => {
+      if (el.dataset.type === 'daily') {
+        el.textContent = `${dailyUsed.toFixed(1)}/${limits.daily} dk`;
+      } else if (el.dataset.type === 'monthly') {
+        el.textContent = `${monthlyUsed.toFixed(1)}/${limits.monthly} dk`;
       }
-    }
+    });
+
+    // Kullanım oranını hesapla ve ilerleme çubuklarını güncelle
+    const dailyPercentage = Math.min(100, (dailyUsed / limits.daily) * 100);
+    const monthlyPercentage = Math.min(100, (monthlyUsed / limits.monthly) * 100);
+
+    // İlerleme çubuklarını güncelle (eğer mevcutsa)
+    const updateProgressBar = (selector, percentage) => {
+      const bar = document.querySelector(selector);
+      if (bar) {
+        bar.style.width = `${percentage}%`;
+        bar.setAttribute('aria-valuenow', percentage);
+        // Renkleri kullanım oranına göre ayarla
+        if (percentage > 90) bar.style.backgroundColor = '#ef4444'; // Kırmızı
+        else if (percentage > 70) bar.style.backgroundColor = '#f59e0b'; // Sarı
+        else bar.style.backgroundColor = '#10b981'; // Yeşil
+      }
+    };
+
+    updateProgressBar('.daily-progress .progress-bar', dailyPercentage);
+    updateProgressBar('.monthly-progress .progress-bar', monthlyPercentage);
+
+    return {
+      daily: { used: dailyUsed, limit: limits.daily },
+      monthly: { used: monthlyUsed, limit: limits.monthly }
+    };
+
   } catch (error) {
-    console.error('Kota bilgisi yüklenirken hata oluştu:', error);
-    // Show error in the UI
-    const errorEl = document.getElementById('quotaError');
-    if (errorEl) {
-      errorEl.textContent = 'Kota bilgisi yüklenemedi. Lütfen sayfayı yenileyin.';
-      errorEl.style.display = 'block';
+    console.error('Kullanım bilgileri yüklenirken hata oluştu:', error);
+    
+    // Hata mesajını göster
+    const errorEl = document.getElementById('quotaError') || document.createElement('div');
+    errorEl.id = 'quotaError';
+    errorEl.style.color = '#ef4444';
+    errorEl.style.padding = '8px';
+    errorEl.style.marginTop = '8px';
+    errorEl.style.borderRadius = '4px';
+    errorEl.style.backgroundColor = '#fee2e2';
+    errorEl.textContent = 'Kullanım bilgileri yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.';
+    
+    // Eğer hata mesajı henüz eklenmediyse ekle
+    if (!document.getElementById('quotaError')) {
+      const container = document.querySelector('.quota-container') || document.body;
+      container.appendChild(errorEl);
     }
+    
+    return null;
   }
-  
-  return null;
 }
 
 async function persistPrefs(partial){

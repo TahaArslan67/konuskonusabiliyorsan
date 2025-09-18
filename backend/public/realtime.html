@@ -79,36 +79,14 @@
             <!-- Mikrofona aç/kapa butonu geçici olarak kaldırıldı -->
             <button id="btnReplay" class="btn" style="padding:12px 18px;" disabled>Son Yanıtı Tekrar Çal</button>
           </div>
-          <div class="quota-container" style="margin-top: 12px;">
-            <div class="quota-item" style="margin-bottom: 12px;">
-              <div class="row" style="justify-content: space-between; margin-bottom: 4px;">
-                <span class="subtle">Günlük Kullanım</span>
-                <span id="limitDaily" class="quota-display" data-type="daily">0/30 dk</span>
-              </div>
-              <div class="progress" style="height: 8px; background-color: #1e293b; border-radius: 4px; overflow: hidden;">
-                <div class="progress-bar daily-progress" role="progressbar" style="width: 0%; height: 100%; background-color: #10b981; transition: width 0.3s ease;"></div>
-              </div>
-            </div>
-            
-            <div class="quota-item" style="margin-bottom: 12px;">
-              <div class="row" style="justify-content: space-between; margin-bottom: 4px;">
-                <span class="subtle">Aylık Kullanım</span>
-                <span id="limitMonthly" class="quota-display" data-type="monthly">0/300 dk</span>
-              </div>
-              <div class="progress" style="height: 8px; background-color: #1e293b; border-radius: 4px; overflow: hidden;">
-                <div class="progress-bar monthly-progress" role="progressbar" style="width: 0%; height: 100%; background-color: #10b981; transition: width 0.3s ease;"></div>
-              </div>
-            </div>
-            
-            <div id="quotaError" style="display: none; color: #ef4444; margin-top: 8px; font-size: 13px;"></div>
-          </div>
-          
-          <div class="row" style="margin-top: 12px; flex-wrap: wrap; gap: 6px;">
-            <span class="pill" id="statusConn" style="background: #1e1b4b; border-color: #4f46e5;">Bağlantı: Kapalı</span>
-            <span class="pill" id="statusMic" style="background: #1e1b4b; border-color: #4f46e5;">Mikrofon: Kapalı</span>
-            <span class="pill" id="statusPlan" style="background: #1e1b4b; border-color: #4f46e5;">Plan: Ücretsiz</span>
-            <span class="pill" id="placementBadge" style="background: #1e1b4b; border-color: #4f46e5;">Seviye: -</span>
-            <a id="btnRetakePlacement" class="btn btn-secondary" href="/placement.html?redirect=%2Frealtime.html" style="padding: 4px 10px; font-size: 12px; border-radius: 999px; text-decoration: none;">Seviye Testini Yenile</a>
+          <div class="row">
+            <span class="pill" id="statusConn">Bağlantı: Kapalı</span>
+            <span class="pill" id="statusMic">Mikrofon: Kapalı</span>
+            <span class="pill" id="statusPlan">Plan: -</span>
+            <span class="pill" id="limitDaily">Günlük: - dk</span>
+            <span class="pill" id="limitMonthly">Aylık: - dk</span>
+            <span class="pill" id="placementBadge">Seviye: -</span>
+            <a id="btnRetakePlacement" class="btn btn-secondary" href="/placement.html?redirect=%2Frealtime.html" style="padding:6px 10px; font-size:12px;">Seviye Testini Yenile</a>
           </div>
 
           <details id="advControls" style="margin-top:12px;">
@@ -237,62 +215,11 @@
 
   
 
+  <script src="/config.js"></script>
   <script>
-    // Global değişkenler
-    window.backendBase = 'https://api.konuskonusabilirsen.com';
-    
-    // Hata yönetimi
-    window.addEventListener('error', function(e) {
-      console.error('Global hata yakalandı:', e.message, 'Dosya:', e.filename, 'Satır:', e.lineno);
-    });
-    
-    // Service Worker kaydı
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(err => {
-        console.error('Service Worker kaydı başarısız oldu:', err);
-      });
-    }
+    try{ if ('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{}); } }catch{}
   </script>
-  
-  <!-- Önce site.js yüklensin -->
-  <script src="/site.js"></script>
-  
-  <!-- Sonra app.js yüklensin -->
-  <script src="/app.js"></script>
-  
-  <!-- Sayfa yüklendikten sonra çalışacak kodlar -->
-  <script>
-    document.addEventListener('DOMContentLoaded', async () => {
-      try {
-        // Kullanım bilgilerini güncelle
-        if (typeof updateUsageFromApi === 'function') {
-          await updateUsageFromApi();
-          
-          // Her 30 saniyede bir kullanım bilgilerini güncelle
-          setInterval(updateUsageFromApi, 30000);
-          
-          // Konuşma başlangıç ve bitiş olaylarını dinle
-          const startBtn = document.getElementById('btnStartTalk');
-          const stopBtn = document.getElementById('btnStopTalk');
-          
-          if (startBtn) {
-            startBtn.addEventListener('click', () => {
-              setTimeout(updateUsageFromApi, 1000);
-            });
-          }
-          
-          if (stopBtn) {
-            stopBtn.addEventListener('click', () => {
-              setTimeout(updateUsageFromApi, 1000);
-            });
-          }
-        } else {
-          console.error('updateUsageFromApi fonksiyonu bulunamadı!');
-        }
-      } catch (error) {
-        console.error('Sayfa yüklenirken bir hata oluştu:', error);
-      }
-    });
-  </script>
+  <script src="/site.js" type="module"></script>
+  <script src="/app.js" type="module"></script>
 </body>
 </html>

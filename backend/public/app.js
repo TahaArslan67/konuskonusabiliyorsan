@@ -1,8 +1,6 @@
-// app.js için özel $ fonksiyonu
 const $ = (s) => document.querySelector(s);
-
 const logEl = $('#logs');
-const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : 'https://api.konuskonusabilirsen.com'; // Sabit backend URL'si
+const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : location.origin; // configurable backend base
 const statusConnEl = $('#statusConn');
 const statusMicEl = $('#statusMic');
 $('#backend') && ($('#backend').textContent = backendBase);
@@ -264,163 +262,21 @@ async function preloadPills(){
 }
 try { preloadPills(); } catch {}
 
-// Kullanım bilgilerini güncellemek için yardımcı fonksiyon
-async function updateUsageFromApi(explicitLimits) {
+// Reusable helper: fetch /usage and update pills on realtime page
+async function updateUsageFromApi(explicitLimits){
   try {
     const d = document.getElementById('limitDaily');
     const m = document.getElementById('limitMonthly');
     const token = localStorage.getItem('hk_token');
-    
-    if (!token) {
-      console.log('Kullanıcı girişi yapılmamış');
-      return;
+    const ur = await fetch(`${backendBase}/usage`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (ur.ok){
+      const u = await ur.json();
+      const dailyLimit = explicitLimits?.daily ?? (u.limits?.daily ?? '-');
+      const monthlyLimit = explicitLimits?.monthly ?? (u.limits?.monthly ?? '-');
+      if (d) d.textContent = `Günlük: ${(u.usedDaily||0).toFixed(1)}/${dailyLimit} dk`;
+      if (m) m.textContent = `Aylık: ${(u.usedMonthly||0).toFixed(1)}/${monthlyLimit} dk`;
     }
-
-    // CORS öncesi istek (preflight) için gerekli başlıkları ekliyoruz
-    const headers = new Headers();
-    headers.append('Authorization', `Bearer ${token}`);
-    headers.append('Accept', 'application/json');
-    
-    // Sadece gerekli başlıkları ekliyoruz
-    const requestOptions = {
-      method: 'GET',
-      headers: headers,
-      credentials: 'include',
-      mode: 'cors'
-    };
-
-    // URL'ye rastgele bir parametre ekleyerek önbellek sorunlarını önlüyoruz
-    const url = new URL(`${backendBase}/me`);
-    url.searchParams.append('_', Date.now());
-    
-    const response = await fetch(url.toString(), requestOptions);
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const userData = await response.json();
-    
-    // Kullanıcının planını kontrol et (backend'den gelen veya 'free' olarak varsay)
-    const plan = userData.plan || 'free';
-    
-    // Plan bilgisine göre limitleri belirle
-    let limits = {
-      daily: 30,      // Varsayılan ücretsiz kullanıcı günlük limiti
-      monthly: 300    // Varsayılan ücretsiz kullanıcı aylık limiti
-    };
-    
-    // Eğer kullanıcı premium ise limitleri artır
-    if (plan === 'pro') {
-      limits = {
-        daily: 1440,    // Günlük 24 saat (1440 dakika)
-        monthly: 43200  // Aylık 30 gün (43200 dakika)
-      };
-    }
-    
-    // Eğer explicitLimits parametresi verilmişse, onları kullan
-    if (explicitLimits) {
-      if (explicitLimits.daily > limits.daily) limits.daily = explicitLimits.daily;
-      if (explicitLimits.monthly > limits.monthly) limits.monthly = explicitLimits.monthly;
-    }
-    
-    // Kullanım bilgilerini al (eğer yoksa 0 kabul et)
-    // Backend'den gelen kullanım değerlerini kontrol et ve geçerli değilse 0 kabul et
-    const usage = { 
-      daily: (userData.usage && typeof userData.usage.daily === 'number' && userData.usage.daily >= 0) ? 
-             userData.usage.daily : 0,
-      monthly: (userData.usage && typeof userData.usage.monthly === 'number' && userData.usage.monthly >= 0) ? 
-               userData.usage.monthly : 0
-    };
-
-    // Günlük ve aylık kullanım bilgilerini hesapla
-    const dailyUsed = Math.min(usage.daily || 0, limits.daily);
-    const monthlyUsed = Math.min(usage.monthly || 0, limits.monthly);
-
-    // Kullanıcı arayüzünü güncelle
-    if (d) d.textContent = `Günlük: ${dailyUsed.toFixed(1)}/${limits.daily} dk`;
-    if (m) m.textContent = `Aylık: ${monthlyUsed.toFixed(1)}/${limits.monthly} dk`;
-
-    // Diğer kota göstergelerini de güncelle
-    document.querySelectorAll('.quota-display').forEach(el => {
-      if (el.dataset.type === 'daily') {
-        el.textContent = `${dailyUsed.toFixed(1)}/${limits.daily} dk`;
-      } else if (el.dataset.type === 'monthly') {
-        el.textContent = `${monthlyUsed.toFixed(1)}/${limits.monthly} dk`;
-      }
-    });
-
-    // Kullanım oranını hesapla ve ilerleme çubuklarını güncelle
-    const dailyPercentage = Math.min(100, (dailyUsed / limits.daily) * 100);
-    const monthlyPercentage = Math.min(100, (monthlyUsed / limits.monthly) * 100);
-
-    // İlerleme çubuklarını güncelle (eğer mevcutsa)
-    const updateProgressBar = (selector, percentage) => {
-      const bar = document.querySelector(selector);
-      if (bar) {
-        bar.style.width = `${percentage}%`;
-        bar.setAttribute('aria-valuenow', percentage);
-        // Renkleri kullanım oranına göre ayarla
-        if (percentage > 90) bar.style.backgroundColor = '#ef4444'; // Kırmızı
-        else if (percentage > 70) bar.style.backgroundColor = '#f59e0b'; // Sarı
-        else bar.style.backgroundColor = '#10b981'; // Yeşil
-      }
-    };
-
-    updateProgressBar('.daily-progress .progress-bar', dailyPercentage);
-    updateProgressBar('.monthly-progress .progress-bar', monthlyPercentage);
-
-    return {
-      daily: { used: dailyUsed, limit: limits.daily },
-      monthly: { used: monthlyUsed, limit: limits.monthly }
-    };
-
-  } catch (error) {
-    console.error('Kullanım bilgileri yüklenirken hata oluştu:', error);
-    
-    // Hata mesajını göster
-    try {
-      const errorEl = document.getElementById('quotaError') || document.createElement('div');
-      errorEl.id = 'quotaError';
-      errorEl.style.color = '#ef4444';
-      errorEl.style.padding = '8px';
-      errorEl.style.marginTop = '8px';
-      errorEl.style.borderRadius = '4px';
-      errorEl.style.backgroundColor = '#fee2e2';
-      
-      // Daha detaylı hata mesajı
-      let errorMessage = 'Kullanım bilgileri yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.';
-      
-      if (error.message?.includes('Failed to fetch')) {
-        errorMessage = 'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.';
-      } else if (error.message?.includes('401')) {
-        errorMessage = 'Oturum süreniz doldu. Lütfen tekrar giriş yapın.';
-      } else if (error.message?.includes('403')) {
-        errorMessage = 'Bu işlem için yetkiniz yok.';
-      } else if (error.message?.includes('404')) {
-        errorMessage = 'İstenen kaynak bulunamadı. Lütfen daha sonra tekrar deneyin.';
-      }
-      
-      errorEl.textContent = errorMessage;
-      
-      // Eğer hata mesajı henüz eklenmediyse ekle
-      if (!document.getElementById('quotaError')) {
-        const container = document.querySelector('.quota-container') || document.body;
-        if (container) {
-          container.appendChild(errorEl);
-          
-          // 5 saniye sonra hata mesajını kaldır
-          setTimeout(() => {
-            try { container.removeChild(errorEl); } catch(e) {}
-          }, 5000);
-        }
-      }
-    } catch (e) {
-      console.error('Hata mesajı gösterilirken bir hata oluştu:', e);
-    }
-    
-    return null;
-  }
+  } catch {}
 }
 
 async function persistPrefs(partial){
@@ -747,31 +603,16 @@ async function wsConnect(){
       throw new Error(`session start failed: ${r.status}`);
     }
     const j = await r.json();
-    const { sessionId, wsUrl } = j;
-    
-    // Plan bilgisini al, yoksa 'free' olarak ayarla
-    const plan = j.plan || 'free';
-    window.__hk_current_plan = plan;
-    
-    // Limit değerlerini backend'den değil, doğrudan sabit değerlerle ayarla
-    // Bu sayede backend'den gelen yanlış değerleri kullanmıyoruz
-    const minutesLimitDaily = 30;  // Ücretsiz kullanıcılar için günlük 30 dakika
-    const minutesLimitMonthly = 300; // Ücretsiz kullanıcılar için aylık 300 dakika
-    
-    // Eğer kullanıcı premium ise limitleri artır
-    if (plan === 'pro') {
-      minutesLimitDaily = 1440;    // Günlük 24 saat (1440 dakika)
-      minutesLimitMonthly = 43200; // Aylık 30 gün (43200 dakika)
-    }
+    const { sessionId, wsUrl, plan, minutesLimitDaily, minutesLimitMonthly } = j;
+    // remember plan for CTAs
+    window.__hk_current_plan = plan || 'free';
     // Update UI pills
     const p = document.getElementById('statusPlan');
+    const d = document.getElementById('limitDaily');
+    const m = document.getElementById('limitMonthly');
     if (p) p.textContent = `Plan: ${plan || 'free'}`;
-    
-    // Kullanım değerlerini güncelle ve doğru limit değerlerini kullan
-    await updateUsageFromApi({
-      daily: minutesLimitDaily,
-      monthly: minutesLimitMonthly
-    });
+    // Kullanım değerlerini /usage üzerinden al (daha doğru ve tutarlı)
+    await updateUsageFromApi({ daily: minutesLimitDaily, monthly: minutesLimitMonthly });
     const url = wsUrl.startsWith('ws') ? wsUrl : `${backendBase.replace('http','ws')}${wsUrl}`;
     ws = new WebSocket(url);
     ws.binaryType = 'arraybuffer';
@@ -783,22 +624,9 @@ async function wsConnect(){
       try { const el=$('#btnWsTts'); if (el) el.disabled = false; } catch {}
       updateStatus();
       // WS açıldıktan sonra da tekrar /usage ile tazele (eventual consistency için)
-      try { 
-        await updateUsageFromApi({ 
-          daily: minutesLimitDaily, 
-          monthly: minutesLimitMonthly 
-        }); 
-      } catch {}
-      
+      try { await updateUsageFromApi({ daily: minutesLimitDaily, monthly: minutesLimitMonthly }); } catch {}
       // Kısa bir gecikmeyle bir kez daha tazele
-      try { 
-        setTimeout(() => { 
-          updateUsageFromApi({ 
-            daily: minutesLimitDaily, 
-            monthly: minutesLimitMonthly 
-          }); 
-        }, 1200); 
-      } catch {}
+      try { setTimeout(() => { updateUsageFromApi({ daily: minutesLimitDaily, monthly: minutesLimitMonthly }); }, 1200); } catch {}
       try {
         const voiceSel = document.getElementById('voiceSelect');
         const voice = voiceSel && voiceSel.value ? voiceSel.value : 'alloy';

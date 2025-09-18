@@ -1,13 +1,12 @@
-// Tüm kodu IIFE içine alarak global scope'u kirletmeyi önleyelim
-(function() {
-  // Util - Sadece bu dosyada kullanılacak $ fonksiyonu
-  const $ = (s) => document.querySelector(s);
-  
-  // Global değişkenler
-  const backendBase = 'https://api.konuskonusabilirsen.com';
-  
-  // Token işlemleri
-  function setToken(token) {
+// Basit etkileşimler: yıl ve plan butonları
+const yearEl = document.getElementById('year');
+if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+// Util
+const $ = (s) => document.querySelector(s);
+const backendBase = 'https://api.konuskonusabilirsen.com';
+
+function setToken(token){
   if (token) localStorage.setItem('hk_token', token);
 }
 function getToken(){ return localStorage.getItem('hk_token'); }
@@ -275,29 +274,24 @@ function openAccount(){
     }
   }, 50);
 }
-    const password = $('#loginPassword')?.value;
-    
-    if (!email || !password) {
-      authMsg.textContent = 'Lütfen tüm alanları doldurun';
-      return;
-    }
-    
+const btnAccount = document.getElementById('btnAccount');
+if (btnAccount) {
+  btnAccount.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    const token = getToken();
+    if (!token){ setPostLoginRedirect('/account.html'); openAuth(); showLogin(); return; }
+    window.location.href = '/account.html';
+  });
+}
+
+if (formLogin){
+  formLogin.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = $('#loginEmail').value.trim();
+    const password = $('#loginPassword').value;
     authMsg.textContent = 'Giriş yapılıyor...';
-    
     try {
-      const r = await fetch(`${backendBase}/auth/login`, { 
-        method: 'POST', 
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }, 
-        body: JSON.stringify({ email, password }) 
-      });
-      
-      if (!r.ok) {
-        throw new Error('Giriş başarısız');
-      }
-      
+      const r = await fetch(`${backendBase}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
       const j = await r.json();
       if (!r.ok){
         if (r.status === 403 && j?.error === 'email_not_verified'){

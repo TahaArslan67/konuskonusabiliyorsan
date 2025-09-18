@@ -1,13 +1,16 @@
 // Basit etkileşimler: yıl ve plan butonları
-const yearEl = document.getElementById('year');
-if (yearEl) yearEl.textContent = new Date().getFullYear();
+document.addEventListener('DOMContentLoaded', () => {
+  const yearEl = document.getElementById('year');
+  if (yearEl) yearEl.textContent = new Date().getFullYear();
 
-// Util
-if (typeof window !== 'undefined' && !window.hkQuery) {
-  window.hkQuery = (s) => document.querySelector(s);
-}
-const $ = window.hkQuery;
-const backendBase = 'https://api.konuskonusabilirsen.com';
+  // Util - Sadece bu dosyada kullanılacak $ fonksiyonu
+  const $ = (s) => document.querySelector(s);
+  
+  // Diğer değişkenler
+  const backendBase = 'https://api.konuskonusabilirsen.com';
+  
+  // Diğer fonksiyonlar buraya taşınacak
+  // ...
 
 function setToken(token){
   if (token) localStorage.setItem('hk_token', token);
@@ -277,23 +280,22 @@ function openAccount(){
     }
   }, 50);
 }
-// btnAccount'u güvenli bir şekilde tanımla
-document.addEventListener('DOMContentLoaded', () => {
+  // btnAccount'u güvenli bir şekilde tanımla
   const btnAccount = document.getElementById('btnAccount');
   if (btnAccount) {
     btnAccount.addEventListener('click', (ev) => {
-    if (ev) ev.preventDefault();
-    const token = getToken();
-    if (!token) { 
-      setPostLoginRedirect('/account.html'); 
-      if (typeof openAuth === 'function') openAuth(); 
-      if (typeof showLogin === 'function') showLogin(); 
-      return; 
-    }
+      if (ev) ev.preventDefault();
+      const token = getToken();
+      if (!token) { 
+        setPostLoginRedirect('/account.html'); 
+        if (typeof openAuth === 'function') openAuth(); 
+        if (typeof showLogin === 'function') showLogin(); 
+        return; 
+      }
       window.location.href = '/account.html';
     });
   }
-});
+}); // DOMContentLoaded kapanışı
 
 if (formLogin){
   formLogin.addEventListener('submit', async (e) => {

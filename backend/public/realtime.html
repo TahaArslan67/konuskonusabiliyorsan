@@ -237,46 +237,60 @@
 
   
 
-  <script src="/config.js"></script>
   <script>
-    try{ if ('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{}); } }catch{}
+    // Global değişkenler
+    window.backendBase = 'https://api.konuskonusabilirsen.com';
+    
+    // Hata yönetimi
+    window.addEventListener('error', function(e) {
+      console.error('Global hata yakalandı:', e.message, 'Dosya:', e.filename, 'Satır:', e.lineno);
+    });
+    
+    // Service Worker kaydı
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(err => {
+        console.error('Service Worker kaydı başarısız oldu:', err);
+      });
+    }
   </script>
+  
+  <!-- Önce site.js yüklensin -->
   <script src="/site.js"></script>
+  
+  <!-- Sonra app.js yüklensin -->
   <script src="/app.js"></script>
-
+  
+  <!-- Sayfa yüklendikten sonra çalışacak kodlar -->
   <script>
-    // Sayfa yüklendiğinde kullanım bilgilerini güncelle
     document.addEventListener('DOMContentLoaded', async () => {
       try {
-        // İlk yüklemede kullanım bilgilerini getir
-        if (typeof window.updateUsageFromApi === 'function') {
-          await window.updateUsageFromApi();
+        // Kullanım bilgilerini güncelle
+        if (typeof updateUsageFromApi === 'function') {
+          await updateUsageFromApi();
+          
+          // Her 30 saniyede bir kullanım bilgilerini güncelle
+          setInterval(updateUsageFromApi, 30000);
+          
+          // Konuşma başlangıç ve bitiş olaylarını dinle
+          const startBtn = document.getElementById('btnStartTalk');
+          const stopBtn = document.getElementById('btnStopTalk');
+          
+          if (startBtn) {
+            startBtn.addEventListener('click', () => {
+              setTimeout(updateUsageFromApi, 1000);
+            });
+          }
+          
+          if (stopBtn) {
+            stopBtn.addEventListener('click', () => {
+              setTimeout(updateUsageFromApi, 1000);
+            });
+          }
         } else {
           console.error('updateUsageFromApi fonksiyonu bulunamadı!');
         }
-
-        // Her 30 saniyede bir kullanım bilgilerini güncelle
-        if (typeof window.updateUsageFromApi === 'function') {
-          setInterval(window.updateUsageFromApi, 30000);
-        }
-
-        // Ayrıca, her konuşma başlangıcında ve bitiminde de güncelle
-        const startBtn = document.getElementById('btnStartTalk');
-        const stopBtn = document.getElementById('btnStopTalk');
-
-        if (startBtn && typeof window.updateUsageFromApi === 'function') {
-          startBtn.addEventListener('click', () => {
-            setTimeout(window.updateUsageFromApi, 1000); // Konuşma başladıktan 1 saniye sonra güncelle
-          });
-        }
-
-        if (stopBtn && typeof window.updateUsageFromApi === 'function') {
-          stopBtn.addEventListener('click', () => {
-            setTimeout(window.updateUsageFromApi, 1000); // Konuşma bittikten 1 saniye sonra güncelle
-          });
-        }
       } catch (error) {
-        console.error('Kullanım bilgileri yüklenirken hata oluştu:', error);
+        console.error('Sayfa yüklenirken bir hata oluştu:', error);
       }
     });
   </script>

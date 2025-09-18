@@ -1,8 +1,5 @@
-// $ fonksiyonunu sadece tanımlı değilse tanımla
-if (typeof window !== 'undefined' && !window.hkAppQuery) {
-  window.hkAppQuery = (s) => document.querySelector(s);
-}
-const $ = window.hkAppQuery || ((s) => document.querySelector(s));
+// app.js için özel $ fonksiyonu
+const $ = (s) => document.querySelector(s);
 
 const logEl = $('#logs');
 const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : 'https://api.konuskonusabilirsen.com'; // Sabit backend URL'si
@@ -268,9 +265,7 @@ async function preloadPills(){
 try { preloadPills(); } catch {}
 
 // Kullanım bilgilerini güncellemek için yardımcı fonksiyon
-// Global olarak erişilebilir olması için window objesine ekliyoruz
-if (typeof window !== 'undefined') {
-  window.updateUsageFromApi = async function(explicitLimits) {
+async function updateUsageFromApi(explicitLimits) {
   try {
     const d = document.getElementById('limitDaily');
     const m = document.getElementById('limitMonthly');
@@ -401,8 +396,7 @@ if (typeof window !== 'undefined') {
     
     return null;
   }
-};
-} // window kontrolü kapanışı
+}
 
 async function persistPrefs(partial){
   try{

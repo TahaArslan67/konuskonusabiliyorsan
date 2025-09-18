@@ -275,24 +275,26 @@ function openAccount(){
   }, 50);
 }
 // Only initialize account button if it exists in the DOM
-try {
-  const btnAccount = document.getElementById('btnAccount');
-  if (btnAccount) {
-    btnAccount.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      const token = getToken();
-      if (!token) { 
-        setPostLoginRedirect('/account.html'); 
-        openAuth(); 
-        showLogin(); 
-        return; 
-      }
-      window.location.href = '/account.html';
-    });
+(function() {
+  try {
+    const accountBtn = document.getElementById('btnAccount');
+    if (accountBtn) {
+      accountBtn.addEventListener('click', function(ev) {
+        ev.preventDefault();
+        const token = getToken();
+        if (!token) { 
+          setPostLoginRedirect('/account.html'); 
+          openAuth(); 
+          showLogin(); 
+          return; 
+        }
+        window.location.href = '/account.html';
+      });
+    }
+  } catch (error) {
+    console.log('Account button not found, skipping initialization');
   }
-} catch (error) {
-  console.log('Account button not found, skipping initialization');
-}
+})();
 
 if (formLogin){
   formLogin.addEventListener('submit', async (e) => {

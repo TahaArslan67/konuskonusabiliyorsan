@@ -276,21 +276,20 @@ function openAccount(){
     }
   }, 50);
 }
-// Account button click handler - moved to document load event
-document.addEventListener('DOMContentLoaded', function() {
-  const accountBtn = document.getElementById('btnAccount');
+// Account button click handler
+document.addEventListener('click', function(ev) {
+  // Check if the clicked element is btnAccount or a child of it
+  const accountBtn = ev.target.closest('#btnAccount');
   if (accountBtn) {
-    accountBtn.addEventListener('click', function(ev) {
-      ev.preventDefault();
-      const token = getToken();
-      if (!token) { 
-        setPostLoginRedirect('/account.html'); 
-        openAuth(); 
-        showLogin(); 
-        return; 
-      }
-      window.location.href = '/account.html';
-    });
+    ev.preventDefault();
+    const token = getToken();
+    if (!token) { 
+      setPostLoginRedirect('/account.html'); 
+      openAuth(); 
+      showLogin(); 
+      return; 
+    }
+    window.location.href = '/account.html';
   }
 });
 

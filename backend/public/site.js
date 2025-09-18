@@ -274,12 +274,18 @@ function openAccount(){
     }
   }, 50);
 }
+// btnAccount'u güvenli bir şekilde tanımla
 const btnAccount = document.getElementById('btnAccount');
 if (btnAccount) {
   btnAccount.addEventListener('click', (ev) => {
-    ev.preventDefault();
+    if (ev) ev.preventDefault();
     const token = getToken();
-    if (!token){ setPostLoginRedirect('/account.html'); openAuth(); showLogin(); return; }
+    if (!token) { 
+      setPostLoginRedirect('/account.html'); 
+      if (typeof openAuth === 'function') openAuth(); 
+      if (typeof showLogin === 'function') showLogin(); 
+      return; 
+    }
     window.location.href = '/account.html';
   });
 }

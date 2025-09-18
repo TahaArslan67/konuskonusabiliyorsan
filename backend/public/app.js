@@ -263,7 +263,8 @@ async function preloadPills(){
 try { preloadPills(); } catch {}
 
 // Kullanım bilgilerini güncellemek için yardımcı fonksiyon
-async function updateUsageFromApi(explicitLimits) {
+// Global olarak erişilebilir olması için window objesine ekliyoruz
+window.updateUsageFromApi = async function(explicitLimits) {
   try {
     const d = document.getElementById('limitDaily');
     const m = document.getElementById('limitMonthly');
@@ -293,18 +294,37 @@ async function updateUsageFromApi(explicitLimits) {
 
     const userData = await response.json();
     
-    // Backend'den gelen limitleri kontrol et, yoksa gerçekçi varsayılan değerler kullan
-    const limits = {
-      daily: userData.limits?.daily || 30,    // Backend'den günlük limit yoksa 30 dakika
-      monthly: userData.limits?.monthly || 300 // Backend'den aylık limit yoksa 300 dakika
+    // Kullanıcının planını kontrol et (backend'den gelen veya 'free' olarak varsay)
+    const plan = userData.plan || 'free';
+    
+    // Plan bilgisine göre limitleri belirle
+    let limits = {
+      daily: 30,      // Varsayılan ücretsiz kullanıcı günlük limiti
+      monthly: 300    // Varsayılan ücretsiz kullanıcı aylık limiti
     };
     
-    // Eğer backend'den gelen limitler 5 ise (yanlış değer), gerçekçi değerlerle değiştir
-    if (limits.daily <= 5) limits.daily = 30;
-    if (limits.monthly <= 5) limits.monthly = 300;
+    // Eğer kullanıcı premium ise limitleri artır
+    if (plan === 'pro') {
+      limits = {
+        daily: 1440,    // Günlük 24 saat (1440 dakika)
+        monthly: 43200  // Aylık 30 gün (43200 dakika)
+      };
+    }
+    
+    // Eğer explicitLimits parametresi verilmişse, onları kullan
+    if (explicitLimits) {
+      if (explicitLimits.daily > limits.daily) limits.daily = explicitLimits.daily;
+      if (explicitLimits.monthly > limits.monthly) limits.monthly = explicitLimits.monthly;
+    }
     
     // Kullanım bilgilerini al (eğer yoksa 0 kabul et)
-    const usage = userData.usage || { daily: 0, monthly: 0 };
+    // Backend'den gelen kullanım değerlerini kontrol et ve geçerli değilse 0 kabul et
+    const usage = { 
+      daily: (userData.usage && typeof userData.usage.daily === 'number' && userData.usage.daily >= 0) ? 
+             userData.usage.daily : 0,
+      monthly: (userData.usage && typeof userData.usage.monthly === 'number' && userData.usage.monthly >= 0) ? 
+               userData.usage.monthly : 0
+    };
 
     // Günlük ve aylık kullanım bilgilerini hesapla
     const dailyUsed = Math.min(usage.daily || 0, limits.daily);
@@ -695,24 +715,31 @@ async function wsConnect(){
       throw new Error(`session start failed: ${r.status}`);
     }
     const j = await r.json();
-    const { sessionId, wsUrl, plan } = j;
+    const { sessionId, wsUrl } = j;
     
-    // Backend'den gelen limit değerlerini kontrol et, yanlışsa düzelt
-    let minutesLimitDaily = j.minutesLimitDaily;
-    let minutesLimitMonthly = j.minutesLimitMonthly;
+    // Plan bilgisini al, yoksa 'free' olarak ayarla
+    const plan = j.plan || 'free';
+    window.__hk_current_plan = plan;
     
-    // Eğer limit değerleri 5 veya daha düşükse, gerçekçi değerlerle değiştir
-    if (minutesLimitDaily <= 5) minutesLimitDaily = 30;
-    if (minutesLimitMonthly <= 5) minutesLimitMonthly = 300;
-    // remember plan for CTAs
-    window.__hk_current_plan = plan || 'free';
+    // Limit değerlerini backend'den değil, doğrudan sabit değerlerle ayarla
+    // Bu sayede backend'den gelen yanlış değerleri kullanmıyoruz
+    const minutesLimitDaily = 30;  // Ücretsiz kullanıcılar için günlük 30 dakika
+    const minutesLimitMonthly = 300; // Ücretsiz kullanıcılar için aylık 300 dakika
+    
+    // Eğer kullanıcı premium ise limitleri artır
+    if (plan === 'pro') {
+      minutesLimitDaily = 1440;    // Günlük 24 saat (1440 dakika)
+      minutesLimitMonthly = 43200; // Aylık 30 gün (43200 dakika)
+    }
     // Update UI pills
     const p = document.getElementById('statusPlan');
     if (p) p.textContent = `Plan: ${plan || 'free'}`;
     
-    // Kullanım değerlerini güncelle, ancak backend'den gelen limit değerlerini kullanma
-    // Doğru limit değerlerini kullanmak için boş obje gönderiyoruz
-    await updateUsageFromApi({});
+    // Kullanım değerlerini güncelle ve doğru limit değerlerini kullan
+    await updateUsageFromApi({
+      daily: minutesLimitDaily,
+      monthly: minutesLimitMonthly
+    });
     const url = wsUrl.startsWith('ws') ? wsUrl : `${backendBase.replace('http','ws')}${wsUrl}`;
     ws = new WebSocket(url);
     ws.binaryType = 'arraybuffer';
@@ -724,9 +751,22 @@ async function wsConnect(){
       try { const el=$('#btnWsTts'); if (el) el.disabled = false; } catch {}
       updateStatus();
       // WS açıldıktan sonra da tekrar /usage ile tazele (eventual consistency için)
-      try { await updateUsageFromApi({ daily: minutesLimitDaily, monthly: minutesLimitMonthly }); } catch {}
+      try { 
+        await updateUsageFromApi({ 
+          daily: minutesLimitDaily, 
+          monthly: minutesLimitMonthly 
+        }); 
+      } catch {}
+      
       // Kısa bir gecikmeyle bir kez daha tazele
-      try { setTimeout(() => { updateUsageFromApi({ daily: minutesLimitDaily, monthly: minutesLimitMonthly }); }, 1200); } catch {}
+      try { 
+        setTimeout(() => { 
+          updateUsageFromApi({ 
+            daily: minutesLimitDaily, 
+            monthly: minutesLimitMonthly 
+          }); 
+        }, 1200); 
+      } catch {}
       try {
         const voiceSel = document.getElementById('voiceSelect');
         const voice = voiceSel && voiceSel.value ? voiceSel.value : 'alloy';

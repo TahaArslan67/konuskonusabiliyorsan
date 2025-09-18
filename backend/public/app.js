@@ -276,18 +276,24 @@ async function updateUsageFromApi(explicitLimits) {
       return;
     }
 
-    // API'den kullanım bilgilerini çek
-    const response = await fetch('https://api.konuskonusabilirsen.com/me', { 
+    // CORS öncesi istek (preflight) için gerekli başlıkları ekliyoruz
+    const headers = new Headers();
+    headers.append('Authorization', `Bearer ${token}`);
+    headers.append('Accept', 'application/json');
+    
+    // Sadece gerekli başlıkları ekliyoruz
+    const requestOptions = {
       method: 'GET',
-      headers: { 
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      },
-      credentials: 'include'
-    });
+      headers: headers,
+      credentials: 'include',
+      mode: 'cors'
+    };
+
+    // URL'ye rastgele bir parametre ekleyerek önbellek sorunlarını önlüyoruz
+    const url = new URL(`${backendBase}/me`);
+    url.searchParams.append('_', Date.now());
+    
+    const response = await fetch(url.toString(), requestOptions);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -381,13 +387,32 @@ async function updateUsageFromApi(explicitLimits) {
       errorEl.style.marginTop = '8px';
       errorEl.style.borderRadius = '4px';
       errorEl.style.backgroundColor = '#fee2e2';
-      errorEl.textContent = 'Kullanım bilgileri yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.';
+      
+      // Daha detaylı hata mesajı
+      let errorMessage = 'Kullanım bilgileri yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.';
+      
+      if (error.message?.includes('Failed to fetch')) {
+        errorMessage = 'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.';
+      } else if (error.message?.includes('401')) {
+        errorMessage = 'Oturum süreniz doldu. Lütfen tekrar giriş yapın.';
+      } else if (error.message?.includes('403')) {
+        errorMessage = 'Bu işlem için yetkiniz yok.';
+      } else if (error.message?.includes('404')) {
+        errorMessage = 'İstenen kaynak bulunamadı. Lütfen daha sonra tekrar deneyin.';
+      }
+      
+      errorEl.textContent = errorMessage;
       
       // Eğer hata mesajı henüz eklenmediyse ekle
       if (!document.getElementById('quotaError')) {
         const container = document.querySelector('.quota-container') || document.body;
         if (container) {
           container.appendChild(errorEl);
+          
+          // 5 saniye sonra hata mesajını kaldır
+          setTimeout(() => {
+            try { container.removeChild(errorEl); } catch(e) {}
+          }, 5000);
         }
       }
     } catch (e) {

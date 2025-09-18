@@ -3,7 +3,10 @@ const yearEl = document.getElementById('year');
 if (yearEl) yearEl.textContent = new Date().getFullYear();
 
 // Util
-const $ = (s) => document.querySelector(s);
+if (typeof window !== 'undefined' && !window.hkQuery) {
+  window.hkQuery = (s) => document.querySelector(s);
+}
+const $ = window.hkQuery;
 const backendBase = 'https://api.konuskonusabilirsen.com';
 
 function setToken(token){
@@ -275,9 +278,10 @@ function openAccount(){
   }, 50);
 }
 // btnAccount'u güvenli bir şekilde tanımla
-const btnAccount = document.getElementById('btnAccount');
-if (btnAccount) {
-  btnAccount.addEventListener('click', (ev) => {
+document.addEventListener('DOMContentLoaded', () => {
+  const btnAccount = document.getElementById('btnAccount');
+  if (btnAccount) {
+    btnAccount.addEventListener('click', (ev) => {
     if (ev) ev.preventDefault();
     const token = getToken();
     if (!token) { 
@@ -286,9 +290,10 @@ if (btnAccount) {
       if (typeof showLogin === 'function') showLogin(); 
       return; 
     }
-    window.location.href = '/account.html';
-  });
-}
+      window.location.href = '/account.html';
+    });
+  }
+});
 
 if (formLogin){
   formLogin.addEventListener('submit', async (e) => {

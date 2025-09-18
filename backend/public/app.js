@@ -1,6 +1,11 @@
-const $ = (s) => document.querySelector(s);
+// $ fonksiyonunu sadece tanımlı değilse tanımla
+if (typeof window !== 'undefined' && !window.hkAppQuery) {
+  window.hkAppQuery = (s) => document.querySelector(s);
+}
+const $ = window.hkAppQuery || ((s) => document.querySelector(s));
+
 const logEl = $('#logs');
-const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : location.origin; // configurable backend base
+const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : 'https://api.konuskonusabilirsen.com'; // Sabit backend URL'si
 const statusConnEl = $('#statusConn');
 const statusMicEl = $('#statusMic');
 $('#backend') && ($('#backend').textContent = backendBase);
@@ -264,7 +269,8 @@ try { preloadPills(); } catch {}
 
 // Kullanım bilgilerini güncellemek için yardımcı fonksiyon
 // Global olarak erişilebilir olması için window objesine ekliyoruz
-window.updateUsageFromApi = async function(explicitLimits) {
+if (typeof window !== 'undefined') {
+  window.updateUsageFromApi = async function(explicitLimits) {
   try {
     const d = document.getElementById('limitDaily');
     const m = document.getElementById('limitMonthly');
@@ -372,24 +378,31 @@ window.updateUsageFromApi = async function(explicitLimits) {
     console.error('Kullanım bilgileri yüklenirken hata oluştu:', error);
     
     // Hata mesajını göster
-    const errorEl = document.getElementById('quotaError') || document.createElement('div');
-    errorEl.id = 'quotaError';
-    errorEl.style.color = '#ef4444';
-    errorEl.style.padding = '8px';
-    errorEl.style.marginTop = '8px';
-    errorEl.style.borderRadius = '4px';
-    errorEl.style.backgroundColor = '#fee2e2';
-    errorEl.textContent = 'Kullanım bilgileri yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.';
-    
-    // Eğer hata mesajı henüz eklenmediyse ekle
-    if (!document.getElementById('quotaError')) {
-      const container = document.querySelector('.quota-container') || document.body;
-      container.appendChild(errorEl);
+    try {
+      const errorEl = document.getElementById('quotaError') || document.createElement('div');
+      errorEl.id = 'quotaError';
+      errorEl.style.color = '#ef4444';
+      errorEl.style.padding = '8px';
+      errorEl.style.marginTop = '8px';
+      errorEl.style.borderRadius = '4px';
+      errorEl.style.backgroundColor = '#fee2e2';
+      errorEl.textContent = 'Kullanım bilgileri yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.';
+      
+      // Eğer hata mesajı henüz eklenmediyse ekle
+      if (!document.getElementById('quotaError')) {
+        const container = document.querySelector('.quota-container') || document.body;
+        if (container) {
+          container.appendChild(errorEl);
+        }
+      }
+    } catch (e) {
+      console.error('Hata mesajı gösterilirken bir hata oluştu:', e);
     }
     
     return null;
   }
-}
+};
+} // window kontrolü kapanışı
 
 async function persistPrefs(partial){
   try{

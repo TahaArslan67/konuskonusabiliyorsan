@@ -6,6 +6,9 @@ if (yearEl) yearEl.textContent = new Date().getFullYear();
 const $ = (s) => document.querySelector(s);
 const backendBase = 'https://api.konuskonusabilirsen.com';
 
+// Global elements
+const btnAccount = document.getElementById('btnAccount');
+
 function setToken(token){
   if (token) localStorage.setItem('hk_token', token);
 }
@@ -20,7 +23,6 @@ function updateHeader(){
   const userPlanEl = $('#userPlan');
   const btnLogin = $('#btnLogin');
   const btnLogout = $('#btnLogout');
-  const btnAccount = document.getElementById('btnAccount'); // jQuery'den saf JavaScript'e çevrildi
   const verifyDot = $('#verifyDot');
   if (token){
     // /me ile temel bilgileri doldur
@@ -274,20 +276,23 @@ function openAccount(){
     }
   }, 50);
 }
-// Account button click handler
-if (btnAccount) {
-  btnAccount.addEventListener('click', function(ev) {
-    ev.preventDefault();
-    const token = getToken();
-    if (!token) { 
-      setPostLoginRedirect('/account.html'); 
-      openAuth(); 
-      showLogin(); 
-      return; 
-    }
-    window.location.href = '/account.html';
-  });
-}
+// Account button click handler - moved to document load event
+document.addEventListener('DOMContentLoaded', function() {
+  const accountBtn = document.getElementById('btnAccount');
+  if (accountBtn) {
+    accountBtn.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      const token = getToken();
+      if (!token) { 
+        setPostLoginRedirect('/account.html'); 
+        openAuth(); 
+        showLogin(); 
+        return; 
+      }
+      window.location.href = '/account.html';
+    });
+  }
+});
 
 if (formLogin){
   formLogin.addEventListener('submit', async (e) => {

@@ -1,4 +1,33 @@
-const backendBase = location.origin;
+// Use environment variable or fallback to production API
+const backendBase = 'https://api.konuskonusabilirsen.com';
+
+// Helper function for API calls with error handling
+async function apiFetch(endpoint, options = {}) {
+  const token = localStorage.getItem('hk_token');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` }),
+    ...options.headers
+  };
+
+  try {
+    const response = await fetch(`${backendBase}${endpoint}`, {
+      ...options,
+      headers,
+      credentials: 'include' // Important for cookies
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'API request failed');
+    }
+    
+    return response.json();
+  } catch (error) {
+    console.error('API Error:', error);
+    throw error;
+  }
+}
 const quizEl = document.getElementById('quiz');
 const statusEl = document.getElementById('status');
 const btnSubmit = document.getElementById('btnSubmit');
@@ -91,17 +120,14 @@ async function populateLearnLang(){
     learnLangSelect.appendChild(opt);
   });
   // default from /me
-  try{
-    const token = localStorage.getItem('hk_token');
-    if (!token) return;
-    const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }});
-    if (r.ok){
-      const me = await r.json();
-      const code = me?.preferredLearningLanguage || 'tr';
-      const opt = Array.from(learnLangSelect.options).find(o => o.value === code);
-      if (opt) opt.selected = true; else learnLangSelect.value = 'tr';
-    }
-  } catch {}
+  try {
+    const me = await apiFetch('/me');
+    const code = me?.preferredLearningLanguage || 'tr';
+    const opt = Array.from(learnLangSelect.options).find(o => o.value === code);
+    if (opt) opt.selected = true; else learnLangSelect.value = 'tr';
+  } catch (error) {
+    console.log('Could not load user preferences:', error);
+  }
   // If a language is already selected (non-empty), auto-start by dispatching change
   if (learnLangSelect && learnLangSelect.value){
     // small timeout to ensure DOM ready
@@ -113,53 +139,93 @@ async function populateLearnLang(){
 }
 
 async function persistLearnLangIfChanged(){
-  try{
-    const code = learnLangSelect && learnLangSelect.value ? learnLangSelect.value : '';
-    if (!code){ throw new Error('Lütfen hedef dili seçin'); }
-    const token = localStorage.getItem('hk_token');
-    if (!token) return;
-    const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }});
-    let current = null; if (r.ok) { const me = await r.json(); current = me?.preferredLearningLanguage || null; }
-    if (current !== code){
-      await fetch(`${backendBase}/me/preferences`, { method:'PATCH', headers:{ 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ preferredLearningLanguage: code }) });
+  try {
+    const code = learnLangSelect?.value || '';
+    if (!code) {
+      throw new Error('Lütfen hedef dili seçin');
     }
-  } catch (e){
-    throw e;
+    
+    try {
+      const me = await apiFetch('/me');
+      const current = me?.preferredLearningLanguage || null;
+      
+      if (current !== code) {
+        await apiFetch('/me/preferences', {
+          method: 'PATCH',
+          body: JSON.stringify({ preferredLearningLanguage: code })
+        });
+      }
+    } catch (error) {
+      if (error.message !== 'API request failed') {
+        throw error; // Only throw if it's not an auth error
+      }
+    }
+  } catch (error) {
+    console.error('Failed to save language preference:', error);
+    throw error;
   }
 }
 
 async function submitPlacement(){
   try {
-    // enforce language selection
-    const selectedLang = learnLangSelect && learnLangSelect.value ? learnLangSelect.value : '';
-    if (!selectedLang){
-      alert('Lütfen öğrenmek istediğiniz dili seçin.');
-      return;
+    if (btnSubmit) btnSubmit.disabled = true;
+    
+    try {
+      await persistLearnLangIfChanged();
+      const { correct, total, level } = computeScore();
+      
+      if (statusEl) {
+        statusEl.textContent = `Skor: ${correct}/${total} → Seviye: ${level}`;
+      }
+      
+      // Save placement result
+      try {
+        await apiFetch('/me/placement', {
+          method: 'PATCH',
+          body: JSON.stringify({ 
+            level,
+            score: correct,
+            totalQuestions: total,
+            completedAt: new Date().toISOString()
+          })
+        });
+        
+        // Redirect after successful save
+        const url = new URL(window.location.href);
+        const redirect = url.searchParams.get('redirect') || '/konus';
+        window.location.replace(redirect);
+        
+      } catch (error) {
+        console.error('Placement save error:', error);
+        const errorMessage = error.message || 'Beklenmeyen bir hata oluştu';
+        
+        if (error.message.includes('401') || error.message.includes('token')) {
+          // Handle unauthorized - redirect to login
+          const redirect = encodeURIComponent(window.location.pathname + window.location.search);
+          window.location.replace(`/?auth=1&redirect=${redirect}`);
+          return;
+        }
+        
+        // Show error but don't block user from continuing
+        alert(`Kaydetme uyarısı: ${errorMessage}. Devam edebilirsiniz.`);
+        
+        // Still redirect even if save fails
+        const url = new URL(window.location.href);
+        const redirect = url.searchParams.get('redirect') || '/konus';
+        window.location.replace(redirect);
+      }
+      
+    } catch (error) {
+      console.error('Error in placement submission:', error);
+      alert(`Bir hata oluştu: ${error.message || 'Lütfen daha sonra tekrar deneyin.'}`);
+      
+      // Re-enable submit button on error
+      if (btnSubmit) btnSubmit.disabled = false;
     }
-    await persistLearnLangIfChanged();
-    const { correct, total, level } = computeScore();
-    if (statusEl) statusEl.textContent = `Skor: ${correct}/${total} → Seviye: ${level}`;
-    // Persist
-    const token = localStorage.getItem('hk_token');
-    if (!token) {
-      const redirect = encodeURIComponent('/placement.html');
-      window.location.replace(`/?auth=1&redirect=${redirect}`);
-      return;
-    }
-    const r = await fetch(`${backendBase}/me/placement`, {
-      method: 'PATCH',
-      headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ level })
-    });
-    if (!r.ok) {
-      alert('Kaydetme hatası. Lütfen tekrar deneyin.');
-      return;
-    }
-    const url = new URL(window.location.href);
-    const redirect = url.searchParams.get('redirect') || '/realtime.html';
-    window.location.replace(redirect);
   } catch (e) {
-    alert('Bir hata oluştu.');
+    console.error('Unexpected error in submitPlacement:', e);
+    alert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyip tekrar deneyin.');
+    if (btnSubmit) btnSubmit.disabled = false;
   }
 }
 
@@ -173,13 +239,19 @@ if (learnLangSelect){
     try{
       const token = localStorage.getItem('hk_token');
       if (token){
-        await fetch(`${backendBase}/me/preferences`, { method:'PATCH', headers:{ 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ preferredLearningLanguage: code }) });
+        await apiFetch('/me/preferences', {
+          method: 'PATCH',
+          body: JSON.stringify({ preferredLearningLanguage: code })
+        });
       }
     }catch{}
     // Load pool file for selected language; fallback to en
     async function loadPool(lang){
       try{
-        const r = await fetch(`/placement-pools/${lang}.json`, { cache: 'no-cache' });
+        const r = await fetch(`/placement-pools/${lang}.json`, { 
+      cache: 'no-cache',
+      credentials: 'include' // Include cookies for authentication if needed
+    });
         if (r.ok){ const j = await r.json(); return Array.isArray(j.questions) ? j.questions : []; }
       } catch{}
       return [];

@@ -20,7 +20,7 @@ function updateHeader(){
   const userPlanEl = $('#userPlan');
   const btnLogin = $('#btnLogin');
   const btnLogout = $('#btnLogout');
-  const btnAccount = $('#btnAccount');
+  const btnAccount = document.getElementById('btnAccount'); // jQuery'den saf JavaScript'e çevrildi
   const verifyDot = $('#verifyDot');
   if (token){
     // /me ile temel bilgileri doldur
@@ -274,27 +274,20 @@ function openAccount(){
     }
   }, 50);
 }
-// Only initialize account button if it exists in the DOM
-(function() {
-  try {
-    const accountBtn = document.getElementById('btnAccount');
-    if (accountBtn) {
-      accountBtn.addEventListener('click', function(ev) {
-        ev.preventDefault();
-        const token = getToken();
-        if (!token) { 
-          setPostLoginRedirect('/account.html'); 
-          openAuth(); 
-          showLogin(); 
-          return; 
-        }
-        window.location.href = '/account.html';
-      });
+// Account button click handler
+if (btnAccount) {
+  btnAccount.addEventListener('click', function(ev) {
+    ev.preventDefault();
+    const token = getToken();
+    if (!token) { 
+      setPostLoginRedirect('/account.html'); 
+      openAuth(); 
+      showLogin(); 
+      return; 
     }
-  } catch (error) {
-    console.log('Account button not found, skipping initialization');
-  }
-})();
+    window.location.href = '/account.html';
+  });
+}
 
 if (formLogin){
   formLogin.addEventListener('submit', async (e) => {

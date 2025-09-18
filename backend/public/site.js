@@ -7,7 +7,6 @@ const $ = (s) => document.querySelector(s);
 const backendBase = 'https://api.konuskonusabilirsen.com';
 
 // Global elements
-const btnAccount = document.getElementById('btnAccount');
 
 function setToken(token){
   if (token) localStorage.setItem('hk_token', token);
@@ -26,22 +25,48 @@ function updateHeader(){
   const verifyDot = $('#verifyDot');
   if (token){
     // /me ile temel bilgileri doldur
-    fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : null)
-      .then(me => {
-        if (me && me.email){ userEmailEl.textContent = me.email; userEmailEl.style.display = 'inline-block'; }
-        if (me && me.plan){ userPlanEl.textContent = `Plan: ${me.plan}`; userPlanEl.style.display = 'inline-block'; }
-        if (verifyDot){ verifyDot.style.display = me && me.emailVerified ? 'none' : 'inline-block'; }
-      }).catch(() => {});
+    fetch(`${backendBase}/me`, { 
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` 
+      },
+      credentials: 'include' // Oturum çerezleri için gerekli
+    })
+    .then(r => {
+      if (!r.ok) {
+        console.error('Failed to fetch user data:', r.status);
+        throw new Error('Failed to fetch user data');
+      }
+      return r.json();
+    })
+    .then(me => {
+      if (me && me.email){ 
+        userEmailEl.textContent = me.email; 
+        userEmailEl.style.display = 'inline-block'; 
+      }
+      if (me && me.plan){ 
+        userPlanEl.textContent = `Plan: ${me.plan}`; 
+        userPlanEl.style.display = 'inline-block'; 
+      }
+      if (verifyDot){ 
+        verifyDot.style.display = me && me.emailVerified ? 'none' : 'inline-block'; 
+      }
+    })
+    .catch(error => {
+      console.error('Error fetching user data:', error);
+      // Kullanıcıya göstermek isteyebilirsiniz
+    });
     if (btnLogin) btnLogin.style.display = 'none';
     if (btnLogout) btnLogout.style.display = 'inline-flex';
-    if (btnAccount) btnAccount.style.display = 'inline-flex';
+    const accountBtn = document.getElementById('btnAccount');
+    if (accountBtn) accountBtn.style.display = 'inline-flex';
   } else {
     if (userEmailEl){ userEmailEl.style.display = 'none'; userEmailEl.textContent = ''; }
     if (userPlanEl){ userPlanEl.style.display = 'none'; userPlanEl.textContent = 'Plan: free'; }
     if (btnLogin) btnLogin.style.display = 'inline-flex';
     if (btnLogout) btnLogout.style.display = 'none';
-    if (btnAccount) btnAccount.style.display = 'none';
+    const accountBtn = document.getElementById('btnAccount');
+    if (accountBtn) accountBtn.style.display = 'none';
     if (verifyDot) verifyDot.style.display = 'none';
   }
 }

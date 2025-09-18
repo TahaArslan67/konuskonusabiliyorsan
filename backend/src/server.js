@@ -42,9 +42,7 @@ const mongooseOptions = {
   connectTimeoutMS: 30000,
   family: 4,
   retryWrites: true,
-  w: 'majority',
-  // Index çakışmalarını önlemek için
-  autoIndex: false
+  w: 'majority'
 };
 
 // MongoDB bağlantısı olayları
@@ -149,7 +147,7 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
 
 // OpenAI (public) envs
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
-const REALTIME_MODEL = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime';
+const REALTIME_MODEL = process.env.OPENAI_REALTIME_MODEL || 'gpt-4o-realtime-preview-2025-08-28';
 const RESPONSE_TEXT_ENABLED = (process.env.RESPONSE_TEXT_ENABLED ?? 'true').toLowerCase() !== 'false';
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || '';
 const IPINFO_TOKEN = process.env.IPINFO_TOKEN || '';
@@ -159,138 +157,8 @@ const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || '';
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY || '';
 const AZURE_OPENAI_API_VERSION = process.env.AZURE_OPENAI_API_VERSION || '2024-10-01-preview';
 const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-realtime';
-// Azure OpenAI kullanılıp kullanılmayacağını belirleyen değişken
-const USE_AZURE = String(process.env.USE_AZURE || 'false').toLowerCase() === 'true';
-const authRequired = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'unauthorized', message: 'Token gerekli' });
-    }
-    
-    const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, JWT_SECRET);
-    
-    const user = await User.findById(decoded.uid).lean();
-    if (!user) {
-      return res.status(401).json({ error: 'unauthorized', message: 'Kullanıcı bulunamadı' });
-    }
-    
-    req.auth = {
-      uid: String(user._id),
-      email: user.email,
-      user: user
-    };
-    
-    next();
-  } catch (error) {
-    console.error('[auth] middleware error:', error);
-    return res.status(401).json({ error: 'unauthorized', message: 'Geçersiz token' });
-  }
-};
-
-// User endpoints
-app.get('/me', authRequired, async (req, res) => {
-  try {
-    const user = await User.findById(req.auth.uid).lean();
-    if (!user) {
-      return res.status(404).json({ error: 'user_not_found' });
-    }
-    
-    res.json({
-      id: String(user._id),
-      email: user.email,
-      preferredLanguage: user.preferredLanguage,
-      preferredVoice: user.preferredVoice,
-      preferredCorrectionMode: user.preferredCorrectionMode,
-      preferredLearningLanguage: user.preferredLearningLanguage,
-      preferredNativeLanguage: user.preferredNativeLanguage,
-      placementLevel: user.placementLevel,
-      placementCompletedAt: user.placementCompletedAt,
-      plan: user.plan,
-      usage: user.usage
-    });
-  } catch (error) {
-    console.error('[me] error:', error);
-    res.status(500).json({ error: 'server_error' });
-  }
-});
-
-app.patch('/me/preferences', authRequired, async (req, res) => {
-  try {
-    const {
-      preferredLearningLanguage,
-      preferredNativeLanguage,
-      preferredCorrectionMode,
-      preferredLanguage,
-      preferredVoice
-    } = req.body;
-    
-    const updateData = {};
-    if (preferredLearningLanguage !== undefined) updateData.preferredLearningLanguage = preferredLearningLanguage;
-    if (preferredNativeLanguage !== undefined) updateData.preferredNativeLanguage = preferredNativeLanguage;
-    if (preferredCorrectionMode !== undefined) updateData.preferredCorrectionMode = preferredCorrectionMode;
-    if (preferredLanguage !== undefined) updateData.preferredLanguage = preferredLanguage;
-    if (preferredVoice !== undefined) updateData.preferredVoice = preferredVoice;
-    
-    const user = await User.findByIdAndUpdate(
-      req.auth.uid,
-      { $set: updateData },
-      { new: true, runValidators: true }
-    ).lean();
-    
-    if (!user) {
-      return res.status(404).json({ error: 'user_not_found' });
-    }
-    
-    res.json({
-      id: String(user._id),
-      email: user.email,
-      preferredLanguage: user.preferredLanguage,
-      preferredVoice: user.preferredVoice,
-      preferredCorrectionMode: user.preferredCorrectionMode,
-      preferredLearningLanguage: user.preferredLearningLanguage,
-      preferredNativeLanguage: user.preferredNativeLanguage
-    });
-  } catch (error) {
-    console.error('[me/preferences] error:', error);
-    res.status(500).json({ error: 'server_error' });
-  }
-});
-
-app.patch('/me/placement', authRequired, async (req, res) => {
-  try {
-    const { placementLevel } = req.body;
-    
-    if (!placementLevel || typeof placementLevel !== 'string') {
-      return res.status(400).json({ error: 'invalid_placement_level' });
-    }
-    
-    const user = await User.findByIdAndUpdate(
-      req.auth.uid,
-      {
-        $set: {
-          placementLevel: placementLevel,
-          placementCompletedAt: new Date()
-        }
-      },
-      { new: true, runValidators: true }
-    ).lean();
-    
-    if (!user) {
-      return res.status(404).json({ error: 'user_not_found' });
-    }
-    
-    res.json({
-      id: String(user._id),
-      placementLevel: user.placementLevel,
-      placementCompletedAt: user.placementCompletedAt
-    });
-  } catch (error) {
-    console.error('[me/placement] error:', error);
-    res.status(500).json({ error: 'server_error' });
-  }
-});
+// Force OpenAI-only as requested
+const USE_AZURE = false;
 
 // Basic validations
 if (!USE_AZURE && !OPENAI_API_KEY) {
@@ -355,41 +223,27 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// CORS - Tüm origin'lere izin ver ve cross-origin API çağrılarını destekle
-app.use((req, res, next) => {
-  const origin = req.headers.origin || req.headers.referer || '*';
+// CORS
+const allowedOriginsRaw = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+// Build a set with both Unicode and punycode (ASCII) origin forms
+const allowedOriginsSet = new Set();
+for (const o of allowedOriginsRaw) {
+  if (!o) continue;
+  allowedOriginsSet.add(o);
+  try {
+    const u = new URL(o);
+    const asciiHost = toASCII(u.hostname);
+    const normalized = `${u.protocol}//${asciiHost}${u.port ? ':'+u.port : ''}`;
+    allowedOriginsSet.add(normalized);
+  } catch {}
+}
 
-  // CORS headers'larını tüm yanıtlara ekle
-  res.header('Access-Control-Allow-Origin', origin);
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, X-HTTP-Method-Override, Accept-Language, Accept-Encoding');
-  res.header('Access-Control-Expose-Headers', 'Content-Length, X-Kuma-Revision');
-  res.header('Access-Control-Max-Age', '86400'); // 24 saat cache
-
-  // OPTIONS preflight isteklerini doğrudan yanıtla
-  if (req.method === 'OPTIONS') {
-    console.log('[CORS] Preflight request handled for:', req.path);
-    res.sendStatus(200);
-    return;
-  }
-
-  next();
-});
-
-// CORS middleware (yedek olarak bırak)
+// Allow all origins for now to ensure the contact form works
 app.use(cors({
-  origin: function (origin, callback) {
-    // Tüm origin'lere izin ver
-    callback(null, true);
-  },
+  origin: true, // Allow all origins
   credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS', 'PATCH', 'PUT', 'DELETE', 'HEAD'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept', 'Cache-Control', 'Accept-Language', 'Accept-Encoding'],
-  exposedHeaders: ['Content-Length', 'X-Kuma-Revision'],
-  optionsSuccessStatus: 200, // IE11 için
-  preflightContinue: false,
-  maxAge: 86400 // 24 saat cache
+  methods: ['GET', 'POST', 'OPTIONS', 'PATCH', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Rate limit
@@ -572,112 +426,20 @@ app.post('/api/dev/activate-plan', authRequired, async (req, res) => {
   }
 });
 
-// ---- Protected: Get user info ----
-app.get('/me', authRequired, async (req, res) => {
-  try {
-    const user = await User.findById(req.auth.uid).lean();
-    if (!user) {
-      return res.status(404).json({ error: 'user_not_found' });
-    }
-
-    res.json({
-      id: String(user._id),
-      email: user.email,
-      preferredLanguage: user.preferredLanguage,
-      preferredVoice: user.preferredVoice,
-      preferredCorrectionMode: user.preferredCorrectionMode,
-      preferredLearningLanguage: user.preferredLearningLanguage,
-      preferredNativeLanguage: user.preferredNativeLanguage,
-      placementLevel: user.placementLevel,
-      placementCompletedAt: user.placementCompletedAt,
-      plan: user.plan,
-      usage: user.usage
-    });
-  } catch (error) {
-    console.error('[me] error:', error);
-    res.status(500).json({ error: 'server_error' });
-  }
-});
-
-// ---- Protected: Update preferences ----
-app.patch('/me/preferences', authRequired, async (req, res) => {
-  try {
-    const {
-      preferredLearningLanguage,
-      preferredNativeLanguage,
-      preferredCorrectionMode,
-      preferredLanguage,
-      preferredVoice
-    } = req.body;
-
-    const updateData = {};
-    if (preferredLearningLanguage !== undefined) updateData.preferredLearningLanguage = preferredLearningLanguage;
-    if (preferredNativeLanguage !== undefined) updateData.preferredNativeLanguage = preferredNativeLanguage;
-    if (preferredCorrectionMode !== undefined) updateData.preferredCorrectionMode = preferredCorrectionMode;
-    if (preferredLanguage !== undefined) updateData.preferredLanguage = preferredLanguage;
-    if (preferredVoice !== undefined) updateData.preferredVoice = preferredVoice;
-
-    const user = await User.findByIdAndUpdate(
-      req.auth.uid,
-      { $set: updateData },
-      { new: true, runValidators: true }
-    ).lean();
-
-    if (!user) {
-      return res.status(404).json({ error: 'user_not_found' });
-    }
-
-    res.json({
-      id: String(user._id),
-      email: user.email,
-      preferredLanguage: user.preferredLanguage,
-      preferredVoice: user.preferredVoice,
-      preferredCorrectionMode: user.preferredCorrectionMode,
-      preferredLearningLanguage: user.preferredLearningLanguage,
-      preferredNativeLanguage: user.preferredNativeLanguage
-    });
-  } catch (error) {
-    console.error('[me/preferences] error:', error);
-    res.status(500).json({ error: 'server_error' });
-  }
-});
-
-// ---- Protected: Update placement ----
-app.patch('/me/placement', authRequired, async (req, res) => {
-  try {
-    const { placementLevel } = req.body;
-
-    if (!placementLevel || typeof placementLevel !== 'string') {
-      return res.status(400).json({ error: 'invalid_placement_level' });
-    }
-
-    const user = await User.findByIdAndUpdate(
-      req.auth.uid,
-      {
-        $set: {
-          placementLevel: placementLevel,
-          placementCompletedAt: new Date()
-        }
-      },
-      { new: true, runValidators: true }
-    ).lean();
-
-    if (!user) {
-      return res.status(404).json({ error: 'user_not_found' });
-    }
-
-    res.json({
-      id: String(user._id),
-      placementLevel: user.placementLevel,
-      placementCompletedAt: user.placementCompletedAt
-    });
-  } catch (error) {
-    console.error('[me/placement] error:', error);
-    res.status(500).json({ error: 'server_error' });
-  }
-});
-
 // ---- JWT Auth Middleware ----
+function authRequired(req, res, next){
+  try {
+    const h = req.headers['authorization'] || '';
+    const m = /^Bearer\s+(.+)/i.exec(h);
+    if (!m) return res.status(401).json({ error: 'missing_token' });
+    const token = m[1];
+    const payload = jwt.verify(token, JWT_SECRET);
+    req.auth = { uid: payload.uid, email: payload.email };
+    next();
+  } catch (e){
+    return res.status(401).json({ error: 'invalid_token' });
+  }
+}
 
 // Plan limitlerini döndüren yardımcı fonksiyon
 function getPlanLimit(plan, type) {

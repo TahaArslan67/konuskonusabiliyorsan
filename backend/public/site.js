@@ -25,12 +25,12 @@ function updateHeader(){
   const verifyDot = $('#verifyDot');
   if (token){
     // /me ile temel bilgileri doldur
-    fetch(`${backendBase}/me`, { 
+    fetch(`${backendBase}/api/me`, {  // /api/me olarak güncellendi
       headers: { 
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}` 
       },
-      credentials: 'include' // Oturum çerezleri için gerekli
+      credentials: 'include'
     })
     .then(r => {
       if (!r.ok) {
@@ -301,20 +301,21 @@ function openAccount(){
     }
   }, 50);
 }
-// Account button click handler
-document.addEventListener('click', function(ev) {
-  // Check if the clicked element is btnAccount or a child of it
-  const accountBtn = ev.target.closest('#btnAccount');
+// Account button click handler - moved to DOMContentLoaded
+document.addEventListener('DOMContentLoaded', function() {
+  const accountBtn = document.getElementById('btnAccount');
   if (accountBtn) {
-    ev.preventDefault();
-    const token = getToken();
-    if (!token) { 
-      setPostLoginRedirect('/account.html'); 
-      openAuth(); 
-      showLogin(); 
-      return; 
-    }
-    window.location.href = '/account.html';
+    accountBtn.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      const token = getToken();
+      if (!token) { 
+        setPostLoginRedirect('/account.html'); 
+        openAuth(); 
+        showLogin(); 
+        return; 
+      }
+      window.location.href = '/account.html';
+    });
   }
 });
 

@@ -86,6 +86,16 @@ async function init(){
     if (verEl) verEl.textContent = `Doğrulama: ${u.emailVerified ? 'Doğrulandı' : 'Bekliyor'}`;
     const planText = document.getElementById('planText'); if (planText) planText.textContent = u.plan || 'free';
     const levelText = document.getElementById('levelText'); if (levelText) levelText.textContent = levelValue;
+    
+    // Debug: DOM element durumunu kontrol et
+    console.log('[account] DOM element durumu:', {
+      planText: planText ? 'BULUNDU' : 'BULUNAMADI',
+      levelText: levelText ? 'BULUNDU' : 'BULUNAMADI',
+      badgePlan: badgePlan ? 'BULUNDU' : 'BULUNAMADI',
+      badgeLevel: badgeLevel ? 'BULUNDU' : 'BULUNAMADI',
+      planTextValue: planText?.textContent,
+      levelTextValue: levelText?.textContent
+    });
 
     // Preferences
     fillLangSelect($('#accLearnLang'), u.preferredLearningLanguage || 'tr');
@@ -107,6 +117,7 @@ async function init(){
           const planValue = usage.plan;
           planText.textContent = planValue;
           console.log('[account] Plan bilgisi /usage endpointinden güncellendi:', planValue);
+          console.log('[account] Plan elementi güncellendi:', planText.textContent);
         }
         if (badgePlan && usage.plan) {
           badgePlan.textContent = `Plan: ${usage.plan}`;

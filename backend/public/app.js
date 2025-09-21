@@ -663,7 +663,8 @@ async function wsConnect(){
           if (r.ok){
             const me = await r.json();
             const badge = document.getElementById('placementBadge');
-            if (badge){ badge.textContent = `Seviye: ${me.placementLevel || '-'}`; }
+            if (badge) badge.textContent = `Seviye: ${me.user?.placementLevel || '-'}`;
+            try{ console.log('[app] placement badge güncellendi:', me.user?.placementLevel); }catch{}
           }
         }
       }catch{}

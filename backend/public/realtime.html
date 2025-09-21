@@ -24,13 +24,13 @@
             console.log('[realtime] placementLevel değeri:', me.placementLevel, typeof me.placementLevel);
 
             // placementLevel kontrolü - null, undefined, "" veya false ise redirect
-            if (!me.user.placementLevel){
+            if (!me.user?.placementLevel){
               console.log('[realtime] placementLevel yok, placement sayfasına yönlendiriliyor...');
               const redirect = encodeURIComponent('/realtime.html');
-             // window.location.replace(`/placement.html?redirect=${redirect}`);
+              window.location.replace(`/placement.html?redirect=${redirect}`);
               return;
             } else {
-              console.log('[realtime] placementLevel var, realtime sayfası açık kalıyor:', me.placementLevel);
+              console.log('[realtime] placementLevel var, realtime sayfası açık kalıyor:', me.user?.placementLevel);
             }
           } else {
             console.log('[realtime] /me çağrısı başarısız:', r.status);

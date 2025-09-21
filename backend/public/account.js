@@ -46,6 +46,7 @@ async function loadUsage(){
 }
 
 async function init(){
+  console.log(' [account] init() FONKSİYONU ÇAĞRILDI!');
   try {
     try{ console.log('[account] init başlıyor', { backendBase, token: getToken()? 'VAR':'YOK' }); }catch{}
     const me = await loadMe();
@@ -76,6 +77,7 @@ async function init(){
       console.log('[account] Seviye bilgisi bulunamadı, mevcut alanlar:', Object.keys(u));
     }
     
+    console.log(' [account] ELEMENT SEÇİMİ BAŞLIYOR...');
     const badgePlan = $('#accBadgePlan');
     const badgeLevel = $('#accBadgeLevel');
     const emailEl = $('#accEmail');
@@ -83,26 +85,32 @@ async function init(){
     
     // Plan bilgisini önce /me'den al, sonra /usage'dan güncelle
     const planValue = u.plan || 'free';
+    console.log(' [account] Plan değeri:', planValue);
     if (badgePlan) badgePlan.textContent = `Plan: ${planValue}`;
     
     // Seviye bilgisi
+    console.log(' [account] Seviye değeri:', levelValue);
     if (badgeLevel) badgeLevel.textContent = `Seviye: ${levelValue}`;
     
     if (emailEl) emailEl.textContent = u.email || '-';
     if (verEl) verEl.textContent = `Doğrulama: ${u.emailVerified ? 'Doğrulandı' : 'Bekliyor'}`;
     
     // Plan ve seviye elementlerini güncelle
-    const planText = document.getElementById('planText'); 
+    console.log(' [account] DOM ELEMENTLERİ ARANIYOR...');
+    const planText = document.getElementById('planText');
     const levelText = document.getElementById('levelText');
+    
+    console.log(' [account] Plan elementi:', planText ? 'BULUNDU' : 'BULUNAMADI');
+    console.log(' [account] Seviye elementi:', levelText ? 'BULUNDU' : 'BULUNAMADI');
     
     if (planText) {
       planText.textContent = planValue;
-      console.log('[account] Plan elementi güncellendi:', planText.textContent);
+      console.log(' [account] Plan elementi güncellendi:', planText.textContent);
     }
     
     if (levelText) {
       levelText.textContent = levelValue;
-      console.log('[account] Seviye elementi güncellendi:', levelText.textContent);
+      console.log(' [account] Seviye elementi güncellendi:', levelText.textContent);
     }
     
     // Debug: DOM element durumunu kontrol et
@@ -239,7 +247,27 @@ async function init(){
   }
 }
 
-init();
+// Global debug - Sayfa yüklenirken çalışacak
+console.log('🚀 [account] account.js YÜKLENİYOR...');
+console.log('🌐 [account] Current URL:', window.location.href);
+console.log('🔐 [account] Token var mı:', !!getToken());
+
+// Sayfa tamamen yüklendikten sonra init'i çağır
+window.addEventListener('DOMContentLoaded', () => {
+  console.log('📄 [account] DOMContentLoaded - Sayfa hazır!');
+  init();
+});
+
+// Eğer DOMContentLoaded çalışmadıysa, 2 saniye sonra da dene
+setTimeout(() => {
+  console.log('⏰ [account] Timeout - init() çağrılıyor...');
+  if (!document.querySelector('#planText')) {
+    console.log('⚠️ [account] Sayfa henüz hazır değil, tekrar deneniyor...');
+    setTimeout(init, 1000);
+  } else {
+    init();
+  }
+}, 2000);
 
 // Logout handler
 document.addEventListener('DOMContentLoaded', () => {

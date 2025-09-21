@@ -24,7 +24,7 @@
             console.log('[realtime] placementLevel değeri:', me.placementLevel, typeof me.placementLevel);
 
             // placementLevel kontrolü - null, undefined, "" veya false ise redirect
-            if (!me.placementLevel){
+            if (!me.user.placementLevel){
               console.log('[realtime] placementLevel yok, placement sayfasına yönlendiriliyor...');
               const redirect = encodeURIComponent('/realtime.html');
              // window.location.replace(`/placement.html?redirect=${redirect}`);

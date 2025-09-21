@@ -234,7 +234,7 @@ async function preloadPills(){
         const me = await mr.json();
         const p = document.getElementById('statusPlan');
         const badge = document.getElementById('placementBadge');
-        if (p) p.textContent = `Plan: ${me.plan || 'free'}`;
+        if (p) p.textContent = `Plan: ${me.user?.plan || 'free'}`;
         if (badge) badge.textContent = `Seviye: ${me.user?.placementLevel || '-'}`;
         // Also preload preference selects to user's saved values
         try{

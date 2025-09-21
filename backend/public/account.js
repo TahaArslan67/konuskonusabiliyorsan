@@ -92,7 +92,7 @@ async function init(){
     if (verEl) verEl.textContent = `Doğrulama: ${u.emailVerified ? 'Doğrulandı' : 'Bekliyor'}`;
     
     // Plan ve seviye elementlerini güncelle
-    const planText = document.getElementById('planText');
+    const planText = document.getElementById('planText'); 
     const levelText = document.getElementById('levelText');
     
     if (planText) {

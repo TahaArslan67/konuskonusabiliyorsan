@@ -80,12 +80,30 @@ async function init(){
     const badgeLevel = $('#accBadgeLevel');
     const emailEl = $('#accEmail');
     const verEl = $('#accVerified');
-    if (badgePlan) badgePlan.textContent = `Plan: ${u.plan || 'free'}`;
+    
+    // Plan bilgisini önce /me'den al, sonra /usage'dan güncelle
+    const planValue = u.plan || 'free';
+    if (badgePlan) badgePlan.textContent = `Plan: ${planValue}`;
+    
+    // Seviye bilgisi
     if (badgeLevel) badgeLevel.textContent = `Seviye: ${levelValue}`;
+    
     if (emailEl) emailEl.textContent = u.email || '-';
     if (verEl) verEl.textContent = `Doğrulama: ${u.emailVerified ? 'Doğrulandı' : 'Bekliyor'}`;
-    const planText = document.getElementById('planText'); if (planText) planText.textContent = u.plan || 'free';
-    const levelText = document.getElementById('levelText'); if (levelText) levelText.textContent = levelValue;
+    
+    // Plan ve seviye elementlerini güncelle
+    const planText = document.getElementById('planText');
+    const levelText = document.getElementById('levelText');
+    
+    if (planText) {
+      planText.textContent = planValue;
+      console.log('[account] Plan elementi güncellendi:', planText.textContent);
+    }
+    
+    if (levelText) {
+      levelText.textContent = levelValue;
+      console.log('[account] Seviye elementi güncellendi:', levelText.textContent);
+    }
     
     // Debug: DOM element durumunu kontrol et
     console.log('[account] DOM element durumu:', {
@@ -94,7 +112,9 @@ async function init(){
       badgePlan: badgePlan ? 'BULUNDU' : 'BULUNAMADI',
       badgeLevel: badgeLevel ? 'BULUNDU' : 'BULUNAMADI',
       planTextValue: planText?.textContent,
-      levelTextValue: levelText?.textContent
+      levelTextValue: levelText?.textContent,
+      planValue: planValue,
+      levelValue: levelValue
     });
 
     // Preferences

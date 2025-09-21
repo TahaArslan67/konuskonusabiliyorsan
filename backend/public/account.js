@@ -51,10 +51,12 @@ async function init(){
     const me = await loadMe();
     // API /me yanıtı { user: { ... } } şeklinde; eski sürümlere uyum için me.user || me kullan
     const u = me && me.user ? me.user : me;
-    try{ console.log('[account] me yüklendi', u); }catch{}
+    try{ console.log('[account] me yüklendi - TAM VERİ:', JSON.stringify(me, null, 2)); }catch{}
+    try{ console.log('[account] user objesi:', JSON.stringify(u, null, 2)); }catch{}
     
     // Debug: Tüm alanları kontrol edelim
     try{ console.log('[account] Kullanıcı alanları:', Object.keys(u)); }catch{}
+    try{ console.log('[account] Kullanıcı değerleri:', Object.values(u)); }catch{}
     
     // Seviye bilgisini al - placementLevel, level, currentLevel gibi farklı alan isimleri kontrol et
     let levelValue = '-';
@@ -93,15 +95,21 @@ async function init(){
 
     const usage = await loadUsage();
     if (usage){
-      try{ console.log('[account] usage', usage); }catch{}
+      try{ console.log('[account] usage - TAM VERİ:', JSON.stringify(usage, null, 2)); }catch{}
       const d = $('#accUsageDaily'); const m = $('#accUsageMonthly');
       if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)} / ${usage.limits?.daily ?? '-' } dk`;
       if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)} / ${usage.limits?.monthly ?? '-' } dk`;
       // Eğer backend /me ve /usage plan alanları farklı gelirse, /usage.plan'ı kaynak olarak kullan
       try {
         const planText = document.getElementById('planText');
+        const badgePlan = $('#accBadgePlan');
         if (planText && usage.plan) {
-          planText.textContent = usage.plan;
+          const planValue = usage.plan;
+          planText.textContent = planValue;
+          console.log('[account] Plan bilgisi /usage endpointinden güncellendi:', planValue);
+        }
+        if (badgePlan && usage.plan) {
+          badgePlan.textContent = `Plan: ${usage.plan}`;
         }
       } catch {}
     }

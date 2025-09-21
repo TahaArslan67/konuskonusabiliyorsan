@@ -221,6 +221,7 @@ function openAccount(){
     .then(r => r.ok ? r.json() : null)
     .then(me => {
       if (!me) return;
+      try{ console.log('[account-modal] me - TAM VERİ:', JSON.stringify(me, null, 2)); }catch{}
       $('#accPlan').textContent = `Plan: ${me.plan || 'free'}`;
       const lang = $('#accLang'); const voice = $('#accVoice'); const corr = $('#accCorrection');
       if (lang) lang.value = me.preferredLanguage || '';
@@ -229,9 +230,9 @@ function openAccount(){
       const verifyMsg = $('#accVerifyMsg');
       const verifyBtn = $('#accVerifyBtn');
       if (me.emailVerified){
-        if (verifyMsg) verifyMsg.textContent = 'E‑posta doğrulandı ✅';
+        if (verifyMsg) verifyMsg.textContent = 'E‑posta doğrulandı ';
       } else {
-        if (verifyMsg) verifyMsg.textContent = 'E‑posta doğrulanmamış ❗';
+        if (verifyMsg) verifyMsg.textContent = 'E‑posta doğrulanmamış ';
         if (verifyBtn) verifyBtn.style.display = 'inline-flex';
       }
       // Upgrade button if plan is free
@@ -243,16 +244,33 @@ function openAccount(){
           upBtn.style.display = 'none';
         }
       }
-      // Fetch usage summary
+      // Fetch usage summary for correct plan info
       fetch(`${backendBase}/usage`, { headers: { Authorization: `Bearer ${token}` } })
         .then(u => u.ok ? u.json() : null)
-        .then(sum => {
-          if (!sum) return;
+        .then(usage => {
+          if (!usage) return;
+          try{ console.log('[account-modal] usage - TAM VERİ:', JSON.stringify(usage, null, 2)); }catch{}
           const d = $('#accUsageDaily'); const m = $('#accUsageMonthly');
-          if (d) d.textContent = `Günlük: ${(sum.usedDaily||0).toFixed(1)} / ${sum.limits?.daily ?? '-'} dk`;
-          if (m) m.textContent = `Aylık: ${(sum.usedMonthly||0).toFixed(1)} / ${sum.limits?.monthly ?? '-'} dk`;
+          if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)} / ${usage.limits?.daily ?? '-'} dk`;
+          if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)} / ${usage.limits?.monthly ?? '-'} dk`;
+          
+          // Update plan info from usage if available
+          if (usage.plan) {
+            $('#accPlan').textContent = `Plan: ${usage.plan}`;
+            console.log('[account-modal] Plan bilgisi /usage endpointinden güncellendi:', usage.plan);
+            
+            // Update upgrade button visibility based on usage.plan
+            const upBtn = $('#accUpgrade');
+            if (upBtn){
+              if ((usage.plan || 'free') === 'free'){
+                upBtn.style.display = 'inline-flex';
+              } else {
+                upBtn.style.display = 'none';
+              }
+            }
+          }
         })
-        .catch(()=>{});
+        .catch(()=>{ console.log('[account-modal] Usage fetch error'); });
     });
   setTimeout(() => {
     const saveBtn = $('#accSave');

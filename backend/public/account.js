@@ -24,16 +24,16 @@ function fillLangSelect(el, def){
 async function loadMe(){
   const token = getToken();
   if (!token) throw new Error('missing_token');
-  try{ console.log('[account] /api/me çağrısı hazırlanıyor', { backendBase, hasToken: !!token, tokenPreview: token.slice(0,12)+'...' }); }catch{}
-  const r = await fetch(`${backendBase}/api/me`, { headers: { Authorization: `Bearer ${token}` }});
+  try{ console.log('[account] /me çağrısı hazırlanıyor', { backendBase, hasToken: !!token, tokenPreview: token.slice(0,12)+'...' }); }catch{}
+  const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }});
   if (!r.ok){
     let detail = '';
     try{ detail = (await r.clone().text()) || String(r.status); }catch{}
-    try{ console.warn('[account] /api/me hata', { status: r.status, detail }); }catch{}
+    try{ console.warn('[account] /me hata', { status: r.status, detail }); }catch{}
     const err = new Error(`me_error_${r.status}_${detail}`);
     err.status = r.status; err.detail = detail; throw err;
   }
-  try{ console.log('[account] /api/me başarılı'); }catch{}
+  try{ console.log('[account] /me başarılı'); }catch{}
   return r.json();
 }
 

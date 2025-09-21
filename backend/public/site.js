@@ -25,7 +25,7 @@ function updateHeader(){
   const verifyDot = $('#verifyDot');
   if (token){
     // /me ile temel bilgileri doldur
-    fetch(`${backendBase}/api/me`, {  // /api/me olarak güncellendi
+    fetch(`${backendBase}/me`, {  // /me olarak değiştirildi
       headers: { 
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}` 
@@ -217,7 +217,7 @@ function openAccount(){
     </div>`;
   if (formLogin && formRegister){ formLogin.style.display='none'; formRegister.style.display='none'; }
   if (authMsg){ authMsg.innerHTML = html; }
-  fetch(`${backendBase}/api/me`, { headers: { Authorization: `Bearer ${token}` } })
+  fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } })
     .then(r => r.ok ? r.json() : null)
     .then(me => {
       if (!me) return;

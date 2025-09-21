@@ -250,8 +250,8 @@ async function preloadPills(){
         if (usage){
           const d = document.getElementById('limitDaily');
           const m = document.getElementById('limitMonthly');
-          if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)}/${usage.limits?.daily ?? '-'} dk`;
-          if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)}/${usage.limits?.monthly ?? '-'} dk`;
+          if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
+          if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
         }
       }
     } catch {}
@@ -575,7 +575,7 @@ async function wsConnect(){
               wrapper.style.marginTop = '8px';
               const info = document.createElement('div');
               info.className = 'subtle';
-              info.innerHTML = `Günlük/Aylık limit aşıldı. Kullanım: gün ${(j.minutesUsedDaily||0).toFixed?.(1) ?? j.minutesUsedDaily}/${j.minutesLimitDaily} dk, ay ${(j.minutesUsedMonthly||0).toFixed?.(1) ?? j.minutesUsedMonthly}/${j.minutesLimitMonthly} dk.`;
+              info.innerHTML = `Günlük/Aylık limit aşıldı. Kullanım: gün ${(j.dailyUsed||0).toFixed?.(1) ?? j.dailyUsed}/${j.dailyLimit} dk, ay ${(j.monthlyUsed||0).toFixed?.(1) ?? j.monthlyUsed}/${j.monthlyLimit} dk.`;
               const btn = document.createElement('a');
               btn.href = '/#pricing'; btn.className = 'btn btn-primary'; btn.textContent = 'Planları Gör';
               wrapper.appendChild(info); wrapper.appendChild(btn);
@@ -599,10 +599,10 @@ async function wsConnect(){
     if (usageData){
       const d = document.getElementById('limitDaily');
       const m = document.getElementById('limitMonthly');
-      const dailyLimit = usageData.limits?.daily ?? '-';
-      const monthlyLimit = usageData.limits?.monthly ?? '-';
-      if (d) d.textContent = `Günlük: ${(usageData.usedDaily||0).toFixed(1)}/${dailyLimit} dk`;
-      if (m) m.textContent = `Aylık: ${(usageData.usedMonthly||0).toFixed(1)}/${monthlyLimit} dk`;
+      const dailyLimit = usageData.dailyLimit ?? '-';
+      const monthlyLimit = usageData.monthlyLimit ?? '-';
+      if (d) d.textContent = `Günlük: ${(usageData.dailyUsed||0).toFixed(1)}/${dailyLimit} dk`;
+      if (m) m.textContent = `Aylık: ${(usageData.monthlyUsed||0).toFixed(1)}/${monthlyLimit} dk`;
     }
     const url = wsUrl.startsWith('ws') ? wsUrl : `${backendBase.replace('http','ws')}${wsUrl}`;
     ws = new WebSocket(url);
@@ -625,8 +625,8 @@ async function wsConnect(){
             if (usage){
               const d = document.getElementById('limitDaily');
               const m = document.getElementById('limitMonthly');
-              if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)}/${usage.limits?.daily ?? '-'} dk`;
-              if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)}/${usage.limits?.monthly ?? '-'} dk`;
+              if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
+              if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
             }
           }
         }
@@ -642,8 +642,8 @@ async function wsConnect(){
             if (usage){
               const d = document.getElementById('limitDaily');
               const m = document.getElementById('limitMonthly');
-              if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)}/${usage.limits?.daily ?? '-'} dk`;
-              if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)}/${usage.limits?.monthly ?? '-'} dk`;
+              if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
+              if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
             }
           }).catch(() => {});
         }
@@ -737,8 +737,8 @@ async function wsConnect(){
                     if (usage){
                       const d = document.getElementById('limitDaily');
                       const m = document.getElementById('limitMonthly');
-                      if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)}/${usage.limits?.daily ?? '-'} dk`;
-                      if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)}/${usage.limits?.monthly ?? '-'} dk`;
+                      if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
+                      if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
                     }
                   }).catch(() => {});
                 }
@@ -885,8 +885,8 @@ async function wsStop(){
         if (usage){
           const d = document.getElementById('limitDaily');
           const m = document.getElementById('limitMonthly');
-          if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)}/${usage.limits?.daily ?? '-'} dk`;
-          if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)}/${usage.limits?.monthly ?? '-'} dk`;
+          if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
+          if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
         }
       }
     }
@@ -904,8 +904,8 @@ async function wsStop(){
           if (usage){
             const d = document.getElementById('limitDaily');
             const m = document.getElementById('limitMonthly');
-            if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)}/${usage.limits?.daily ?? '-'} dk`;
-            if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)}/${usage.limits?.monthly ?? '-'} dk`;
+            if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
+            if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
           }
         }).catch(() => {});
       }
@@ -1167,8 +1167,8 @@ if (btnStartTalk){
             if (usage){
               const d = document.getElementById('limitDaily');
               const m = document.getElementById('limitMonthly');
-              if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)}/${usage.limits?.daily ?? '-'} dk`;
-              if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)}/${usage.limits?.monthly ?? '-'} dk`;
+              if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
+              if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
             }
           }
         }

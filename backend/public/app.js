@@ -235,15 +235,15 @@ async function preloadPills(){
         const p = document.getElementById('statusPlan');
         const badge = document.getElementById('placementBadge');
         if (p) p.textContent = `Plan: ${me.plan || 'free'}`;
-        if (badge) badge.textContent = `Seviye: ${me.placementLevel || '-'}`;
+        if (badge) badge.textContent = `Seviye: ${me.user?.placementLevel || '-'}`;
         // Also preload preference selects to user's saved values
         try{
           const learnSel = document.getElementById('learnLangSelect');
           const nativeSel = document.getElementById('nativeLangSelect');
           const voiceSel = document.getElementById('voiceSelect');
-          if (learnSel && me.preferredLearningLanguage){ learnSel.value = me.preferredLearningLanguage; }
-          if (nativeSel && me.preferredNativeLanguage){ nativeSel.value = me.preferredNativeLanguage; }
-          if (voiceSel && me.preferredVoice){ voiceSel.value = me.preferredVoice; }
+          if (learnSel && me.user?.preferredLearningLanguage){ learnSel.value = me.user?.preferredLearningLanguage; }
+          if (nativeSel && me.user?.preferredNativeLanguage){ nativeSel.value = me.user?.preferredNativeLanguage; }
+          if (voiceSel && me.user?.preferredVoice){ voiceSel.value = me.user?.preferredVoice; }
         } catch {}
       }
     } catch {}
@@ -713,6 +713,7 @@ async function wsConnect(){
             if (obj.type === 'limit_reached'){
               log('LİMİT: kullanım limiti aşıldı. Plan yükseltin veya yarın tekrar deneyin.');
               try{ wsMicOff(); }catch{}
+              try{ wsStop(); }catch{} // Kota dolu olduğunda tam bağlantıyı durdur
               const wrapper = document.createElement('div');
               wrapper.className = 'row';
               wrapper.style.marginTop = '8px';
@@ -723,7 +724,7 @@ async function wsConnect(){
               btn.className = 'btn btn-primary';
               const cur = window.__hk_current_plan || 'free';
               const nextPlan = (cur === 'starter') ? 'pro' : 'starter';
-              btn.textContent = (nextPlan === 'pro') ? 'Pro’ya Geç' : 'Starter’a Geç';
+              btn.textContent = (nextPlan === 'pro') ? 'Pro\'ya Geç' : 'Starter\'a Geç';
               btn.addEventListener('click', async () => {
                 const token = localStorage.getItem('hk_token');
                 if (!token){
@@ -1099,18 +1100,26 @@ if (btnStopTalk){
   btnStopTalk.addEventListener('click', async () => {
     try {
       wsStartRequested = false;
-      wsForceSilence = true; // from now ignore any buffered or incoming audio
+      wsForceSilence = true; // Tüm gelen sesleri sustur
+
+      // Mikrofonu kapat
       wsMicOff();
+
+      // WebSocket bağlantısını durdur
       wsStop();
-      // Immediately silence any bot audio and viz
+
+      // Tüm ses bileşenlerini temizle
       try { if (wsPlaybackSource) { wsPlaybackSource.stop(); wsPlaybackSource = null; } } catch {}
       try { if (wsPlaybackCtx && wsPlaybackCtx.state === 'running') wsPlaybackCtx.suspend(); } catch {}
       try { vizStop(); wsBotSpeaking = false; wsAudioChunks = []; } catch {}
       try { const ra = document.getElementById('remoteAudio'); if (ra){ ra.pause?.(); ra.srcObject = null; } } catch {}
+
+      // UI durumunu güncelle
       updateStatus();
       if (btnStartTalk) btnStartTalk.disabled = false;
       btnStopTalk.disabled = true;
-      log('Konuşma durduruldu');
+
+      log('🔴 Bağlantı durduruldu - Kota dolu veya manuel durdurma');
     } catch (e){ log('Durdurma hatası: '+(e.message||e)); }
   });
 }

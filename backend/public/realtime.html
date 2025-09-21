@@ -15,15 +15,29 @@
       (async () => {
         try{
           const backendBase = 'https://api.konuskonusabilirsen.com';
+          console.log('[realtime] /me çağrısı başlatılıyor...');
           const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }});
+          console.log('[realtime] /me yanıtı:', r.status, r.ok);
           if (r.ok){
             const me = await r.json();
+            console.log('[realtime] /me verisi:', JSON.stringify(me, null, 2));
+            console.log('[realtime] placementLevel değeri:', me.placementLevel, typeof me.placementLevel);
+
+            // placementLevel kontrolü - null, undefined, "" veya false ise redirect
             if (!me.placementLevel){
+              console.log('[realtime] placementLevel yok, placement sayfasına yönlendiriliyor...');
               const redirect = encodeURIComponent('/realtime.html');
               window.location.replace(`/placement.html?redirect=${redirect}`);
+              return;
+            } else {
+              console.log('[realtime] placementLevel var, realtime sayfası açık kalıyor:', me.placementLevel);
             }
+          } else {
+            console.log('[realtime] /me çağrısı başarısız:', r.status);
           }
-        } catch {}
+        } catch (error) {
+          console.error('[realtime] /me çağrısı hatası:', error);
+        }
       })();
       // Update the URL to show /konus instead of hiding the path
       try { 

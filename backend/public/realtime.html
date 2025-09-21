@@ -14,7 +14,8 @@
       // If logged in, enforce placement test completion
       (async () => {
         try{
-          const r = await fetch('/me', { headers: { Authorization: `Bearer ${token}` }});
+          const backendBase = 'https://api.konuskonusabilirsen.com';
+          const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }});
           if (r.ok){
             const me = await r.json();
             if (!me.placementLevel){

@@ -217,7 +217,7 @@ function openAccount(){
     </div>`;
   if (formLogin && formRegister){ formLogin.style.display='none'; formRegister.style.display='none'; }
   if (authMsg){ authMsg.innerHTML = html; }
-  fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } })
+  fetch(`${backendBase}/api/me`, { headers: { Authorization: `Bearer ${token}` } })
     .then(r => r.ok ? r.json() : null)
     .then(me => {
       if (!me) return;

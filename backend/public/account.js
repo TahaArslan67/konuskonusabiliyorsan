@@ -24,16 +24,16 @@ function fillLangSelect(el, def){
 async function loadMe(){
   const token = getToken();
   if (!token) throw new Error('missing_token');
-  try{ console.log('[account] /me çağrısı hazırlanıyor', { backendBase, hasToken: !!token, tokenPreview: token.slice(0,12)+'...' }); }catch{}
-  const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }});
+  try{ console.log('[account] /api/me çağrısı hazırlanıyor', { backendBase, hasToken: !!token, tokenPreview: token.slice(0,12)+'...' }); }catch{}
+  const r = await fetch(`${backendBase}/api/me`, { headers: { Authorization: `Bearer ${token}` }});
   if (!r.ok){
     let detail = '';
     try{ detail = (await r.clone().text()) || String(r.status); }catch{}
-    try{ console.warn('[account] /me hata', { status: r.status, detail }); }catch{}
+    try{ console.warn('[account] /api/me hata', { status: r.status, detail }); }catch{}
     const err = new Error(`me_error_${r.status}_${detail}`);
     err.status = r.status; err.detail = detail; throw err;
   }
-  try{ console.log('[account] /me başarılı'); }catch{}
+  try{ console.log('[account] /api/me başarılı'); }catch{}
   return r.json();
 }
 
@@ -52,16 +52,38 @@ async function init(){
     // API /me yanıtı { user: { ... } } şeklinde; eski sürümlere uyum için me.user || me kullan
     const u = me && me.user ? me.user : me;
     try{ console.log('[account] me yüklendi', u); }catch{}
+    
+    // Debug: Tüm alanları kontrol edelim
+    try{ console.log('[account] Kullanıcı alanları:', Object.keys(u)); }catch{}
+    
+    // Seviye bilgisini al - placementLevel, level, currentLevel gibi farklı alan isimleri kontrol et
+    let levelValue = '-';
+    if (u.placementLevel) {
+      levelValue = u.placementLevel;
+      console.log('[account] placementLevel bulundu:', levelValue);
+    } else if (u.level) {
+      levelValue = u.level;
+      console.log('[account] level bulundu:', levelValue);
+    } else if (u.currentLevel) {
+      levelValue = u.currentLevel;
+      console.log('[account] currentLevel bulundu:', levelValue);
+    } else if (u.placement) {
+      levelValue = u.placement;
+      console.log('[account] placement bulundu:', levelValue);
+    } else {
+      console.log('[account] Seviye bilgisi bulunamadı, mevcut alanlar:', Object.keys(u));
+    }
+    
     const badgePlan = $('#accBadgePlan');
     const badgeLevel = $('#accBadgeLevel');
     const emailEl = $('#accEmail');
     const verEl = $('#accVerified');
     if (badgePlan) badgePlan.textContent = `Plan: ${u.plan || 'free'}`;
-    if (badgeLevel) badgeLevel.textContent = `Seviye: ${u.placementLevel || '-'}`;
+    if (badgeLevel) badgeLevel.textContent = `Seviye: ${levelValue}`;
     if (emailEl) emailEl.textContent = u.email || '-';
     if (verEl) verEl.textContent = `Doğrulama: ${u.emailVerified ? 'Doğrulandı' : 'Bekliyor'}`;
     const planText = document.getElementById('planText'); if (planText) planText.textContent = u.plan || 'free';
-    const levelText = document.getElementById('levelText'); if (levelText) levelText.textContent = u.placementLevel || '-';
+    const levelText = document.getElementById('levelText'); if (levelText) levelText.textContent = levelValue;
 
     // Preferences
     fillLangSelect($('#accLearnLang'), u.preferredLearningLanguage || 'tr');

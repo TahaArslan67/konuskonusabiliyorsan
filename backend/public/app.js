@@ -227,7 +227,7 @@ async function preloadPills(){
     const token = localStorage.getItem('hk_token');
     if (!token) return;
     const headers = { Authorization: `Bearer ${token}` };
-    // /me -> plan + placementLevel
+    // /me -> plan + placementLevel + usage
     try {
       const mr = await fetch(`${backendBase}/me`, { headers });
       if (mr.ok){
@@ -245,39 +245,19 @@ async function preloadPills(){
           if (nativeSel && me.user?.preferredNativeLanguage){ nativeSel.value = me.user?.preferredNativeLanguage; }
           if (voiceSel && me.user?.preferredVoice){ voiceSel.value = me.user?.preferredVoice; }
         } catch {}
-      }
-    } catch {}
-    // /usage -> used/limits
-    try {
-      const ur = await fetch(`${backendBase}/usage`, { headers });
-      if (ur.ok){
-        const u = await ur.json();
-        const d = document.getElementById('limitDaily');
-        const m = document.getElementById('limitMonthly');
-        if (d) d.textContent = `Günlük: ${(u.usedDaily||0).toFixed(1)}/${u.limits?.daily ?? '-' } dk`;
-        if (m) m.textContent = `Aylık: ${(u.usedMonthly||0).toFixed(1)}/${u.limits?.monthly ?? '-' } dk`;
+        // Update usage from me.user.usage
+        const usage = me.user?.usage;
+        if (usage){
+          const d = document.getElementById('limitDaily');
+          const m = document.getElementById('limitMonthly');
+          if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)}/${usage.limits?.daily ?? '-'} dk`;
+          if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)}/${usage.limits?.monthly ?? '-'} dk`;
+        }
       }
     } catch {}
   } catch {}
 }
 try { preloadPills(); } catch {}
-
-// Reusable helper: fetch /usage and update pills on realtime page
-async function updateUsageFromApi(explicitLimits){
-  try {
-    const d = document.getElementById('limitDaily');
-    const m = document.getElementById('limitMonthly');
-    const token = localStorage.getItem('hk_token');
-    const ur = await fetch(`${backendBase}/usage`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-    if (ur.ok){
-      const u = await ur.json();
-      const dailyLimit = explicitLimits?.daily ?? (u.limits?.daily ?? '-');
-      const monthlyLimit = explicitLimits?.monthly ?? (u.limits?.monthly ?? '-');
-      if (d) d.textContent = `Günlük: ${(u.usedDaily||0).toFixed(1)}/${dailyLimit} dk`;
-      if (m) m.textContent = `Aylık: ${(u.usedMonthly||0).toFixed(1)}/${monthlyLimit} dk`;
-    }
-  } catch {}
-}
 
 async function persistPrefs(partial){
   try{
@@ -563,10 +543,15 @@ async function wsConnect(){
     // Determine plan & authorization
     let token = localStorage.getItem('hk_token');
     let planToUse = 'free';
+    let usageData = null;
     if (token){
       try {
         const mr = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
-        if (mr.ok){ const me = await mr.json(); if (me && me.plan) planToUse = me.plan; }
+        if (mr.ok){
+          const me = await mr.json();
+          if (me && me.plan) planToUse = me.plan;
+          if (me.user?.usage) usageData = me.user.usage;
+        }
       } catch {}
     }
     const headers = { 'Content-Type':'application/json' };
@@ -603,16 +588,22 @@ async function wsConnect(){
       throw new Error(`session start failed: ${r.status}`);
     }
     const j = await r.json();
-    const { sessionId, wsUrl, plan, minutesLimitDaily, minutesLimitMonthly } = j;
+    const { sessionId, wsUrl, plan } = j;
     // remember plan for CTAs
     window.__hk_current_plan = plan || 'free';
     // Update UI pills
     const p = document.getElementById('statusPlan');
-    const d = document.getElementById('limitDaily');
-    const m = document.getElementById('limitMonthly');
     if (p) p.textContent = `Plan: ${plan || 'free'}`;
-    // Kullanım değerlerini /usage üzerinden al (daha doğru ve tutarlı)
-    await updateUsageFromApi({ daily: minutesLimitDaily, monthly: minutesLimitMonthly });
+
+    // Update usage from me.user.usage
+    if (usageData){
+      const d = document.getElementById('limitDaily');
+      const m = document.getElementById('limitMonthly');
+      const dailyLimit = usageData.limits?.daily ?? '-';
+      const monthlyLimit = usageData.limits?.monthly ?? '-';
+      if (d) d.textContent = `Günlük: ${(usageData.usedDaily||0).toFixed(1)}/${dailyLimit} dk`;
+      if (m) m.textContent = `Aylık: ${(usageData.usedMonthly||0).toFixed(1)}/${monthlyLimit} dk`;
+    }
     const url = wsUrl.startsWith('ws') ? wsUrl : `${backendBase.replace('http','ws')}${wsUrl}`;
     ws = new WebSocket(url);
     ws.binaryType = 'arraybuffer';
@@ -623,10 +614,40 @@ async function wsConnect(){
       try { const el=$('#btnWsCommit'); if (el) el.disabled = false; } catch {}
       try { const el=$('#btnWsTts'); if (el) el.disabled = false; } catch {}
       updateStatus();
-      // WS açıldıktan sonra da tekrar /usage ile tazele (eventual consistency için)
-      try { await updateUsageFromApi({ daily: minutesLimitDaily, monthly: minutesLimitMonthly }); } catch {}
+      // WS açıldıktan sonra da tekrar /me ile tazele (eventual consistency için)
+      try {
+        const token = localStorage.getItem('hk_token');
+        if (token){
+          const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
+          if (r.ok){
+            const me = await r.json();
+            const usage = me.user?.usage;
+            if (usage){
+              const d = document.getElementById('limitDaily');
+              const m = document.getElementById('limitMonthly');
+              if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)}/${usage.limits?.daily ?? '-'} dk`;
+              if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)}/${usage.limits?.monthly ?? '-'} dk`;
+            }
+          }
+        }
+      } catch {}
       // Kısa bir gecikmeyle bir kez daha tazele
-      try { setTimeout(() => { updateUsageFromApi({ daily: minutesLimitDaily, monthly: minutesLimitMonthly }); }, 1200); } catch {}
+      try { setTimeout(() => {
+        const token = localStorage.getItem('hk_token');
+        if (token){
+          fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(r => r.json())
+          .then(me => {
+            const usage = me.user?.usage;
+            if (usage){
+              const d = document.getElementById('limitDaily');
+              const m = document.getElementById('limitMonthly');
+              if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)}/${usage.limits?.daily ?? '-'} dk`;
+              if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)}/${usage.limits?.monthly ?? '-'} dk`;
+            }
+          }).catch(() => {});
+        }
+      }, 1200); } catch {}
       try {
         const voiceSel = document.getElementById('voiceSelect');
         const voice = voiceSel && voiceSel.value ? voiceSel.value : 'alloy';
@@ -705,10 +726,23 @@ async function wsConnect(){
           const obj = JSON.parse(ev.data);
           if (obj && obj.type) {
             if (obj.type === 'usage_update' && obj.usage){
-              const d = document.getElementById('limitDaily');
-              const m = document.getElementById('limitMonthly');
-              if (d) d.textContent = `Günlük: ${(obj.usage.usedDaily||0).toFixed(1)}/${obj.usage.limits?.daily ?? '-'} dk`;
-              if (m) m.textContent = `Aylık: ${(obj.usage.usedMonthly||0).toFixed(1)}/${obj.usage.limits?.monthly ?? '-'} dk`;
+              // Update usage from me.user.usage
+              try {
+                const token = localStorage.getItem('hk_token');
+                if (token){
+                  fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } })
+                  .then(r => r.json())
+                  .then(me => {
+                    const usage = me.user?.usage;
+                    if (usage){
+                      const d = document.getElementById('limitDaily');
+                      const m = document.getElementById('limitMonthly');
+                      if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)}/${usage.limits?.daily ?? '-'} dk`;
+                      if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)}/${usage.limits?.monthly ?? '-'} dk`;
+                    }
+                  }).catch(() => {});
+                }
+              } catch {}
             }
             if (obj.type === 'limit_reached'){
               log('LİMİT: kullanım limiti aşıldı. Plan yükseltin veya yarın tekrar deneyin.');
@@ -790,7 +824,7 @@ async function wsConnect(){
   } catch (e){ log('WS connect error: '+(e.message||e)); }
 }
 
-function wsStop(){
+async function wsStop(){
   // Update UI immediately for better responsiveness
   const btnStart = $('#btnStartTalk');
   const btnStop = $('#btnStopTalk');
@@ -841,10 +875,42 @@ function wsStop(){
   wsBargeInConfirmed = false;
   
   // Update usage from server
-  updateUsageFromApi();
-  
+  try {
+    const token = localStorage.getItem('hk_token');
+    if (token){
+      const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok){
+        const me = await r.json();
+        const usage = me.user?.usage;
+        if (usage){
+          const d = document.getElementById('limitDaily');
+          const m = document.getElementById('limitMonthly');
+          if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)}/${usage.limits?.daily ?? '-'} dk`;
+          if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)}/${usage.limits?.monthly ?? '-'} dk`;
+        }
+      }
+    }
+  } catch {}
+
   // Force UI update after a short delay to ensure all states are updated
-  setTimeout(updateUsageFromApi, 1000);
+  setTimeout(() => {
+    try {
+      const token = localStorage.getItem('hk_token');
+      if (token){
+        fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(me => {
+          const usage = me.user?.usage;
+          if (usage){
+            const d = document.getElementById('limitDaily');
+            const m = document.getElementById('limitMonthly');
+            if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)}/${usage.limits?.daily ?? '-'} dk`;
+            if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)}/${usage.limits?.monthly ?? '-'} dk`;
+          }
+        }).catch(() => {});
+      }
+    } catch {}
+  }, 1000);
 }
 
 async function wsMicOn(){
@@ -1089,6 +1155,24 @@ if (btnStartTalk){
       updateStatus();
       if (btnStopTalk) btnStopTalk.disabled = false;
       log('Konuşma başlatıldı');
+
+      // 5) Kota bilgilerini güncelle
+      try {
+        const token = localStorage.getItem('hk_token');
+        if (token){
+          const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
+          if (r.ok){
+            const me = await r.json();
+            const usage = me.user?.usage;
+            if (usage){
+              const d = document.getElementById('limitDaily');
+              const m = document.getElementById('limitMonthly');
+              if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)}/${usage.limits?.daily ?? '-'} dk`;
+              if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)}/${usage.limits?.monthly ?? '-'} dk`;
+            }
+          }
+        }
+      } catch {}
     } catch (e){
       log('Başlatma hatası: '+(e.message||e));
       btnStartTalk.disabled = false; wsStartRequested = false;
@@ -1106,7 +1190,7 @@ if (btnStopTalk){
       wsMicOff();
 
       // WebSocket bağlantısını durdur
-      wsStop();
+      await wsStop();
 
       // Tüm ses bileşenlerini temizle
       try { if (wsPlaybackSource) { wsPlaybackSource.stop(); wsPlaybackSource = null; } } catch {}

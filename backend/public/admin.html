@@ -48,7 +48,7 @@
   </main>
 
   <script type="module">
-    const backendBase = location.origin;
+    const backendBase = 'https://api.konuskonusabilirsen.com';
     const $ = (s)=>document.querySelector(s);
     $('#apply')?.addEventListener('click', async () => {
       const msg = $('#msg'); msg.textContent = 'İstek gönderiliyor...';

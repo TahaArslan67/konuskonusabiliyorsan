@@ -1,6 +1,6 @@
 const $ = (s) => document.querySelector(s);
 const logEl = $('#logs');
-const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : location.origin; // configurable backend base
+const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : 'https://api.konuskonusabilirsen.com'; // configurable backend base
 const statusConnEl = $('#statusConn');
 const statusMicEl = $('#statusMic');
 $('#backend') && ($('#backend').textContent = backendBase);

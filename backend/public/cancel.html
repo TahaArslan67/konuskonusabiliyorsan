@@ -38,7 +38,7 @@
   </main>
   <script src="/site.js" type="module"></script>
   <script type="module">
-    const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : location.origin;
+    const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : 'https://api.konuskonusabilirsen.com';
     const btn = document.getElementById('retryPay');
     btn?.addEventListener('click', async () => {
       const token = localStorage.getItem('hk_token');

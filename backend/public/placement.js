@@ -122,7 +122,7 @@ async function populateLearnLang(){
   // default from /me
   try {
     const me = await apiFetch('/me');
-    const code = me?.preferredNativeLanguage || 'tr'; // preferredNativeLanguage'dan al
+    const code = me?.user?.preferredLearningLanguage || 'tr'; // preferredLearningLanguage'dan al
     const opt = Array.from(learnLangSelect.options).find(o => o.value === code);
     if (opt) opt.selected = true; else learnLangSelect.value = 'tr';
   } catch (error) {
@@ -147,12 +147,13 @@ async function persistLearnLangIfChanged(){
 
     try {
       const me = await apiFetch('/me');
-      const current = me?.preferredNativeLanguage || null; // preferredNativeLanguage olarak kaydet
+      const current = me?.user?.preferredLearningLanguage || 'en'; // preferredLearningLanguage olarak kaydet
 
       if (current !== code) {
-        await apiFetch('/me/preferences', {
+        // Doğrudan user'ı güncelle
+        const user = await apiFetch('/me', {
           method: 'PATCH',
-          body: JSON.stringify({ preferredNativeLanguage: code }) // preferredNativeLanguage olarak kaydet
+          body: JSON.stringify({ preferredLearningLanguage: code })
         });
       }
     } catch (error) {
@@ -161,7 +162,7 @@ async function persistLearnLangIfChanged(){
       }
     }
   } catch (error) {
-    console.error('Failed to save native language preference:', error);
+    console.error('Failed to save learning language preference:', error);
     throw error;
   }
 }
@@ -239,10 +240,15 @@ if (learnLangSelect){
     try{
       const token = localStorage.getItem('hk_token');
       if (token){
-        await apiFetch('/me/preferences', {
-          method: 'PATCH',
-          body: JSON.stringify({ preferredNativeLanguage: code }) // preferredNativeLanguage olarak kaydet
-        });
+        const me = await apiFetch('/me');
+        const current = me?.user?.preferredLearningLanguage || 'en';
+
+        if (current !== code) {
+          await apiFetch('/me', {
+            method: 'PATCH',
+            body: JSON.stringify({ preferredLearningLanguage: code })
+          });
+        }
       }
     }catch{}
     // Load pool file for selected language; fallback to en

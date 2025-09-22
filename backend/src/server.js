@@ -703,7 +703,6 @@ app.get('/me', authRequired, async (req, res) => {
           lastReset: user.usage?.lastReset,
           monthlyResetAt: user.usage?.monthlyResetAt
         },
-        preferredLanguage: user.preferredLanguage,
         preferredVoice: user.preferredVoice,
         preferredCorrectionMode: user.preferredCorrectionMode || 'gentle',
         preferredLearningLanguage: user.preferredLearningLanguage || 'en',
@@ -784,21 +783,22 @@ app.post('/api/track-usage', authRequired, async (req, res) => {
     return res.status(500).json({ error: 'Kullanım takip edilirken bir hata oluştu' });
   }
 });
-
-// ---- Protected: Update preferences ----
 app.patch('/me/preferences', authRequired, async (req, res) => {
   try {
-    const { preferredLanguage, preferredVoice, preferredCorrectionMode, preferredLearningLanguage, preferredNativeLanguage } = req.body || {};
+    const { preferredVoice, preferredCorrectionMode, preferredLearningLanguage, preferredNativeLanguage } = req.body || {};
     const updates = {};
-    if (typeof preferredLanguage === 'string') updates.preferredLanguage = preferredLanguage;
     if (typeof preferredVoice === 'string') updates.preferredVoice = preferredVoice;
     if (typeof preferredCorrectionMode === 'string') updates.preferredCorrectionMode = preferredCorrectionMode;
     if (typeof preferredLearningLanguage === 'string') updates.preferredLearningLanguage = preferredLearningLanguage;
     if (typeof preferredNativeLanguage === 'string') updates.preferredNativeLanguage = preferredNativeLanguage;
-    const userDoc = await User.findByIdAndUpdate(req.auth.uid, { $set: updates }, { new: true });
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'no_updates' });
+    }
+
+    const userDoc = await User.findByIdAndUpdate(req.auth.uid, updates, { new: true });
     if (!userDoc) return res.status(404).json({ error: 'not_found' });
     return res.json({ ok: true,
-      preferredLanguage: userDoc.preferredLanguage || null,
       preferredVoice: userDoc.preferredVoice || null,
       preferredCorrectionMode: userDoc.preferredCorrectionMode || 'gentle',
       preferredLearningLanguage: userDoc.preferredLearningLanguage || 'en',

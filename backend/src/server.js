@@ -151,6 +151,12 @@ function buildPersonaInstruction(learnLang = 'en', nativeLang = 'tr', correction
   console.log('[DEBUG] scenarios.size:', scenarios.size);
   console.log('[DEBUG] scenarios.has(airport):', scenarios.has('airport'));
   console.log('[DEBUG] =======================');
+
+  if (scenarioPart) {
+    console.log('[DEBUG] ✅ SENARYO BAŞARIYLA EKLENDİ:', scenarioPart);
+  } else {
+    console.log('[DEBUG] ❌ SENARYO EKLENEMEDİ - scenarioPart boş!');
+  }
   const pacing = 'Konuşma hızını biraz yavaş tut. 1-2 kısa cümleyle konuş. Kullanıcıyı konuşturan kısa sorular sor.';
   const levelInstruction = userLevel ? ` Kullanıcının dil seviyesi: ${userLevel}. Bu seviyeye uygun kelimeler, dilbilgisi yapıları ve konuşma hızı kullan.` : '';
   const fullPersona = `Markaya özel dil koçu asistan ("konuskonusabilirsen"). Kullanıcının ana dili: ${nativeName}. Öğrenilen dil: ${learnName}. ${tone} ${convo} ${langPolicy} ${lengthPolicy} ${format} ${fixStyle} ${gentleLimits} ${safety} ${pacing}${scenarioPart}${levelInstruction}`;
@@ -898,6 +904,7 @@ import { fileURLToPath } from 'url';
 import { Analytics } from './models.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const publicDir = path.join(__dirname, '..', 'public');
 // Load scenarios from filesystem (src/scenarios/*.json)
 const scenarios = new Map();
 console.log('🚀 SERVER BAŞLADI - DEBUG MODU AKTİF');

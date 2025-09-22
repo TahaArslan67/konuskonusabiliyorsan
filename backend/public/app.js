@@ -315,6 +315,8 @@ async function persistPrefs(partial){
 
 // Plan değişikliği için onay dialog'u ve işlemi
 async function confirmPlanChange(currentPlan, targetPlan) {
+  log(`🔍 confirmPlanChange çağrıldı: ${currentPlan} -> ${targetPlan}`);
+
   const planNames = {
     'free': 'Ücretsiz',
     'starter': 'Starter',
@@ -334,6 +336,8 @@ async function confirmPlanChange(currentPlan, targetPlan) {
                      (currentPlan === 'starter' && targetPlan === 'free') ||
                      (currentPlan === 'pro' && targetPlan === 'free');
 
+  log(`📊 Plan bilgileri: current=${currentPlan}, target=${targetPlan}, isDowngrade=${isDowngrade}`);
+
   let message = '';
   if (isDowngrade) {
     message = `⚠️ ${planNames[currentPlan]} planından ${planNames[targetPlan]} planına geçiş yapacaksınız.\n\n`;
@@ -349,39 +353,53 @@ async function confirmPlanChange(currentPlan, targetPlan) {
     message += `Devam etmek istiyor musunuz?`;
   }
 
+  log(`💬 Onay mesajı: ${message.substring(0, 100)}...`);
+
   const confirmed = confirm(message);
+  log(`✅ Kullanıcı seçimi: ${confirmed ? 'EVET' : 'HAYIR'}`);
+
   return confirmed;
 }
 
 // Plan değişikliği işlemi
 async function changePlan(targetPlan) {
+  log(`🚀 changePlan çağrıldı: ${targetPlan}`);
+
   const token = localStorage.getItem('hk_token');
   if (!token) {
+    log('❌ Token bulunamadı, yönlendirme yapılıyor...');
     alert('Devam etmek için giriş yapın. Ana sayfaya yönlendiriyorum.');
     window.location.href = '/#pricing';
     return;
   }
 
+  log(`🔑 Token mevcut, plan değişikliği başlatılıyor: ${targetPlan}`);
+
   try {
+    log(`📡 API çağrısı yapılıyor: /api/paytr/checkout`);
     const r = await fetch(`${backendBase}/api/paytr/checkout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ plan: targetPlan })
     });
 
+    log(`📡 API yanıtı: ${r.status} ${r.ok ? 'OK' : 'HATA'}`);
     const j = await r.json();
-    log('Plan değiştirme yanıtı:', j);
+    log('📋 API yanıtı verisi:', JSON.stringify(j, null, 2));
 
     if (j?.iframe_url) {
+      log(`🔗 Ödeme sayfasına yönlendirme: ${j.iframe_url}`);
       window.location.href = j.iframe_url;
       return;
     }
 
     if (j?.error) {
+      log(`❌ API hatası: ${j.error}`);
       alert(`Plan değişikliği hatası: ${j.error}`);
       return;
     }
 
+    log(`✅ Plan değişikliği başarılı: ${targetPlan}`);
     alert('Plan değişikliği başlatıldı!');
     window.__hk_current_plan = targetPlan;
 
@@ -925,19 +943,26 @@ async function wsConnect(){
               const cur = window.__hk_current_plan || 'free';
               const nextPlan = (cur === 'starter') ? 'pro' : 'starter';
               btn.textContent = (nextPlan === 'pro') ? 'Pro\'ya Geç' : 'Starter\'a Geç';
+              log(`🎯 WS limit_reached: Plan değişikliği butonu oluşturuluyor: ${cur} -> ${nextPlan}`);
               btn.addEventListener('click', async () => {
+                log(`🔘 WS limit_reached butonuna tıklandı: ${cur} -> ${nextPlan}`);
                 try {
                   const token = localStorage.getItem('hk_token');
                   if (!token){
+                    log('❌ WS limit_reached: Token bulunamadı');
                     alert('Devam etmek için giriş yapın. Ana sayfaya yönlendiriyorum.');
                     window.location.href = '/#pricing';
                     return;
                   }
+                  log(`✅ WS limit_reached: Token mevcut, onay dialog'u gösteriliyor`);
                   if (await confirmPlanChange(cur, nextPlan)) {
+                    log(`✅ WS limit_reached: Kullanıcı onay verdi, plan değişikliği başlatılıyor`);
                     await changePlan(nextPlan);
+                  } else {
+                    log(`❌ WS limit_reached: Kullanıcı onay vermedi`);
                   }
                 } catch (e) {
-                  log('Plan değiştirme hatası:', e.message || e);
+                  log('WS limit_reached: Plan değiştirme hatası:', e.message || e);
                 }
               });
               const link = document.createElement('a');

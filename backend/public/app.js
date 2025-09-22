@@ -261,58 +261,50 @@ async function debugUpdateUsage(){
   try {
     const token = localStorage.getItem('hk_token');
     if (!token) {
-      log('DEBUG: Token bulunamadı');
+      log('❌ DEBUG: Token bulunamadı');
       return;
     }
 
-    log('DEBUG: /me çağrısı yapılıyor...');
+    log('🔄 DEBUG: /me çağrısı yapılıyor...');
     const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
-    log('DEBUG: /me yanıtı:', r.status, r.ok);
+    log('📡 DEBUG: /me yanıtı:', r.status, r.ok);
 
     if (r.ok){
       const me = await r.json();
-      log('DEBUG: /me verisi:', JSON.stringify(me, null, 2));
+      log('📋 DEBUG: /me verisi:', JSON.stringify(me, null, 2));
 
       const usage = me.user?.usage;
       if (usage){
-        log('DEBUG: usage verisi:', JSON.stringify(usage, null, 2));
+        log('📊 DEBUG: usage verisi:', JSON.stringify(usage, null, 2));
+        log(`📈 DEBUG: dailyUsed: ${usage.dailyUsed}, monthlyUsed: ${usage.monthlyUsed}`);
+        log(`📈 DEBUG: dailyLimit: ${usage.dailyLimit}, monthlyLimit: ${usage.monthlyLimit}`);
+        log(`📈 DEBUG: lastReset: ${usage.lastReset}`);
+
         const d = document.getElementById('limitDaily');
         const m = document.getElementById('limitMonthly');
         if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
         if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
-        log(`DEBUG: Kota güncellendi: Günlük ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk, Aylık ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`);
+        log(`✅ DEBUG: Kota güncellendi: Günlük ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk, Aylık ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`);
       } else {
-        log('DEBUG: usage verisi bulunamadı');
+        log('❌ DEBUG: usage verisi bulunamadı - backend kota bilgilerini göndermiyor!');
+        log('📋 DEBUG: me.user:', JSON.stringify(me.user, null, 2));
       }
     } else {
-      log('DEBUG: /me çağrısı başarısız:', r.status);
+      log('❌ DEBUG: /me çağrısı başarısız:', r.status);
+      log('📄 DEBUG: response text:', await r.text());
     }
   } catch (e) {
-    log('DEBUG: Hata:', e.message || e);
+    log('💥 DEBUG: Hata:', e.message || e);
+    log('📄 DEBUG: error stack:', e.stack);
   }
 }
 
 // Debug fonksiyonunu global olarak erişilebilir yap
 window.debugUpdateUsage = debugUpdateUsage;
-  try {
-    const token = localStorage.getItem('hk_token');
-    if (token){
-      const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
-      if (r.ok){
-        const me = await r.json();
-        const usage = me.user?.usage;
-        if (usage){
-          const d = document.getElementById('limitDaily');
-          const m = document.getElementById('limitMonthly');
-          if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
-          if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
-          log(`Sayfa yüklendiğinde kota güncellendi: Günlük ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk, Aylık ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`);
-        }
-      }
-    }
-  } catch (e) {
-    log('DOMContentLoaded kota güncelleme hatası: ' + (e.message || e));
-  };
+
+// Debug fonksiyonunu global olarak erişilebilir yap
+window.debugUpdateUsage = debugUpdateUsage;
+});
 
 async function persistPrefs(partial){
   try{
@@ -779,6 +771,9 @@ async function wsConnect(){
           const obj = JSON.parse(ev.data);
           if (obj && obj.type) {
             if (obj.type === 'usage_update' && obj.usage){
+              log('🔄 USAGE_UPDATE MESAJI GELDİ!');
+              log('📊 usage_update payload:', JSON.stringify(obj.usage, null, 2));
+
               // Update usage from me.user.usage
               try {
                 const token = localStorage.getItem('hk_token');
@@ -788,15 +783,20 @@ async function wsConnect(){
                   .then(me => {
                     const usage = me.user?.usage;
                     if (usage){
+                      log('📈 Backend usage verisi:', JSON.stringify(usage, null, 2));
                       const d = document.getElementById('limitDaily');
                       const m = document.getElementById('limitMonthly');
                       if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
                       if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
-                      log(`Kota güncellendi (usage_update): Günlük ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk, Aylık ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`);
+                      log(`✅ Kota güncellendi (usage_update): Günlük ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk, Aylık ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`);
+                    } else {
+                      log('❌ Backend usage verisi bulunamadı!');
                     }
                   }).catch(() => {});
                 }
-              } catch {}
+              } catch (e) {
+                log('💥 usage_update işleme hatası:', e.message || e);
+              }
             }
             if (obj.type === 'limit_reached'){
               log('LİMİT: kullanım limiti aşıldı. Plan yükseltin veya yarın tekrar deneyin.');
@@ -990,6 +990,9 @@ async function wsStop(){
     } catch (e) {
       log('wsStop kota güncelleme hatası: ' + (e.message || e));
     }
+
+    // Debug fonksiyonunu global olarak erişilebilir yap
+    window.debugUpdateUsage = debugUpdateUsage;
 
     log('🔴 WebSocket bağlantısı tamamen kapatıldı');
   } catch (e) {

@@ -2273,13 +2273,11 @@ app.post('/session/start', async (req, res) => {
   } catch {}
   const sessionId = uuidv4();
   const createdAt = Date.now();
-  // minute limits per plan (daily / monthly)
-  const limitMap = {
-    free: { daily: 5, monthly: 5 },
-    starter: { daily: 10, monthly: 300 },
-    pro: { daily: 60, monthly: 1800 },
+  // minute limits per plan (daily / monthly) - getPlanLimit fonksiyonunu kullan
+  const limits = {
+    daily: getPlanLimit(String(plan), 'daily'),
+    monthly: getPlanLimit(String(plan), 'monthly')
   };
-  const limits = limitMap[String(plan)] || limitMap.free;
   // Load user prefs if available
   let prefs = { learnLang: 'tr', nativeLang: 'tr', voice: 'alloy', correction: 'gentle', scenarioId: null };
   try {

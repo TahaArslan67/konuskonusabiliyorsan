@@ -630,32 +630,39 @@ app.get('/api/debug/user', authRequired, async (req, res) => {
 // Kullanıcı bilgilerini getir
 app.get('/me', authRequired, async (req, res) => {
   try {
+    console.log(`[DEBUG] /me çağrısı - userId: ${req.auth.uid}`);
     // Kullanıcı bilgilerini al
     const user = await User.findById(req.auth.uid);
     if (!user) return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
-    
+
+    console.log(`[DEBUG] /me - user.usage mevcut değerler:`, JSON.stringify(user.usage, null, 2));
+
     // Kullanım sıfırlama kontrolleri
     const now = new Date();
     const lastReset = new Date(user.usage.lastReset);
     const monthlyReset = new Date(user.usage.monthlyResetAt);
-    
+
+    console.log(`[DEBUG] /me - zaman karşılaştırması: now=${now}, lastReset=${lastReset}, monthlyReset=${monthlyReset}`);
+
     // Günlük kullanımı sıfırla (eğer yeni bir gün başladıysa)
     if (now.toDateString() !== lastReset.toDateString()) {
       user.usage.dailyUsed = 0;
       user.usage.lastReset = now;
+      console.log(`[DEBUG] /me - günlük kullanım sıfırlandı`);
     }
-    
+
     // Aylık kullanımı sıfırla (eğer yeni bir ay başladıysa)
     if (now > monthlyReset) {
       user.usage.monthlyUsed = 0;
       user.usage.monthlyResetAt = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      console.log(`[DEBUG] /me - aylık kullanım sıfırlandı`);
     }
-    
+
     // Değişiklikleri kaydet
     await user.save();
-    
+
     // Kullanıcı bilgilerini döndür
-    return res.json({
+    const response = {
       user: {
         id: user._id,
         email: user.email,
@@ -680,7 +687,10 @@ app.get('/me', authRequired, async (req, res) => {
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       }
-    });
+    };
+
+    console.log(`[DEBUG] /me - döndürülen usage değerleri:`, JSON.stringify(response.user.usage, null, 2));
+    return res.json(response);
   } catch (error) {
     console.error('Kullanıcı bilgileri alınırken hata:', error);
     return res.status(500).json({ error: 'Sunucu hatası' });
@@ -2207,13 +2217,32 @@ app.post('/session/start', async (req, res) => {
     const d = String(now.getDate()).padStart(2, '0');
     const dateBucket = `${y}-${m}-${d}`;
     const monthBucket = `${y}-${m}`;
+
+    console.log(`[DEBUG] Session başlangıcında kullanım verilerini yüklüyor - userId: ${uid}, dateBucket: ${dateBucket}, monthBucket: ${monthBucket}`);
+
     const dailyDoc = await Usage.findOne({ userId: uid, dateBucket }).lean();
     const monthAgg = await Usage.aggregate([
       { $match: { userId: new mongoose.Types.ObjectId(uid), monthBucket } },
       { $group: { _id: null, minutes: { $sum: '$minutes' } } }
     ]);
+
     minutesUsedDaily = Number(dailyDoc?.minutes || 0);
     minutesUsedMonthly = Number(monthAgg?.[0]?.minutes || 0);
+
+    console.log(`[DEBUG] Usage collection'dan yüklenen değerler - daily: ${minutesUsedDaily}, monthly: ${minutesUsedMonthly}`);
+
+    // User.usage'yi de güncelle ki /me endpoint'i doğru değeri görsün
+    await User.findByIdAndUpdate(uid, {
+      $set: {
+        'usage.dailyUsed': minutesUsedDaily,
+        'usage.monthlyUsed': minutesUsedMonthly,
+        'usage.lastReset': now,
+        'usage.monthlyResetAt': new Date(now.getFullYear(), now.getMonth() + 1, 1)
+      }
+    });
+
+    console.log(`[DEBUG] User.usage de güncellendi - daily: ${minutesUsedDaily}, monthly: ${minutesUsedMonthly}`);
+
   } catch (e) {
     console.warn('[session] usage preload error:', e?.message || e);
   }
@@ -2300,8 +2329,21 @@ wss.on('connection', (clientWs, request) => {
           { userId: new mongoose.Types.ObjectId(sess.userId), dateBucket, monthBucket },
           { $inc: { minutes } },
           { upsert: true }
-        ).then(result => {
+        ).then(async (result) => {
           console.log(`[DEBUG] addUsageFromSeconds: veritabanı güncellemesi başarılı:`, result);
+
+          // User.usage'yi de güncelle ki /me endpoint'i doğru değeri görsün
+          try {
+            await User.findByIdAndUpdate(sess.userId, {
+              $inc: {
+                'usage.dailyUsed': minutes,
+                'usage.monthlyUsed': minutes
+              }
+            });
+            console.log(`[DEBUG] addUsageFromSeconds: User.usage de güncellendi - minutes: ${minutes}`);
+          } catch (userErr) {
+            console.error(`[DEBUG] addUsageFromSeconds: User.usage güncelleme hatası:`, userErr);
+          }
         }).catch(err => {
           console.error(`[DEBUG] addUsageFromSeconds: veritabanı güncellemesi hatası:`, err);
         });

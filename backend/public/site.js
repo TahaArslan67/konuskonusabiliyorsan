@@ -125,20 +125,21 @@ async function onPlanClick(e){
     return;
   }
 
-  // Plan downgrade için onay al
+  // Plan değişikliği mantığı - sadece Pro'dan Starter'a geçerken onay al
   console.log('📊 [site.js] Plan karşılaştırması yapılıyor...');
   const planHierarchy = { free: 0, starter: 1, pro: 2, enterprise: 3 };
   const currentLevel = planHierarchy[currentPlan] || 0;
   const newLevel = planHierarchy[plan] || 0;
   console.log('📊 [site.js] Plan seviyeleri:', { current: currentLevel, new: newLevel, isDowngrade: newLevel < currentLevel });
 
-  if (newLevel < currentLevel) {
-    console.log('⚠️ [site.js] DOWNGRADE TESPİT EDİLDİ - Onay dialog\'u gösteriliyor');
-    const confirmed = confirm(`Mevcut planınız: ${currentPlan.toUpperCase()}\nYeni plan: ${plan.toUpperCase()}\n\nDaha düşük bir plana geçiyorsunuz. Bu işlem kullanımdaki tüm limitleri sıfırlar. Emin misiniz?`);
+  // Sadece Pro'dan Starter'a geçerken onay al
+  if (currentPlan === 'pro' && plan === 'starter') {
+    console.log('⚠️ [site.js] PRO -> STARTER DOWNGRADE - Özel modal gösteriliyor');
+    const confirmed = await showPlanChangeModal(currentPlan, plan);
     console.log('✅ [site.js] Kullanıcı seçimi:', confirmed ? 'EVET' : 'HAYIR');
     if (!confirmed) return;
   } else {
-    console.log('✅ [site.js] UPGRADE veya AYNI PLAN - Onay gerekmiyor');
+    console.log('✅ [site.js] Direkt geçiş yapılıyor (modal gerekmiyor)');
   }
 
   // PayTR checkout session oluştur
@@ -163,8 +164,122 @@ async function onPlanClick(e){
     alert('Bağlantı hatası');
   }
 }
-document.querySelectorAll('[data-plan]')
-  .forEach(btn => btn.addEventListener('click', onPlanClick));
+// Plan değişikliği modal'ı oluştur
+function createPlanChangeModal(){
+  if (document.getElementById('planChangeModal')) return;
+
+  const modal = document.createElement('div');
+  modal.id = 'planChangeModal';
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(6px);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  `;
+
+  modal.innerHTML = `
+    <div class="card" style="max-width: 480px; width: 90%; margin: 20px; padding: 32px; text-align: center;">
+      <h3 style="margin: 0 0 16px; color: var(--text);">Plan Değişikliği</h3>
+      <div id="modalContent" style="margin-bottom: 24px; line-height: 1.5;">
+        <!-- İçerik buraya gelecek -->
+      </div>
+      <div class="row" style="gap: 12px; justify-content: center;">
+        <button id="modalCancel" class="btn btn-secondary" style="min-width: 100px;">İptal</button>
+        <button id="modalConfirm" class="btn btn-primary" style="min-width: 100px;">Evet, Değiştir</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Modal event listeners
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closePlanChangeModal();
+  });
+
+  document.getElementById('modalCancel').addEventListener('click', () => {
+    console.log('❌ [site.js] Kullanıcı İPTAL seçti');
+    closePlanChangeModal();
+  });
+
+  document.getElementById('modalConfirm').addEventListener('click', () => {
+    console.log('✅ [site.js] Kullanıcı EVET seçti');
+    closePlanChangeModal();
+    window.planChangeConfirmed = true;
+  });
+
+  // ESC ile kapatma
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.style.display === 'flex') {
+      closePlanChangeModal();
+    }
+  });
+}
+
+function showPlanChangeModal(currentPlan, targetPlan){
+  createPlanChangeModal();
+
+  const modal = document.getElementById('planChangeModal');
+  const content = document.getElementById('modalContent');
+
+  const planNames = {
+    'free': 'Ücretsiz',
+    'starter': 'Starter',
+    'pro': 'Pro'
+  };
+
+  content.innerHTML = `
+    <div style="color: var(--muted); margin-bottom: 8px;">
+      Mevcut planınız: <strong>${planNames[currentPlan]}</strong>
+    </div>
+    <div style="color: var(--text); margin-bottom: 16px;">
+      Yeni plan: <strong>${planNames[targetPlan]}</strong>
+    </div>
+    <div style="color: var(--danger, #ef4444); margin-bottom: 16px; padding: 12px; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border-left: 4px solid var(--danger, #ef4444);">
+      ⚠️ Daha düşük bir plana geçiyorsunuz. Bu işlem kullanımdaki tüm limitleri sıfırlar ve geri alınamaz.
+    </div>
+    <div style="color: var(--muted);">
+      Emin misiniz?
+    </div>
+  `;
+
+  modal.style.display = 'flex';
+  // Force reflow
+  modal.offsetHeight;
+  modal.style.opacity = '1';
+
+  return new Promise((resolve) => {
+    window.planChangeConfirmed = false;
+
+    const checkConfirmation = () => {
+      if (window.planChangeConfirmed) {
+        resolve(true);
+      } else {
+        setTimeout(checkConfirmation, 100);
+      }
+    };
+    checkConfirmation();
+  });
+}
+
+function closePlanChangeModal(){
+  const modal = document.getElementById('planChangeModal');
+  if (modal) {
+    modal.style.opacity = '0';
+    setTimeout(() => {
+      modal.style.display = 'none';
+    }, 300);
+  }
+}
 
 // Auth Modal
 const authModal = $('#authModal');

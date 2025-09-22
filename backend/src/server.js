@@ -658,6 +658,16 @@ app.get('/me', authRequired, async (req, res) => {
       console.log(`[DEBUG] /me - aylık kullanım sıfırlandı`);
     }
 
+    // Plan değişikliği sonrası kullanımları sıfırla
+    const planUpdatedAt = new Date(user.planUpdatedAt || 0);
+    if (planUpdatedAt > lastReset) {
+      console.log(`[DEBUG] /me - plan değişikliği tespit edildi (${user.plan}), kullanımlar sıfırlanıyor`);
+      user.usage.dailyUsed = 0;
+      user.usage.monthlyUsed = 0;
+      user.usage.lastReset = now;
+      user.usage.monthlyResetAt = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    }
+
     // Değişiklikleri kaydet
     await user.save();
 

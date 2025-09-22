@@ -73,23 +73,35 @@ function updateHeader(){
 
 // Plan butonları - güncellenmiş fonksiyon
 async function onPlanClick(e){
+  console.log('🔥 [site.js] onPlanClick çağrıldı!');
   const plan = e.currentTarget.getAttribute('data-plan');
+  console.log('📋 [site.js] Plan değeri:', plan);
   if (!plan) return;
   const token = getToken();
+  console.log('🔐 [site.js] Token var mı:', !!token);
   if (!token){ openAuth(); return; }
 
   // Kullanıcının mevcut planını al
   let currentPlan = 'free';
   try {
+    console.log('📡 [site.js] /me çağrısı yapılıyor...');
     const mr = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
+    console.log('📡 [site.js] /me yanıtı:', mr.status, mr.ok);
     if (mr.ok){
       const me = await mr.json();
+      console.log('📋 [site.js] /me verisi:', JSON.stringify(me, null, 2));
       currentPlan = me.user?.plan || 'free';
+      console.log('📊 [site.js] Mevcut plan:', currentPlan);
+    } else {
+      console.log('❌ [site.js] /me çağrısı başarısız:', mr.status);
     }
-  } catch {}
+  } catch (error) {
+    console.log('💥 [site.js] /me çağrısı hatası:', error.message);
+  }
 
   // Free plan için direkt geçiş yap
   if (plan === 'free') {
+    console.log('🎯 [site.js] FREE PLAN SEÇİLDİ - Direkt geçiş yapılıyor');
     try {
       const r = await fetch(`${backendBase}/api/update-plan`, {
         method: 'POST',
@@ -97,6 +109,8 @@ async function onPlanClick(e){
         body: JSON.stringify({ plan: 'free' })
       });
       const j = await r.json();
+      console.log('📡 [site.js] /api/update-plan yanıtı:', r.status, r.ok);
+      console.log('📋 [site.js] /api/update-plan verisi:', JSON.stringify(j, null, 2));
       if (r.ok) {
         alert('Free plana geçiş yapıldı! 🎉');
         updateHeader();
@@ -105,22 +119,30 @@ async function onPlanClick(e){
         alert(j?.error || 'Free plana geçiş yapılamadı');
       }
     } catch (error) {
+      console.log('💥 [site.js] Free plan geçiş hatası:', error.message);
       alert('Bağlantı hatası');
     }
     return;
   }
 
   // Plan downgrade için onay al
+  console.log('📊 [site.js] Plan karşılaştırması yapılıyor...');
   const planHierarchy = { free: 0, starter: 1, pro: 2, enterprise: 3 };
   const currentLevel = planHierarchy[currentPlan] || 0;
   const newLevel = planHierarchy[plan] || 0;
+  console.log('📊 [site.js] Plan seviyeleri:', { current: currentLevel, new: newLevel, isDowngrade: newLevel < currentLevel });
 
   if (newLevel < currentLevel) {
+    console.log('⚠️ [site.js] DOWNGRADE TESPİT EDİLDİ - Onay dialog\'u gösteriliyor');
     const confirmed = confirm(`Mevcut planınız: ${currentPlan.toUpperCase()}\nYeni plan: ${plan.toUpperCase()}\n\nDaha düşük bir plana geçiyorsunuz. Bu işlem kullanımdaki tüm limitleri sıfırlar. Emin misiniz?`);
+    console.log('✅ [site.js] Kullanıcı seçimi:', confirmed ? 'EVET' : 'HAYIR');
     if (!confirmed) return;
+  } else {
+    console.log('✅ [site.js] UPGRADE veya AYNI PLAN - Onay gerekmiyor');
   }
 
   // PayTR checkout session oluştur
+  console.log('🚀 [site.js] PayTR checkout çağrısı yapılıyor...');
   try {
     const r = await fetch(`${backendBase}/api/paytr/checkout`, {
       method: 'POST',
@@ -128,12 +150,16 @@ async function onPlanClick(e){
       body: JSON.stringify({ plan })
     });
     const j = await r.json();
+    console.log('📡 [site.js] PayTR yanıtı:', r.status, r.ok);
+    console.log('📋 [site.js] PayTR verisi:', JSON.stringify(j, null, 2));
     if (j?.iframe_url){
+      console.log('🔗 [site.js] Ödeme sayfasına yönlendirme:', j.iframe_url);
       window.location.href = j.iframe_url;
       return;
     }
     alert(j?.error || 'Ödeme başlatılamadı');
   } catch (error) {
+    console.log('💥 [site.js] PayTR çağrısı hatası:', error.message);
     alert('Bağlantı hatası');
   }
 }

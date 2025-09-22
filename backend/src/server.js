@@ -144,14 +144,17 @@ function buildPersonaInstruction(learnLang = 'en', nativeLang = 'tr', correction
   // Get scenario persona prompt
   const scenarioPrompt = getScenarioPersonaPrompt(scenarioId);
   const scenarioPart = scenarioPrompt ? ` ${scenarioPrompt}` : '';
-
+  console.log('[DEBUG] ===== SENARYO DEBUG =====');
+  console.log('[DEBUG] scenarioId:', scenarioId);
+  console.log('[DEBUG] scenarioPrompt:', scenarioPrompt);
+  console.log('[DEBUG] scenarioPart:', scenarioPart);
+  console.log('[DEBUG] scenarios.size:', scenarios.size);
+  console.log('[DEBUG] scenarios.has(airport):', scenarios.has('airport'));
+  console.log('[DEBUG] =======================');
   const pacing = 'Konuşma hızını biraz yavaş tut. 1-2 kısa cümleyle konuş. Kullanıcıyı konuşturan kısa sorular sor.';
   const levelInstruction = userLevel ? ` Kullanıcının dil seviyesi: ${userLevel}. Bu seviyeye uygun kelimeler, dilbilgisi yapıları ve konuşma hızı kullan.` : '';
   const fullPersona = `Markaya özel dil koçu asistan ("konuskonusabilirsen"). Kullanıcının ana dili: ${nativeName}. Öğrenilen dil: ${learnName}. ${tone} ${convo} ${langPolicy} ${lengthPolicy} ${format} ${fixStyle} ${gentleLimits} ${safety} ${pacing}${scenarioPart}${levelInstruction}`;
   console.log('[DEBUG] Full persona length:', fullPersona.length);
-  console.log('[DEBUG] scenarioPart:', scenarioPart);
-  console.log('[DEBUG] scenarioId:', scenarioId);
-  console.log('[DEBUG] scenarioPrompt:', scenarioPrompt);
   return fullPersona;
 }
 
@@ -895,9 +898,13 @@ import { fileURLToPath } from 'url';
 import { Analytics } from './models.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const publicDir = path.join(__dirname, '..', 'public');
 // Load scenarios from filesystem (src/scenarios/*.json)
 const scenarios = new Map();
+console.log('🚀 SERVER BAŞLADI - DEBUG MODU AKTİF');
+console.log('📁 Scenarios klasörü kontrol ediliyor...');
+console.log('📂 __dirname:', __dirname);
+console.log('📂 scenariosDir:', path.join(__dirname, 'scenarios'));
+console.log('📂 Klasör var mı?', fs.existsSync(path.join(__dirname, 'scenarios')) ? 'EVET' : 'HAYIR');
 function loadScenarios(){
   try {
     console.log('[DEBUG] loadScenarios çağrıldı');

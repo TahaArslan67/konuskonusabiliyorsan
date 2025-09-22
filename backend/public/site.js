@@ -125,16 +125,43 @@ async function onPlanClick(e){
     return;
   }
 
-  // Plan değişikliği mantığı - sadece Pro'dan Starter'a geçerken onay al
+  // Free plan için direkt geçiş yap
+  if (plan === 'free') {
+    console.log('🎯 [site.js] FREE PLAN SEÇİLDİ - Direkt geçiş yapılıyor');
+    try {
+      const r = await fetch(`${backendBase}/api/update-plan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ plan: 'free' })
+      });
+      const j = await r.json();
+      console.log('📡 [site.js] /api/update-plan yanıtı:', r.status, r.ok);
+      console.log('📋 [site.js] /api/update-plan verisi:', JSON.stringify(j, null, 2));
+      if (r.ok) {
+        alert('Free plana geçiş yapıldı! 🎉');
+        updateHeader();
+        window.location.reload();
+      } else {
+        alert(j?.error || 'Free plana geçiş yapılamadı');
+      }
+    } catch (error) {
+      console.log('💥 [site.js] Free plan geçiş hatası:', error.message);
+      alert('Bağlantı hatası');
+    }
+    return;
+  }
+
+  // Plan değişikliği mantığı - sadece Pro'dan alt planlara geçerken onay al
   console.log('📊 [site.js] Plan karşılaştırması yapılıyor...');
   const planHierarchy = { free: 0, starter: 1, pro: 2, enterprise: 3 };
   const currentLevel = planHierarchy[currentPlan] || 0;
   const newLevel = planHierarchy[plan] || 0;
   console.log('📊 [site.js] Plan seviyeleri:', { current: currentLevel, new: newLevel, isDowngrade: newLevel < currentLevel });
 
-  // Sadece Pro'dan Starter'a geçerken onay al
-  if (currentPlan === 'pro' && plan === 'starter') {
-    console.log('⚠️ [site.js] PRO -> STARTER DOWNGRADE - Özel modal gösteriliyor');
+  // Pro'dan alt planlara geçerken onay al
+  if (currentPlan === 'pro' && newLevel < currentLevel) {
+    const planNames = { 'free': 'Ücretsiz', 'starter': 'Starter', 'pro': 'Pro' };
+    console.log(`⚠️ [site.js] PRO -> ${plan.toUpperCase()} DOWNGRADE - Özel modal gösteriliyor`);
     const confirmed = await showPlanChangeModal(currentPlan, plan);
     console.log('✅ [site.js] Kullanıcı seçimi:', confirmed ? 'EVET' : 'HAYIR');
     if (!confirmed) return;

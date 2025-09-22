@@ -1018,33 +1018,54 @@ async function wsConnect(){
 
 async function wsStop(){
   try {
-    log('WebSocket bağlantısı kapatılıyor...');
+    log('🔴 WebSocket bağlantısı kapatılıyor...');
 
     // 1) Mikrofonu hemen kapat
     wsMicOff();
 
-    // 2) WebSocket'e stop mesajı gönder
+    // 2) WebSocket'e session kapatma mesajı gönder (OpenAI Realtime API için)
     wsForceSilence = true;
     if (ws && ws.readyState === WebSocket.OPEN) {
       try {
+        // OpenAI Realtime API'si için session kapatma mesajı
+        ws.send(JSON.stringify({
+          type: 'session.update',
+          session: {
+            turn_detection: null, // Turn detection'ı kapat
+            tools: [],
+            tool_choice: 'none',
+            temperature: 0.8,
+            max_response_output_tokens: 0
+          }
+        }));
+        log('Session kapatma mesajı gönderildi');
+
+        // Kısa bir gecikme verip sonra bağlantıyı kapat
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         ws.send(JSON.stringify({ type: 'stop' }));
         log('Stop mesajı gönderildi');
       } catch (e) {
-        log('Stop mesajı gönderilemedi: ' + (e.message || e));
+        log('Session kapatma mesajı gönderilemedi: ' + (e.message || e));
       }
     }
 
-    // 3) WebSocket bağlantısını kapat (eğer açık ise)
+    // 3) WebSocket bağlantısını kapat
     if (ws) {
       try {
-        // Önce close event listener'ını temizle
+        // Önce event listener'larını temizle
         ws.onclose = null;
         ws.onerror = null;
         ws.onmessage = null;
+        ws.onopen = null;
 
+        // Bağlantıyı kapat (eğer açık veya bağlanıyor durumda ise)
         if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-          ws.close(1000, 'User initiated stop'); // Normal kapatma
+          ws.close(1000, 'User initiated stop'); // Normal kapatma kodu
           log('WebSocket close çağrıldı');
+        } else {
+          // Bağlantı zaten kapalı veya kapanıyor durumda
+          log(`WebSocket zaten ${ws.readyState === WebSocket.CLOSED ? 'kapalı' : 'kapanıyor'} durumda`);
         }
       } catch (e) {
         log('WebSocket kapatma hatası: ' + (e.message || e));
@@ -1108,7 +1129,18 @@ async function wsStop(){
       log('Remote audio temizleme hatası: ' + (e.message || e));
     }
 
-    // 6) Kota bilgilerini güncelle (bağlantı kapatıldıktan sonra)
+    // 6) UI durumunu güncelle
+    updateStatus();
+    try {
+      const btnStart = document.getElementById('btnStartTalk');
+      const btnStop = document.getElementById('btnStopTalk');
+      if (btnStart) btnStart.disabled = false;
+      if (btnStop) btnStop.disabled = true;
+    } catch (e) {
+      log('UI güncelleme hatası: ' + (e.message || e));
+    }
+
+    // 7) Kota bilgilerini güncelle (bağlantı kapatıldıktan sonra)
     try {
       const token = localStorage.getItem('hk_token');
       if (token){
@@ -1128,9 +1160,6 @@ async function wsStop(){
     } catch (e) {
       log('wsStop kota güncelleme hatası: ' + (e.message || e));
     }
-
-    // Debug fonksiyonunu global olarak erişilebilir yap
-    window.debugUpdateUsage = debugUpdateUsage;
 
     log('🔴 WebSocket bağlantısı tamamen kapatıldı');
   } catch (e) {

@@ -444,9 +444,9 @@ function authRequired(req, res, next){
 // Plan limitlerini döndüren yardımcı fonksiyon
 function getPlanLimit(plan, type) {
   const limits = {
-    free: { daily: 3, monthly: 30 },
-    starter: { daily: 15, monthly: 399 },
-    pro: { daily: 60, monthly: 999 },
+    free: { daily: 3, monthly: 10 },
+    starter: { daily: 15, monthly: 450 },
+    pro: { daily: 60, monthly: 1800 },
     enterprise: { daily: 1000, monthly: 30000 }
   };
   return (limits[plan] && limits[plan][type]) || limits.free[type];

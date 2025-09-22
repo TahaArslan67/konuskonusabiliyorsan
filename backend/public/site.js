@@ -71,24 +71,71 @@ function updateHeader(){
   }
 }
 
-// Abonelik plan butonları (placeholder)
-function onPlanClick(e){
+// Plan butonları - güncellenmiş fonksiyon
+async function onPlanClick(e){
   const plan = e.currentTarget.getAttribute('data-plan');
   if (!plan) return;
   const token = getToken();
   if (!token){ openAuth(); return; }
-  // Call backend to create PayTR checkout session
-  fetch(`${backendBase}/api/paytr/checkout`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ plan })
-  })
-  .then(r => r.json())
-  .then(j => {
-    if (j?.iframe_url){ window.location.href = j.iframe_url; return; }
+
+  // Kullanıcının mevcut planını al
+  let currentPlan = 'free';
+  try {
+    const mr = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
+    if (mr.ok){
+      const me = await mr.json();
+      currentPlan = me.user?.plan || 'free';
+    }
+  } catch {}
+
+  // Free plan için direkt geçiş yap
+  if (plan === 'free') {
+    try {
+      const r = await fetch(`${backendBase}/api/update-plan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ plan: 'free' })
+      });
+      const j = await r.json();
+      if (r.ok) {
+        alert('Free plana geçiş yapıldı! 🎉');
+        updateHeader();
+        window.location.reload();
+      } else {
+        alert(j?.error || 'Free plana geçiş yapılamadı');
+      }
+    } catch (error) {
+      alert('Bağlantı hatası');
+    }
+    return;
+  }
+
+  // Plan downgrade için onay al
+  const planHierarchy = { free: 0, starter: 1, pro: 2, enterprise: 3 };
+  const currentLevel = planHierarchy[currentPlan] || 0;
+  const newLevel = planHierarchy[plan] || 0;
+
+  if (newLevel < currentLevel) {
+    const confirmed = confirm(`Mevcut planınız: ${currentPlan.toUpperCase()}\nYeni plan: ${plan.toUpperCase()}\n\nDaha düşük bir plana geçiyorsunuz. Bu işlem kullanımdaki tüm limitleri sıfırlar. Emin misiniz?`);
+    if (!confirmed) return;
+  }
+
+  // PayTR checkout session oluştur
+  try {
+    const r = await fetch(`${backendBase}/api/paytr/checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ plan })
+    });
+    const j = await r.json();
+    if (j?.iframe_url){
+      window.location.href = j.iframe_url;
+      return;
+    }
     alert(j?.error || 'Ödeme başlatılamadı');
-  })
-  .catch(() => alert('Bağlantı hatası'));
+  } catch (error) {
+    alert('Bağlantı hatası');
+  }
 }
 document.querySelectorAll('[data-plan]')
   .forEach(btn => btn.addEventListener('click', onPlanClick));

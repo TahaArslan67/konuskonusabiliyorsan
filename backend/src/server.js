@@ -2591,7 +2591,7 @@ wss.on('connection', (clientWs, request) => {
           input_audio_format: 'pcm16',
           output_audio_format: 'pcm16',
           voice: voicePref,
-          temperature: 0.2,
+          temperature: 0.6,
           input_audio_transcription: { language: nlang, model: 'whisper-1' },
           max_response_output_tokens: 20,
           turn_detection: {
@@ -2644,7 +2644,7 @@ wss.on('connection', (clientWs, request) => {
           },
           input_audio_transcription: { language: lang, model: 'whisper-1' },
           instructions: persona,
-          temperature: 0.1,
+          temperature: 0.6,
         },
       };
       openaiWs.send(JSON.stringify(sessionUpdate));
@@ -2758,8 +2758,19 @@ wss.on('connection', (clientWs, request) => {
       if (t === 'session.update' && obj?.session && typeof obj.session === 'object') {
         // Forward session updates (e.g., voice changes) to OpenAI
         try {
-          openaiWs.send(JSON.stringify({ type: 'session.update', session: obj.session }));
-          console.log('[proxy] forwarded session.update', JSON.stringify(obj.session));
+          // Ensure required parameters are present for OpenAI API
+          const sessionUpdate = { ...obj.session };
+          if (sessionUpdate.input_audio_transcription && !sessionUpdate.input_audio_transcription.model) {
+            sessionUpdate.input_audio_transcription.model = 'whisper-1';
+          }
+          if (sessionUpdate.input_audio_transcription && !sessionUpdate.input_audio_transcription.language) {
+            sessionUpdate.input_audio_transcription.language = (sess?.prefs?.nativeLang || 'tr').toLowerCase();
+          }
+          if (!sessionUpdate.temperature) {
+            sessionUpdate.temperature = 0.6;
+          }
+          openaiWs.send(JSON.stringify({ type: 'session.update', session: sessionUpdate }));
+          console.log('[proxy] forwarded session.update', JSON.stringify(sessionUpdate));
         } catch (e) {
           console.error('[proxy] error forwarding session.update:', e);
         }
@@ -2788,7 +2799,7 @@ wss.on('connection', (clientWs, request) => {
           }
           const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText);
           // Push updated session settings (voice/language hints) and a fresh system message
-          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, input_audio_transcription: { language: nlang, model: 'whisper-1' }, instructions: persona, temperature: 0.2 } }));
+          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, input_audio_transcription: { language: nlang, model: 'whisper-1' }, instructions: persona, temperature: 0.6 } }));
           // Extra system persona item gereksiz; tekrarı kaldırdık
           console.log('[proxy] updated prefs via set_prefs');
         } catch (e) {

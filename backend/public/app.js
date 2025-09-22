@@ -450,7 +450,7 @@ if (voiceSelect){
     const voice = voiceSelect.value || 'alloy';
     try {
       if (ws && ws.readyState === WebSocket.OPEN){
-        ws.send(JSON.stringify({ type: 'session.update', session: { voice } }));
+        ws.send(JSON.stringify({ type: 'session.update', session: { voice, temperature: 0.6 } }));
         sendPrefsToWs();
         log(`Ses tonu: ${voice}`);
       } else {
@@ -845,7 +845,7 @@ async function wsConnect(){
         const voiceSel = document.getElementById('voiceSelect');
         const voice = voiceSel && voiceSel.value ? voiceSel.value : 'alloy';
         if (voice){
-          ws.send(JSON.stringify({ type: 'session.update', session: { voice } }));
+          ws.send(JSON.stringify({ type: 'session.update', session: { voice, temperature: 0.6 } }));
           log(`Ses tonu ayarlandı: ${voice}`);
         }
         // Also push language and correction preferences immediately
@@ -1051,7 +1051,7 @@ async function wsStop(){
             turn_detection: null, // Turn detection'ı kapat
             tools: [],
             tool_choice: 'none',
-            temperature: 0.8,
+            temperature: 0.6,
             max_response_output_tokens: 0
           }
         }));

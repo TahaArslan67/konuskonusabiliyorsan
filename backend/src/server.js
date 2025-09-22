@@ -722,6 +722,60 @@ app.get('/me', authRequired, async (req, res) => {
   }
 });
 
+// Kullanıcı bilgilerini güncelle (PATCH /me)
+app.patch('/me', authRequired, async (req, res) => {
+  try {
+    const allowedFields = ['preferredVoice', 'preferredCorrectionMode', 'preferredLearningLanguage', 'preferredNativeLanguage', 'placementLevel'];
+    const updates = {};
+
+    // Sadece izin verilen alanları güncelle
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        if (typeof req.body[field] === 'string') {
+          updates[field] = req.body[field];
+        }
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'no_updates' });
+    }
+
+    const userDoc = await User.findByIdAndUpdate(req.auth.uid, updates, { new: true });
+    if (!userDoc) return res.status(404).json({ error: 'not_found' });
+
+    return res.json({
+      ok: true,
+      user: {
+        id: userDoc._id,
+        email: userDoc.email,
+        emailVerified: userDoc.emailVerified,
+        plan: userDoc.plan || 'free',
+        planUpdatedAt: userDoc.planUpdatedAt,
+        usage: {
+          dailyUsed: userDoc.usage?.dailyUsed || 0,
+          dailyLimit: userDoc.usage?.dailyLimit || getPlanLimit(userDoc.plan || 'free', 'daily'),
+          monthlyUsed: userDoc.usage?.monthlyUsed || 0,
+          monthlyLimit: userDoc.usage?.monthlyLimit || getPlanLimit(userDoc.plan || 'free', 'monthly'),
+          lastReset: userDoc.usage?.lastReset,
+          monthlyResetAt: userDoc.usage?.monthlyResetAt
+        },
+        preferredVoice: userDoc.preferredVoice,
+        preferredCorrectionMode: userDoc.preferredCorrectionMode || 'gentle',
+        preferredLearningLanguage: userDoc.preferredLearningLanguage || 'en',
+        preferredNativeLanguage: userDoc.preferredNativeLanguage || 'tr',
+        placementLevel: userDoc.placementLevel,
+        placementCompletedAt: userDoc.placementCompletedAt,
+        createdAt: userDoc.createdAt,
+        updatedAt: userDoc.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Kullanıcı güncelleme hatası:', error);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
 // Kullanım takibi için endpoint
 app.post('/api/track-usage', authRequired, async (req, res) => {
   try {

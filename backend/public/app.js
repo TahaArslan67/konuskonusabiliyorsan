@@ -433,16 +433,20 @@ async function changePlan(targetPlan) {
 
 function sendPrefsToWs(){
   try{
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      console.log('[CLIENT] WebSocket kapalı, sendPrefsToWs atlanıyor');
+      return;
+    }
     const voice = voiceSelect && voiceSelect.value ? voiceSelect.value : 'alloy';
     const learnLang = learnLangSelect && learnLangSelect.value ? learnLangSelect.value : 'tr';
     const nativeLang = nativeLangSelect && nativeLangSelect.value ? nativeLangSelect.value : 'tr';
     const correction = corrSelect && corrSelect.value ? corrSelect.value : 'gentle';
     const scenarioId = scenarioSelect && scenarioSelect.value ? scenarioSelect.value : '';
     const payload = { type: 'set_prefs', prefs: { voice, learnLang, nativeLang, correction, scenarioId } };
+    console.log('[CLIENT] sendPrefsToWs çağrıldı:', JSON.stringify(payload, null, 2));
     ws.send(JSON.stringify(payload));
     log(`Tercihler güncellendi: voice=${voice}, learn=${learnLang}, native=${nativeLang}, corr=${correction}, scenario=${scenarioId||'-'}`);
-  } catch(e){ log('Tercih gönderim hatası: '+(e.message||e)); }
+  } catch(e){ log('Tercih gönderim hatası: '+(e.message||e)); console.error('[CLIENT] sendPrefsToWs hatası:', e); }
 }
 
 if (voiceSelect){
@@ -542,6 +546,8 @@ try{
 
 if (scenarioSelect){
   scenarioSelect.addEventListener('change', async () => {
+    console.log('[CLIENT] scenarioSelect change event tetiklendi');
+    console.log('[CLIENT] scenarioSelect.value:', scenarioSelect.value);
     // Not persisted to /me/preferences; scenario is a runtime-only preference
     sendPrefsToWs();
   });

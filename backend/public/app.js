@@ -1033,6 +1033,7 @@ async function wsConnect(){
 async function wsStop(){
   try {
     log('🔴 WebSocket bağlantısı kapatılıyor...');
+    console.log('[wsStop] WebSocket state:', ws ? ws.readyState : 'null');
 
     // 1) Mikrofonu hemen kapat
     wsMicOff();
@@ -1053,15 +1054,21 @@ async function wsStop(){
           }
         }));
         log('Session kapatma mesajı gönderildi');
+        console.log('[wsStop] Session kapatma mesajı gönderildi');
 
         // Kısa bir gecikme verip sonra bağlantıyı kapat
         await new Promise(resolve => setTimeout(resolve, 500));
+        console.log('[wsStop] 500ms bekleme tamamlandı');
 
         ws.send(JSON.stringify({ type: 'stop' }));
         log('Stop mesajı gönderildi');
+        console.log('[wsStop] Stop mesajı gönderildi');
       } catch (e) {
         log('Session kapatma mesajı gönderilemedi: ' + (e.message || e));
+        console.error('[wsStop] Session kapatma mesajı hatası:', e);
       }
+    } else {
+      console.log('[wsStop] WebSocket açık değil, state:', ws ? ws.readyState : 'null');
     }
 
     // 3) WebSocket bağlantısını kapat
@@ -1077,13 +1084,18 @@ async function wsStop(){
         if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
           ws.close(1000, 'User initiated stop'); // Normal kapatma kodu
           log('WebSocket close çağrıldı');
+          console.log('[wsStop] WebSocket close çağrıldı');
         } else {
           // Bağlantı zaten kapalı veya kapanıyor durumda
           log(`WebSocket zaten ${ws.readyState === WebSocket.CLOSED ? 'kapalı' : 'kapanıyor'} durumda`);
+          console.log('[wsStop] WebSocket zaten kapalı/kapanıyor durumda:', ws.readyState);
         }
       } catch (e) {
         log('WebSocket kapatma hatası: ' + (e.message || e));
+        console.error('[wsStop] WebSocket kapatma hatası:', e);
       }
+    } else {
+      console.log('[wsStop] ws değişkeni null');
     }
 
     // 4) Tüm state'leri reset et (eşzamanlı olarak)
@@ -1104,8 +1116,10 @@ async function wsStop(){
         clearInterval(window.__hk_usage_interval);
         window.__hk_usage_interval = null;
       }
+      console.log('[wsStop] Tüm state\'ler reset edildi');
     } catch (e) {
       log('State reset hatası: ' + (e.message || e));
+      console.error('[wsStop] State reset hatası:', e);
     }
 
     // 5) Ses bileşenlerini temizle
@@ -1116,6 +1130,7 @@ async function wsStop(){
       }
     } catch (e) {
       log('Playback source temizleme hatası: ' + (e.message || e));
+      console.error('[wsStop] Playback source temizleme hatası:', e);
     }
 
     try {
@@ -1124,6 +1139,7 @@ async function wsStop(){
       }
     } catch (e) {
       log('Playback context temizleme hatası: ' + (e.message || e));
+      console.error('[wsStop] Playback context temizleme hatası:', e);
     }
 
     try {
@@ -1131,6 +1147,7 @@ async function wsStop(){
       wsAudioChunks = [];
     } catch (e) {
       log('Visualization temizleme hatası: ' + (e.message || e));
+      console.error('[wsStop] Visualization temizleme hatası:', e);
     }
 
     try {
@@ -1141,6 +1158,7 @@ async function wsStop(){
       }
     } catch (e) {
       log('Remote audio temizleme hatası: ' + (e.message || e));
+      console.error('[wsStop] Remote audio temizleme hatası:', e);
     }
 
     // 6) UI durumunu güncelle
@@ -1152,6 +1170,7 @@ async function wsStop(){
       if (btnStop) btnStop.disabled = true;
     } catch (e) {
       log('UI güncelleme hatası: ' + (e.message || e));
+      console.error('[wsStop] UI güncelleme hatası:', e);
     }
 
     // 7) Kota bilgilerini güncelle (bağlantı kapatıldıktan sonra)
@@ -1168,16 +1187,20 @@ async function wsStop(){
             if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
             if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
             log(`Bağlantı kapatıldıktan sonra kota güncellendi: Günlük ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk, Aylık ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`);
+            console.log('[wsStop] Kota güncellendi');
           }
         }
       }
     } catch (e) {
       log('wsStop kota güncelleme hatası: ' + (e.message || e));
+      console.error('[wsStop] Kota güncelleme hatası:', e);
     }
 
     log('🔴 WebSocket bağlantısı tamamen kapatıldı');
+    console.log('[wsStop] Tamamen kapatıldı');
   } catch (e) {
     log('wsStop genel hatası: ' + (e.message || e));
+    console.error('[wsStop] Genel hata:', e);
   }
 }
 
@@ -1185,14 +1208,16 @@ async function wsMicOn(){
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
   try {
     await wsStartMic();
-    $('#btnWsMicOn').disabled = true; $('#btnWsMicOff').disabled = false;
+    try { const btn = $('#btnWsMicOn'); if (btn) btn.disabled = true; } catch {}
+    try { const btn = $('#btnWsMicOff'); if (btn) btn.disabled = false; } catch {}
     updateStatus();
   } catch (e){ log('WS mic error: '+(e.message||e)); }
 }
 
 function wsMicOff(){
   wsStopMic();
-  $('#btnWsMicOn').disabled = false; $('#btnWsMicOff').disabled = true;
+  try { const btn = $('#btnWsMicOn'); if (btn) btn.disabled = false; } catch {}
+  try { const btn = $('#btnWsMicOff'); if (btn) btn.disabled = true; } catch {}
   updateStatus();
   const btnToggleMic = document.getElementById('btnToggleMic');
   if (btnToggleMic){ btnToggleMic.textContent = 'Mikrofon Aç'; micToggleOn = false; }
@@ -1513,10 +1538,13 @@ if (btnStopTalk){
 
       // WebSocket bağlantısını durdur
       console.log('[APP] wsStop çağrılıyor...');
-      await wsStop().catch(e => {
+      try {
+        await wsStop();
+        console.log('[APP] wsStop başarıyla tamamlandı');
+      } catch (e) {
         console.error('[APP] wsStop hatası:', e);
         log('wsStop hatası: ' + (e.message || e));
-      });
+      }
 
       // Kota güncelleme interval'ini temizle
       if (window.__hk_usage_interval) {

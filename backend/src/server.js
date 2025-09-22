@@ -1169,22 +1169,34 @@ app.post('/admin/set-plan', authRequired, async (req, res) => {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // Plan değişikliğinde usage'ı sıfırla
+    // Tüm güncellemeleri bir seferde yap
+    const updateData = {
+      $set: {
+        plan: plan,
+        planUpdatedAt: now,
+        'usage.dailyLimit': dailyLimit,
+        'usage.monthlyLimit': monthlyLimit,
+        'usage.lastReset': now,
+        'usage.monthlyResetAt': startOfMonth
+      }
+    };
+
+    // Plan değişikliğinde usage'ı da sıfırla
     if (isPlanChange) {
       console.log(`[admin/set-plan] Plan değişti, usage sıfırlanıyor`);
-      userDoc.usage.dailyUsed = 0;
-      userDoc.usage.monthlyUsed = 0;
-      userDoc.usage.lastReset = now;
-      userDoc.usage.monthlyResetAt = startOfMonth;
+      updateData.$set['usage.dailyUsed'] = 0;
+      updateData.$set['usage.monthlyUsed'] = 0;
     }
 
-    // Plan ve limitleri güncelle
-    userDoc.plan = plan;
-    userDoc.planUpdatedAt = now;
-    userDoc.usage.dailyLimit = dailyLimit;
-    userDoc.usage.monthlyLimit = monthlyLimit;
+    console.log(`[admin/set-plan] Update data:`, JSON.stringify(updateData, null, 2));
 
-    await userDoc.save();
+    const updatedUser = await User.findByIdAndUpdate(user._id, updateData, { new: true, runValidators: true });
+
+    if (!updatedUser) {
+      throw new Error('Kullanıcı güncellenemedi');
+    }
+
+    console.log(`[admin/set-plan] Kullanıcı güncellendi, plan: ${updatedUser.plan}, usage:`, JSON.stringify(updatedUser.usage, null, 2));
 
     await Subscription.findOneAndUpdate(
       { userId: user._id, plan },

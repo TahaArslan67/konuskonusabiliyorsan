@@ -122,7 +122,7 @@ async function populateLearnLang(){
   // default from /me
   try {
     const me = await apiFetch('/me');
-    const code = me?.preferredLearningLanguage || 'tr';
+    const code = me?.preferredNativeLanguage || 'tr'; // preferredNativeLanguage'dan al
     const opt = Array.from(learnLangSelect.options).find(o => o.value === code);
     if (opt) opt.selected = true; else learnLangSelect.value = 'tr';
   } catch (error) {
@@ -144,15 +144,15 @@ async function persistLearnLangIfChanged(){
     if (!code) {
       throw new Error('Lütfen hedef dili seçin');
     }
-    
+
     try {
       const me = await apiFetch('/me');
-      const current = me?.preferredLearningLanguage || null;
-      
+      const current = me?.preferredNativeLanguage || null; // preferredNativeLanguage olarak kaydet
+
       if (current !== code) {
         await apiFetch('/me/preferences', {
           method: 'PATCH',
-          body: JSON.stringify({ preferredLearningLanguage: code })
+          body: JSON.stringify({ preferredNativeLanguage: code }) // preferredNativeLanguage olarak kaydet
         });
       }
     } catch (error) {
@@ -161,7 +161,7 @@ async function persistLearnLangIfChanged(){
       }
     }
   } catch (error) {
-    console.error('Failed to save language preference:', error);
+    console.error('Failed to save native language preference:', error);
     throw error;
   }
 }
@@ -241,7 +241,7 @@ if (learnLangSelect){
       if (token){
         await apiFetch('/me/preferences', {
           method: 'PATCH',
-          body: JSON.stringify({ preferredLearningLanguage: code })
+          body: JSON.stringify({ preferredNativeLanguage: code }) // preferredNativeLanguage olarak kaydet
         });
       }
     }catch{}

@@ -2277,11 +2277,14 @@ wss.on('connection', (clientWs, request) => {
   } catch {}
   // Safely add usage and persist + trigger gamification
   function addUsageFromSeconds(seconds){
+    console.log(`[DEBUG] addUsageFromSeconds çağrıldı! seconds: ${seconds}, sess:`, sess ? 'var' : 'yok');
     try {
       const minutes = seconds / 60;
+      console.log(`[DEBUG] addUsageFromSeconds: minutes: ${minutes}, sess.minutesUsedDaily: ${sess?.minutesUsedDaily}, sess.minutesUsedMonthly: ${sess?.minutesUsedMonthly}`);
       if (!sess || !minutes || minutes <= 0) return { over:false, usedDaily: sess?.minutesUsedDaily||0, usedMonthly: sess?.minutesUsedMonthly||0, limits: sess?.limits };
       sess.minutesUsedDaily = (sess.minutesUsedDaily || 0) + minutes;
       sess.minutesUsedMonthly = (sess.minutesUsedMonthly || 0) + minutes;
+      console.log(`[DEBUG] addUsageFromSeconds: güncellendi - daily: ${sess.minutesUsedDaily}, monthly: ${sess.minutesUsedMonthly}`);
       const dOver = sess.minutesUsedDaily >= (sess.limits?.daily ?? Infinity);
       const mOver = sess.minutesUsedMonthly >= (sess.limits?.monthly ?? Infinity);
       // Persist usage aggregates (fire-and-forget)
@@ -2292,12 +2295,19 @@ wss.on('connection', (clientWs, request) => {
         const d = String(now.getDate()).padStart(2, '0');
         const dateBucket = `${y}-${mth}-${d}`;
         const monthBucket = `${y}-${mth}`;
+        console.log(`[DEBUG] addUsageFromSeconds: veritabanına kaydetmeye çalışıyor - userId: ${sess.userId}, dateBucket: ${dateBucket}, minutes: ${minutes}`);
         Usage.updateOne(
           { userId: new mongoose.Types.ObjectId(sess.userId), dateBucket, monthBucket },
           { $inc: { minutes } },
           { upsert: true }
-        ).catch(()=>{});
-      } catch {}
+        ).then(result => {
+          console.log(`[DEBUG] addUsageFromSeconds: veritabanı güncellemesi başarılı:`, result);
+        }).catch(err => {
+          console.error(`[DEBUG] addUsageFromSeconds: veritabanı güncellemesi hatası:`, err);
+        });
+      } catch (dbErr) {
+        console.error(`[DEBUG] addUsageFromSeconds: veritabanı hatası:`, dbErr);
+      }
       // Gamification hooks (best-effort)
       try {
         const now = new Date();
@@ -2348,7 +2358,8 @@ wss.on('connection', (clientWs, request) => {
         })();
       } catch {}
       return { over: dOver || mOver, dOver, mOver, usedDaily: sess.minutesUsedDaily, usedMonthly: sess.minutesUsedMonthly, limits: sess.limits };
-    } catch {
+    } catch (err) {
+      console.error(`[DEBUG] addUsageFromSeconds hatası:`, err);
       return { over:false, usedDaily: sess?.minutesUsedDaily||0, usedMonthly: sess?.minutesUsedMonthly||0, limits: sess?.limits };
     }
   }
@@ -2519,15 +2530,17 @@ wss.on('connection', (clientWs, request) => {
         // Optionally could send a session/update here for formats; skip for simplicity
         hasAppendedAudio = false;
         appendedBytes = 0;
-        console.log('[proxy] client -> audio_start');
+        console.log('[DEBUG] client -> audio_start - sess bilgisi:', sess ? JSON.stringify(sess, null, 2) : 'sess yok!');
         speechStartTs = Date.now();
         // Suppress bot response generation for 1s after user starts speaking
         suppressUntilTs = Date.now() + 1000;
         // Start realtime tracking on first audio_start
         if (!realtimeTimer) {
           realtimeStartedAt = Date.now();
+          console.log(`[DEBUG] realtimeTimer başlatılıyor, realtimeStartedAt: ${realtimeStartedAt}, sess:`, sess ? JSON.stringify(sess, null, 2) : 'yok');
           realtimeTimer = setInterval(() => {
             try {
+              console.log(`[DEBUG] realtimeTimer tick! sess.minutesUsedDaily: ${sess?.minutesUsedDaily}, sess.minutesUsedMonthly: ${sess?.minutesUsedMonthly}`);
               const usage = addUsageFromSeconds(1);
               // Notify client in real time
               clientWs.send(JSON.stringify({ type: 'usage_update', usage: { usedDaily: usage.usedDaily, usedMonthly: usage.usedMonthly, limits: usage.limits } }));

@@ -170,13 +170,6 @@ const learnLangSelect = document.getElementById('learnLangSelect');
 const nativeLangSelect = document.getElementById('nativeLangSelect');
 const corrSelect = document.getElementById('corrSelect');
 
-console.log('[CLIENT] DOM elementler aranıyor...');
-console.log('[CLIENT] voiceSelect:', voiceSelect);
-console.log('[CLIENT] scenarioSelect:', scenarioSelect);
-console.log('[CLIENT] learnLangSelect:', learnLangSelect);
-console.log('[CLIENT] nativeLangSelect:', nativeLangSelect);
-console.log('[CLIENT] corrSelect:', corrSelect);
-
 // Populate language selects with a curated list of languages known to have good ASR/TTS quality
 function populateLanguageSelects(){
   const langs = [
@@ -280,21 +273,41 @@ async function debugUpdateUsage(){
   try {
     const token = localStorage.getItem('hk_token');
     if (!token) {
+      log('❌ DEBUG: Token bulunamadı');
       return;
     }
 
+    log('🔄 DEBUG: /me çağrısı yapılıyor...');
     const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
+    log('📡 DEBUG: /me yanıtı:', r.status, r.ok);
+
     if (r.ok){
       const me = await r.json();
+      log('📋 DEBUG: /me verisi:', JSON.stringify(me, null, 2));
+
       const usage = me.user?.usage;
       if (usage){
+        log('📊 DEBUG: usage verisi:', JSON.stringify(usage, null, 2));
+        log(`📈 DEBUG: dailyUsed: ${usage.dailyUsed}, monthlyUsed: ${usage.monthlyUsed}`);
+        log(`📈 DEBUG: dailyLimit: ${usage.dailyLimit}, monthlyLimit: ${usage.monthlyLimit}`);
+        log(`📈 DEBUG: lastReset: ${usage.lastReset}`);
+
         const d = document.getElementById('limitDaily');
         const m = document.getElementById('limitMonthly');
         if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
         if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
+        log(`✅ DEBUG: Kota güncellendi: Günlük ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk, Aylık ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`);
+      } else {
+        log('❌ DEBUG: usage verisi bulunamadı - backend kota bilgilerini göndermiyor!');
+        log('📋 DEBUG: me.user:', JSON.stringify(me.user, null, 2));
       }
+    } else {
+      log('❌ DEBUG: /me çağrısı başarısız:', r.status);
+      log('📄 DEBUG: response text:', await r.text());
     }
   } catch (e) {
+    log('💥 DEBUG: Hata:', e.message || e);
+    log('📄 DEBUG: error stack:', e.stack);
   }
 }
 
@@ -337,6 +350,8 @@ async function confirmPlanChange(currentPlan, targetPlan) {
                      (currentPlan === 'starter' && targetPlan === 'free') ||
                      (currentPlan === 'pro' && targetPlan === 'free');
 
+  log(`📊 Plan bilgileri: current=${currentPlan}, target=${targetPlan}, isDowngrade=${isDowngrade}`);
+
   let message = '';
   if (isDowngrade) {
     message = `⚠️ ${planNames[currentPlan]} planından ${planNames[targetPlan]} planına geçiş yapacaksınız.\n\n`;
@@ -352,38 +367,53 @@ async function confirmPlanChange(currentPlan, targetPlan) {
     message += `Devam etmek istiyor musunuz?`;
   }
 
+  log(`💬 Onay mesajı: ${message.substring(0, 100)}...`);
+
   const confirmed = confirm(message);
+  log(`✅ Kullanıcı seçimi: ${confirmed ? 'EVET' : 'HAYIR'}`);
+
   return confirmed;
 }
 
 // Plan değişikliği işlemi
 async function changePlan(targetPlan) {
+  log(`🚀 changePlan çağrıldı: ${targetPlan}`);
+
   const token = localStorage.getItem('hk_token');
   if (!token) {
+    log('❌ Token bulunamadı, yönlendirme yapılıyor...');
     alert('Devam etmek için giriş yapın. Ana sayfaya yönlendiriyorum.');
     window.location.href = '/#pricing';
     return;
   }
 
+  log(`🔑 Token mevcut, plan değişikliği başlatılıyor: ${targetPlan}`);
+
   try {
+    log(`📡 API çağrısı yapılıyor: /api/paytr/checkout`);
     const r = await fetch(`${backendBase}/api/paytr/checkout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ plan: targetPlan })
     });
 
+    log(`📡 API yanıtı: ${r.status} ${r.ok ? 'OK' : 'HATA'}`);
     const j = await r.json();
+    log('📋 API yanıtı verisi:', JSON.stringify(j, null, 2));
 
     if (j?.iframe_url) {
+      log(`🔗 Ödeme sayfasına yönlendirme: ${j.iframe_url}`);
       window.location.href = j.iframe_url;
       return;
     }
 
     if (j?.error) {
+      log(`❌ API hatası: ${j.error}`);
       alert(`Plan değişikliği hatası: ${j.error}`);
       return;
     }
 
+    log(`✅ Plan değişikliği başarılı: ${targetPlan}`);
     alert('Plan değişikliği başlatıldı!');
     window.__hk_current_plan = targetPlan;
 
@@ -396,26 +426,23 @@ async function changePlan(targetPlan) {
     else if (badge && targetPlan !== 'pro') badge.style.display = 'none';
 
   } catch (e) {
+    log('Plan değiştirme hatası:', e.message || e);
     alert('Bağlantı hatası oluştu. Lütfen tekrar deneyin.');
   }
 }
 
 function sendPrefsToWs(){
   try{
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      console.log('[CLIENT] WebSocket kapalı, sendPrefsToWs atlanıyor');
-      return;
-    }
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
     const voice = voiceSelect && voiceSelect.value ? voiceSelect.value : 'alloy';
     const learnLang = learnLangSelect && learnLangSelect.value ? learnLangSelect.value : 'tr';
     const nativeLang = nativeLangSelect && nativeLangSelect.value ? nativeLangSelect.value : 'tr';
     const correction = corrSelect && corrSelect.value ? corrSelect.value : 'gentle';
     const scenarioId = scenarioSelect && scenarioSelect.value ? scenarioSelect.value : '';
     const payload = { type: 'set_prefs', prefs: { voice, learnLang, nativeLang, correction, scenarioId } };
-    console.log('[CLIENT] sendPrefsToWs çağrıldı:', JSON.stringify(payload, null, 2));
     ws.send(JSON.stringify(payload));
     log(`Tercihler güncellendi: voice=${voice}, learn=${learnLang}, native=${nativeLang}, corr=${correction}, scenario=${scenarioId||'-'}`);
-  } catch(e){ log('Tercih gönderim hatası: '+(e.message||e)); console.error('[CLIENT] sendPrefsToWs hatası:', e); }
+  } catch(e){ log('Tercih gönderim hatası: '+(e.message||e)); }
 }
 
 if (voiceSelect){
@@ -423,7 +450,7 @@ if (voiceSelect){
     const voice = voiceSelect.value || 'alloy';
     try {
       if (ws && ws.readyState === WebSocket.OPEN){
-        ws.send(JSON.stringify({ type: 'session.update', session: { voice, temperature: 0.6, modalities: ['audio', 'text'], input_audio_transcription: { language: 'tr', model: 'whisper-1' } } }));
+        ws.send(JSON.stringify({ type: 'session.update', session: { voice } }));
         sendPrefsToWs();
         log(`Ses tonu: ${voice}`);
       } else {
@@ -514,17 +541,10 @@ try{
 }catch{}
 
 if (scenarioSelect){
-  console.log('[CLIENT] scenarioSelect element bulundu:', scenarioSelect);
-  console.log('[CLIENT] scenarioSelect.value:', scenarioSelect.value);
   scenarioSelect.addEventListener('change', async () => {
-    console.log('[CLIENT] scenarioSelect change event tetiklendi');
-    console.log('[CLIENT] scenarioSelect.value:', scenarioSelect.value);
-    console.log('[CLIENT] ws.readyState:', ws ? ws.readyState : 'null');
     // Not persisted to /me/preferences; scenario is a runtime-only preference
     sendPrefsToWs();
   });
-} else {
-  console.error('[CLIENT] scenarioSelect element bulunamadı!');
 }
 
 function updateStatus(){
@@ -541,10 +561,8 @@ async function connect(){
   if (pc) return;
   $('#btnConnect').disabled = true;
   try {
-    // 1) ephemeral token - include scenario preference
-    const scenarioId = scenarioSelect && scenarioSelect.value ? scenarioSelect.value : null;
-    const body = { scenarioId };
-    const r = await fetch(`${backendBase}/realtime/ephemeral`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    // 1) ephemeral token
+    const r = await fetch(`${backendBase}/realtime/ephemeral`, { method: 'POST', headers: { 'Content-Type': 'application/json' }});
     if (!r.ok) throw new Error(`ephemeral failed: ${r.status}`);
     const { client_secret: token, model } = await r.json();
     if (!token) throw new Error('empty token');
@@ -825,7 +843,7 @@ async function wsConnect(){
         const voiceSel = document.getElementById('voiceSelect');
         const voice = voiceSel && voiceSel.value ? voiceSel.value : 'alloy';
         if (voice){
-          ws.send(JSON.stringify({ type: 'session.update', session: { voice, temperature: 0.6, modalities: ['audio', 'text'], input_audio_transcription: { language: 'tr', model: 'whisper-1' } } }));
+          ws.send(JSON.stringify({ type: 'session.update', session: { voice } }));
           log(`Ses tonu ayarlandı: ${voice}`);
         }
         // Also push language and correction preferences immediately
@@ -897,6 +915,9 @@ async function wsConnect(){
           const obj = JSON.parse(ev.data);
           if (obj && obj.type) {
             if (obj.type === 'usage_update' && obj.usage){
+              log('🔄 USAGE_UPDATE MESAJI GELDİ!');
+              log('📊 usage_update payload:', JSON.stringify(obj.usage, null, 2));
+
               // Update usage from me.user.usage
               try {
                 const token = localStorage.getItem('hk_token');
@@ -906,10 +927,14 @@ async function wsConnect(){
                   .then(me => {
                     const usage = me.user?.usage;
                     if (usage){
+                      log('📈 Backend usage verisi:', JSON.stringify(usage, null, 2));
                       const d = document.getElementById('limitDaily');
                       const m = document.getElementById('limitMonthly');
                       if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
                       if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
+                      log(`✅ Kota güncellendi (usage_update): Günlük ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk, Aylık ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`);
+                    } else {
+                      log('❌ Backend usage verisi bulunamadı!');
                     }
                   }).catch(() => {});
                 }
@@ -1024,9 +1049,7 @@ async function wsStop(){
             turn_detection: null, // Turn detection'ı kapat
             tools: [],
             tool_choice: 'none',
-            temperature: 0.6,
-            modalities: ['audio', 'text'],
-            input_audio_transcription: { language: 'tr', model: 'whisper-1' },
+            temperature: 0.8,
             max_response_output_tokens: 0
           }
         }));
@@ -1164,10 +1187,12 @@ async function wsStop(){
             if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
             if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
             log(`Bağlantı kapatıldıktan sonra kota güncellendi: Günlük ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk, Aylık ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`);
+            console.log('[wsStop] Kota güncellendi');
           }
         }
       }
     } catch (e) {
+      log('wsStop kota güncelleme hatası: ' + (e.message || e));
       console.error('[wsStop] Kota güncelleme hatası:', e);
     }
 
@@ -1439,6 +1464,7 @@ if (btnStartTalk){
                 const m = document.getElementById('limitMonthly');
                 if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
                 if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
+                log(`Kota güncellendi: Günlük ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk, Aylık ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`);
               }
             }
           }

@@ -120,7 +120,7 @@ const sendEmail = async (mailOptions) => {
 const ADMIN_EMAILS = new Set(String(process.env.ADMIN_EMAILS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
 
 // Persona builder for brand-specific language coach behavior
-function buildPersonaInstruction(learnLang = 'en', nativeLang = 'tr', correction = 'gentle', scenarioId = null, userLevel = null){
+function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction = 'gentle', scenarioText = '', userLevel = null){
   const l = String(learnLang || 'tr').toLowerCase();
   const n = String(nativeLang || 'tr').toLowerCase();
   const c = String(correction || 'gentle').toLowerCase();
@@ -128,8 +128,8 @@ function buildPersonaInstruction(learnLang = 'en', nativeLang = 'tr', correction
   const nativeName = n === 'tr' ? 'Türkçe' : (n === 'en' ? 'İngilizce' : n);
   const fixStyle = (
     c === 'off' ? 'Düzeltme yapma; sadece anlayıp doğal ve kısa yanıt ver.' :
-    c === 'strict' ? 'Dil hatalarını tespit et ve nazik ama net şekilde düzelt. Önce kısa yanıt ver, ardından bir cümle içinde düzeltmeyi açıkla ve bir örnek ver. Örnek formatı: "Şöyle de diyebilirsin: …".' :
-    'Gerekirse hataları nazikçe düzelt. Kısa yanıt ver; en fazla bir cümlelik açıklama ve küçük bir örnek ekle. Örnek formatı: "Şöyle de diyebilirsin: …".'
+    c === 'strict' ? 'Dil hatalarını tespit et ve nazik ama net şekilde düzelt. Önce kısa yanıt ver, ardından bir cümle içinde düzeltmeyi açıkla ve bir örnek ver. Örnek formatı: “Şöyle de diyebilirsin: …”.' :
+    'Gerekirse hataları nazikçe düzelt. Kısa yanıt ver; en fazla bir cümlelik açıklama ve küçük bir örnek ekle. Örnek formatı: “Şöyle de diyebilirsin: …”.'
   );
   const safety = 'Konudan sapma; sadece kullanıcının söylediğine yanıt ver. Anlamazsan kibarca tekrar iste.';
   const tone = 'Sıcak, motive edici ve saygılı bir dil koçu gibi konuş.';
@@ -140,48 +140,15 @@ function buildPersonaInstruction(learnLang = 'en', nativeLang = 'tr', correction
   const format = `BİÇİM: (1) ${learnName} dilinde 1-2 kısa öneri söyle. (2) Gerekirse ${nativeName} dilinde 1 cümlelik çok kısa ipucu ekle ("Tip:" ile başlat). (3) Mümkünse tek basit dilbilgisi noktası vurgula.`;
   const lengthPolicy = 'UZUNLUK: Varsayılan 1-2 cümle. Kullanıcı açıkça daha detay isterse 3-4 cümleye çık.';
   const gentleLimits = 'Gentle modda: Anlam bozulmuyorsa düzeltme yapma. Düzeltirsen: hatayı çok kısa belirt + ana dilde 1 cümlelik ipucu + hedef dilde tek örnek.';
-
-  // Get scenario persona prompt
-  const scenarioPrompt = getScenarioPersonaPrompt(scenarioId);
-  const scenarioPart = scenarioPrompt ? ` ${scenarioPrompt}` : '';
-  console.log('[DEBUG] ===== SENARYO DEBUG =====');
-  console.log('[DEBUG] scenarioId:', scenarioId);
-  console.log('[DEBUG] scenarioPrompt:', scenarioPrompt);
-  console.log('[DEBUG] scenarioPart:', scenarioPart);
-  console.log('[DEBUG] scenarios.size:', scenarios.size);
-  console.log('[DEBUG] scenarios.has(airport):', scenarios.has('airport'));
-  console.log('[DEBUG] =======================');
-
-  if (scenarioPart) {
-    console.log('[DEBUG] ✅ SENARYO BAŞARIYLA EKLENDİ:', scenarioPart);
-  } else {
-    console.log('[DEBUG] ❌ SENARYO EKLENEMEDİ - scenarioPart boş!');
-  }
+  const scenarioPart = scenarioText ? ` Senaryo bağlamı: ${scenarioText}` : '';
   const pacing = 'Konuşma hızını biraz yavaş tut. 1-2 kısa cümleyle konuş. Kullanıcıyı konuşturan kısa sorular sor.';
   const levelInstruction = userLevel ? ` Kullanıcının dil seviyesi: ${userLevel}. Bu seviyeye uygun kelimeler, dilbilgisi yapıları ve konuşma hızı kullan.` : '';
-  const fullPersona = `Markaya özel dil koçu asistan ("konuskonusabilirsen"). Kullanıcının ana dili: ${nativeName}. Öğrenilen dil: ${learnName}. ${tone} ${convo} ${langPolicy} ${lengthPolicy} ${format} ${fixStyle} ${gentleLimits} ${safety} ${pacing}${scenarioPart}${levelInstruction}`;
-  console.log('[DEBUG] Full persona length:', fullPersona.length);
-  return fullPersona;
-}
-
-function getScenarioPersonaPrompt(scenarioId) {
-  console.log('[DEBUG] getScenarioPersonaPrompt çağrıldı:', scenarioId);
-  console.log('[DEBUG] scenarios.size:', scenarios.size);
-  console.log('[DEBUG] scenarios.has(scenarioId):', scenarios.has(scenarioId));
-  if (!scenarioId || !scenarios.has(scenarioId)) {
-    console.log('[DEBUG] Senaryo bulunamadı veya ID boş');
-    return '';
-  }
-  const scenario = scenarios.get(scenarioId);
-  console.log('[DEBUG] Senaryo bulundu:', JSON.stringify(scenario, null, 2));
-  const prompt = scenario.personaPrompt || '';
-  console.log('[DEBUG] personaPrompt:', prompt);
-  return prompt;
+  return `Markaya özel dil koçu asistan ("konuskonusabilirsen"). Kullanıcının ana dili: ${nativeName}. Öğrenilen dil: ${learnName}. ${tone} ${convo} ${langPolicy} ${lengthPolicy} ${format} ${fixStyle} ${gentleLimits} ${safety} ${pacing}${scenarioPart}${levelInstruction}`;
 }
 
 // OpenAI (public) envs
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
-const REALTIME_MODEL = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime';
+const REALTIME_MODEL = process.env.OPENAI_REALTIME_MODEL || 'gpt-4o-realtime-preview-2025-08-28';
 const RESPONSE_TEXT_ENABLED = (process.env.RESPONSE_TEXT_ENABLED ?? 'true').toLowerCase() !== 'false';
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || '';
 const IPINFO_TOKEN = process.env.IPINFO_TOKEN || '';
@@ -907,34 +874,16 @@ const __dirname = path.dirname(__filename);
 const publicDir = path.join(__dirname, '..', 'public');
 // Load scenarios from filesystem (src/scenarios/*.json)
 const scenarios = new Map();
-console.log('🚀 SERVER BAŞLADI - DEBUG MODU AKTİF');
-console.log('📁 Scenarios klasörü kontrol ediliyor...');
-console.log('📂 __dirname:', __dirname);
-console.log('📂 scenariosDir:', path.join(__dirname, 'scenarios'));
-console.log('📂 Klasör var mı?', fs.existsSync(path.join(__dirname, 'scenarios')) ? 'EVET' : 'HAYIR');
 function loadScenarios(){
   try {
-    console.log('[DEBUG] loadScenarios çağrıldı');
     const scenariosDir = path.join(__dirname, 'scenarios');
-    console.log('[DEBUG] scenariosDir:', scenariosDir);
-    if (!fs.existsSync(scenariosDir)) {
-      console.log('[DEBUG] scenarios klasörü bulunamadı');
-      return;
-    }
-    console.log('[DEBUG] scenarios klasörü var');
+    if (!fs.existsSync(scenariosDir)) return;
     const files = fs.readdirSync(scenariosDir).filter(f => f.endsWith('.json'));
-    console.log('[DEBUG] JSON dosyaları:', files);
     for (const f of files) {
       try {
         const raw = fs.readFileSync(path.join(scenariosDir, f), 'utf8');
         const obj = JSON.parse(raw);
-        console.log('[DEBUG] JSON parse edildi:', f, 'obj:', obj);
-        if (obj && obj.id) {
-          scenarios.set(String(obj.id), obj);
-          console.log('[DEBUG] Senaryo eklendi:', obj.id);
-        } else {
-          console.log('[DEBUG] Senaryoda id alanı yok:', f);
-        }
+        if (obj && obj.id) scenarios.set(String(obj.id), obj);
       } catch (e) {
         console.warn('[scenarios] parse error for', f, e?.message || e);
       }
@@ -2301,9 +2250,7 @@ app.post('/realtime/ephemeral', async (req, res) => {
     const learnLang = (req.body?.preferredLearningLanguage || req.body?.preferredLanguage || 'tr').toLowerCase();
     const nativeLang = (req.body?.preferredNativeLanguage || 'tr').toLowerCase();
     const corr = (req.body?.preferredCorrectionMode || 'gentle').toLowerCase();
-    const scenarioId = req.body?.scenarioId || null;
-    const scenarioPrompt = getScenarioPersonaPrompt(scenarioId);
-    const persona = buildPersonaInstruction(learnLang, nativeLang, corr, scenarioId, null);
+    const persona = buildPersonaInstruction(learnLang, nativeLang, corr);
     const r = await fetchFn('https://api.openai.com/v1/realtime/sessions', {
       method: 'POST',
       headers: {
@@ -2398,8 +2345,6 @@ app.post('/session/start', async (req, res) => {
         if (u.preferredVoice) prefs.voice = String(u.preferredVoice);
         if (u.preferredCorrectionMode) prefs.correction = String(u.preferredCorrectionMode).toLowerCase();
         if (u.placementLevel) userLevel = String(u.placementLevel);
-        // Senaryo ID'sini de yükle
-        // Note: Senaryo tercihi runtime'da tutuluyor, kalıcı değil
       }
     }
   } catch {}
@@ -2617,41 +2562,28 @@ wss.on('connection', (clientWs, request) => {
       const nlang = (sess?.prefs?.nativeLang || 'tr').toLowerCase();
       const voicePref = sess?.prefs?.voice || 'alloy';
       const corr = (sess?.prefs?.correction || 'gentle').toLowerCase();
-      console.log('[DEBUG] ===== SESSION PREFS DEBUG =====');
-      console.log('[DEBUG] sess?.prefs:', JSON.stringify(sess?.prefs, null, 2));
-      console.log('[DEBUG] sess?.prefs?.scenarioId:', sess?.prefs?.scenarioId);
-      console.log('[DEBUG] sess?.prefs?.learnLang:', sess?.prefs?.learnLang);
-      console.log('[DEBUG] sess?.prefs?.nativeLang:', sess?.prefs?.nativeLang);
-      console.log('[DEBUG] ================================');
       let scenarioText = '';
       if (sess?.prefs?.scenarioId && scenarios.has(sess.prefs.scenarioId)) {
         const sc = scenarios.get(sess.prefs.scenarioId);
         const crit = Array.isArray(sc.successCriteria) ? sc.successCriteria.join('; ') : '';
         scenarioText = `Bağlam: ${sc.title}. Rol: ${sc.personaPrompt}. Başarı ölçütleri: ${crit}`;
-        console.log('[DEBUG] ✅ scenarioText oluşturuldu:', scenarioText);
-      } else {
-        console.log('[DEBUG] ❌ scenarioText oluşturulamadı - scenarioId:', sess?.prefs?.scenarioId);
-        console.log('[DEBUG] Available scenario IDs:', Array.from(scenarios.keys()));
-        console.log('[DEBUG] sess.prefs keys:', Object.keys(sess?.prefs || {}));
-        console.log('[DEBUG] sess.prefs object:', JSON.stringify(sess?.prefs, null, 2));
       }
-      console.log('[DEBUG] ================================');
-      const persona = buildPersonaInstruction(lang, nlang, corr, sess?.prefs?.scenarioId, sess.userLevel);
+      const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel);
       const sessionUpdate = {
         type: 'session.update',
         session: {
-          modalities: ['audio', 'text'],
+          modalities: ['audio'],
           input_audio_format: 'pcm16',
           output_audio_format: 'pcm16',
           voice: voicePref,
-          temperature: 0.6,
-          input_audio_transcription: { language: nlang, model: 'whisper-1' },
-          max_response_output_tokens: 100, // Artırıldı: 20'den 100'e
+          temperature: 0.2,
+          input_audio_transcription: { language: nlang },
+          max_response_output_tokens: 20,
           turn_detection: {
             type: 'server_vad',
-            threshold: 0.4, // Artırıldı: 0.35'den 0.4'e
+            threshold: 0.35,
             prefix_padding_ms: 300,
-            silence_duration_ms: 1500, // Artırıldı: 900'dan 1500'e
+            silence_duration_ms: 900,
             create_response: false,
             interrupt_response: true,
           },
@@ -2695,9 +2627,9 @@ wss.on('connection', (clientWs, request) => {
             create_response: false,
             interrupt_response: true,
           },
-          input_audio_transcription: { language: lang, model: 'whisper-1' },
+          input_audio_transcription: { language: lang },
           instructions: persona,
-          temperature: 0.6,
+          temperature: 0.1,
         },
       };
       openaiWs.send(JSON.stringify(sessionUpdate));
@@ -2811,70 +2743,24 @@ wss.on('connection', (clientWs, request) => {
       if (t === 'session.update' && obj?.session && typeof obj.session === 'object') {
         // Forward session updates (e.g., voice changes) to OpenAI
         try {
-          // Ensure required parameters are present for OpenAI API
-          const sessionUpdate = { ...obj.session };
-          if (sessionUpdate.input_audio_transcription && !sessionUpdate.input_audio_transcription.model) {
-            sessionUpdate.input_audio_transcription.model = 'whisper-1';
-          }
-          if (sessionUpdate.input_audio_transcription && !sessionUpdate.input_audio_transcription.language) {
-            sessionUpdate.input_audio_transcription.language = (sess?.prefs?.nativeLang || 'tr').toLowerCase();
-          }
-          if (!sessionUpdate.temperature) {
-            sessionUpdate.temperature = 0.6;
-          }
-          // Ensure modalities is valid
-          if (sessionUpdate.modalities && Array.isArray(sessionUpdate.modalities)) {
-            if (sessionUpdate.modalities.length === 1 && sessionUpdate.modalities[0] === 'audio') {
-              sessionUpdate.modalities = ['audio', 'text'];
-            }
-          }
-          openaiWs.send(JSON.stringify({ type: 'session.update', session: sessionUpdate }));
-          console.log('[proxy] forwarded session.update', JSON.stringify(sessionUpdate));
+          openaiWs.send(JSON.stringify({ type: 'session.update', session: obj.session }));
+          console.log('[proxy] forwarded session.update', JSON.stringify(obj.session));
         } catch (e) {
           console.error('[proxy] error forwarding session.update:', e);
         }
         return;
       }
       if (t === 'set_prefs' && obj?.prefs) {
-        console.log('[DEBUG] ===== SET_PREFS MESAJI GELDİ =====');
-        console.log('[DEBUG] obj.prefs:', JSON.stringify(obj.prefs, null, 2));
-        console.log('[DEBUG] obj.prefs.scenarioId:', obj.prefs.scenarioId);
-        console.log('[DEBUG] obj.prefs keys:', Object.keys(obj.prefs || {}));
-        console.log('[DEBUG] ==================================');
-        console.log('[DEBUG] ===== SET_PREFS MESAJI GELDİ =====');
-        console.log('[DEBUG] obj.prefs:', JSON.stringify(obj.prefs, null, 2));
-        console.log('[DEBUG] obj.prefs.scenarioId:', obj.prefs.scenarioId);
-        console.log('[DEBUG] obj.prefs keys:', Object.keys(obj.prefs || {}));
-        console.log('[DEBUG] ==================================');
-        console.log('[DEBUG] ===== SET_PREFS MESAJI GELDİ =====');
-        console.log('[DEBUG] obj.prefs:', JSON.stringify(obj.prefs, null, 2));
-        console.log('[DEBUG] obj.prefs.scenarioId:', obj.prefs.scenarioId);
-        console.log('[DEBUG] obj.prefs keys:', Object.keys(obj.prefs || {}));
-        console.log('[DEBUG] ==================================');
         try {
           const p = obj.prefs || {};
-          console.log('[DEBUG] ===== SET_PREFS DEBUG =====');
-          console.log('[DEBUG] obj.prefs:', JSON.stringify(p, null, 2));
-          console.log('[DEBUG] p.scenarioId:', p.scenarioId);
-          console.log('[DEBUG] sess?.prefs before:', JSON.stringify(sess?.prefs, null, 2));
-
           // Update in-memory prefs
           if (sess && sess.prefs) {
             if (typeof p.learnLang === 'string') sess.prefs.learnLang = String(p.learnLang).toLowerCase();
             if (typeof p.nativeLang === 'string') sess.prefs.nativeLang = String(p.nativeLang).toLowerCase();
             if (typeof p.voice === 'string') sess.prefs.voice = String(p.voice);
             if (typeof p.correction === 'string') sess.prefs.correction = String(p.correction).toLowerCase();
-            if (typeof p.scenarioId === 'string') {
-          sess.prefs.scenarioId = p.scenarioId || null;
-          console.log('[DEBUG] ✅ scenarioId güncellendi:', sess.prefs.scenarioId);
-        } else {
-          console.log('[DEBUG] ⚠️ p.scenarioId string değil:', typeof p.scenarioId, p.scenarioId);
-        }
-
-            console.log('[DEBUG] sess?.prefs after:', JSON.stringify(sess?.prefs, null, 2));
-            console.log('[DEBUG] sess?.prefs.scenarioId:', sess?.prefs.scenarioId);
+            if (typeof p.scenarioId === 'string') sess.prefs.scenarioId = p.scenarioId || null;
           }
-          console.log('[DEBUG] ===========================');
           const lang = (sess?.prefs?.learnLang || 'tr').toLowerCase();
           const nlang = (sess?.prefs?.nativeLang || 'tr').toLowerCase();
           const voicePref = sess?.prefs?.voice || 'alloy';
@@ -2887,8 +2773,7 @@ wss.on('connection', (clientWs, request) => {
           }
           const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText);
           // Push updated session settings (voice/language hints) and a fresh system message
-          const sessionUpdate = { voice: voicePref, input_audio_transcription: { language: nlang, model: 'whisper-1' }, instructions: persona, temperature: 0.6, modalities: ['audio', 'text'] };
-          openaiWs.send(JSON.stringify({ type: 'session.update', session: sessionUpdate }));
+          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, input_audio_transcription: { language: nlang }, instructions: persona, temperature: 0.2 } }));
           // Extra system persona item gereksiz; tekrarı kaldırdık
           console.log('[proxy] updated prefs via set_prefs');
         } catch (e) {
@@ -2945,7 +2830,7 @@ wss.on('connection', (clientWs, request) => {
         const create = {
           type: 'response.create',
           response: {
-            modalities: ['audio', 'text'],
+            modalities: ['audio'],
             // Per-turn extra instructions kaldırıldı; persona zaten session.instructions içinde
             max_output_tokens: 20,
           }
@@ -2992,7 +2877,7 @@ wss.on('connection', (clientWs, request) => {
           response: {
             modalities: RESPONSE_TEXT_ENABLED ? ['audio','text'] : ['audio'],
             instructions: `Target language: ${lang}. Native: ${nlang}. Asla başka dile kayma. Kullanıcı: ${String(obj.text)}\n1-2 kısaltma öneri ver (hedef dilde), yeni satırda ${nlang} tek cümle 'Tip:' ekle.`,
-            max_output_tokens: 100, // Artırıldı: 30'dan 100'e
+            max_output_tokens: 30,
           }
         };
         if (STRICT_REALTIME || !isResponding) {

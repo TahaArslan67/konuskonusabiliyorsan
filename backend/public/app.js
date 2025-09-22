@@ -620,9 +620,44 @@ async function wsConnect(){
               wrapper.style.marginTop = '8px';
               const info = document.createElement('div');
               info.className = 'subtle';
-              info.innerHTML = `Günlük/Aylık limit aşıldı. Kullanım: gün ${(j.dailyUsed||0).toFixed?.(1) ?? j.dailyUsed}/${j.dailyLimit} dk, ay ${(j.monthlyUsed||0).toFixed?.(1) ?? j.monthlyUsed}/${j.monthlyLimit} dk.`;
-              const btn = document.createElement('a');
-              btn.href = '/#pricing'; btn.className = 'btn btn-primary'; btn.textContent = 'Planları Gör';
+              info.innerHTML = `Günlük/Aylık limit aşıldı. Kullanım: gün ${(j.dailyUsed||0).toFixed?.(1) ?? j.dailyUsed}/${j.minutesLimitDaily ?? j.limits?.daily ?? '-'} dk, ay ${(j.monthlyUsed||0).toFixed?.(1) ?? j.monthlyUsed}/${j.minutesLimitMonthly ?? j.limits?.monthly ?? '-'} dk.`;
+              const btn = document.createElement('button');
+              btn.className = 'btn btn-primary';
+              const cur = window.__hk_current_plan || 'free';
+              const nextPlan = (cur === 'starter') ? 'pro' : 'starter';
+              btn.textContent = (nextPlan === 'pro') ? 'Pro\'ya Geç' : 'Starter\'a Geç';
+              btn.addEventListener('click', async () => {
+                const token = localStorage.getItem('hk_token');
+                if (!token){
+                  alert('Devam etmek için giriş yapın. Ana sayfaya yönlendiriyorum.');
+                  window.location.href = '/#pricing';
+                  return;
+                }
+                try{
+                  const r = await fetch(`${backendBase}/api/paytr/checkout`, { method:'POST', headers:{ 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ plan: nextPlan }) });
+                  const j = await r.json();
+                  log('Plan değiştirme başarılı:', j);
+                  window.__hk_current_plan = nextPlan;
+                  const p = document.getElementById('statusPlan');
+                  if (p) p.textContent = `Plan: ${nextPlan}`;
+                  const badge = document.getElementById('proBadge');
+                  if (badge && nextPlan === 'pro') badge.style.display = 'inline-block';
+                  else if (badge && nextPlan !== 'pro') badge.style.display = 'none';
+                  const wrapper = document.createElement('div');
+                  wrapper.className = 'row';
+                  wrapper.style.marginTop = '8px';
+                  const info = document.createElement('div');
+                  info.className = 'subtle';
+                  info.innerHTML = `Plan değiştirildi: ${nextPlan}`;
+                  const btn = document.createElement('button');
+                  btn.className = 'btn btn-primary';
+                  btn.textContent = 'Tamam';
+                  wrapper.appendChild(info); wrapper.appendChild(btn);
+                  card.appendChild(wrapper);
+                } catch (e) {
+                  log('Plan değiştirme hatası:', e.message || e);
+                }
+              });
               wrapper.appendChild(info); wrapper.appendChild(btn);
               card.appendChild(wrapper);
             }

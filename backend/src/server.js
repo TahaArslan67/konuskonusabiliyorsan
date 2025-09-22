@@ -2332,7 +2332,7 @@ app.post('/session/start', async (req, res) => {
   }
   // If over limit, block session start
   if (minutesUsedDaily >= limits.daily || minutesUsedMonthly >= limits.monthly) {
-    return res.status(403).json({ error: 'limit_reached', message: 'Kullanım limitiniz doldu.', minutesUsedDaily, minutesUsedMonthly, minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, plan: String(plan) });
+    return res.status(403).json({ error: 'limit_reached', message: 'Kullanım limitiniz doldu.', minutesUsedDaily, minutesUsedMonthly, minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, limits, plan: String(plan) });
   }
   const sessObj = { plan: String(plan), createdAt, minutesUsedDaily, minutesUsedMonthly, limits, userId: uid, prefs };
   sessions.set(sessionId, sessObj);

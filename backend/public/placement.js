@@ -234,6 +234,12 @@ async function submitPlacement(){
 if (learnLangSelect){
   learnLangSelect.addEventListener('change', async () => {
     const code = learnLangSelect.value || '';
+    console.log('[DEBUG] Dil seçimi değişti:', {
+      selectedValue: learnLangSelect.value,
+      codeAfterFallback: code,
+      selectElement: learnLangSelect,
+      options: Array.from(learnLangSelect.options).map(opt => ({ value: opt.value, text: opt.text, selected: opt.selected }))
+    });
     const quiz = document.getElementById('quiz');
     if (!code){ if (quiz) quiz.style.display = 'none'; return; }
     // Persist immediately (tercihen anında)

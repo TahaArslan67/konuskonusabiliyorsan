@@ -1154,12 +1154,60 @@ app.post('/admin/set-plan', authRequired, async (req, res) => {
     const lower = String(email).toLowerCase();
     const user = await User.findOne({ email: lower }).lean();
     if (!user) return res.status(404).json({ error: 'not_found', message: 'Kullanıcı bulunamadı' });
+
+    // Kullanıcıyı tam olarak al (sadece lean değil)
+    const userDoc = await User.findOne({ email: lower });
+    if (!userDoc) return res.status(404).json({ error: 'not_found', message: 'Kullanıcı bulunamadı' });
+
+    // Plan değişikliği kontrolü - eğer plan değişiyorsa usage'ı sıfırla
+    const isPlanChange = userDoc.plan !== plan;
+    console.log(`[admin/set-plan] Plan değişikliği: ${userDoc.plan} -> ${plan}, isPlanChange: ${isPlanChange}`);
+
+    // Plan limitlerini al
+    const dailyLimit = getPlanLimit(plan, 'daily');
+    const monthlyLimit = getPlanLimit(plan, 'monthly');
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Plan değişikliğinde usage'ı sıfırla
+    if (isPlanChange) {
+      console.log(`[admin/set-plan] Plan değişti, usage sıfırlanıyor`);
+      userDoc.usage.dailyUsed = 0;
+      userDoc.usage.monthlyUsed = 0;
+      userDoc.usage.lastReset = now;
+      userDoc.usage.monthlyResetAt = startOfMonth;
+    }
+
+    // Plan ve limitleri güncelle
+    userDoc.plan = plan;
+    userDoc.planUpdatedAt = now;
+    userDoc.usage.dailyLimit = dailyLimit;
+    userDoc.usage.monthlyLimit = monthlyLimit;
+
+    await userDoc.save();
+
     await Subscription.findOneAndUpdate(
       { userId: user._id, plan },
       { $set: { status: 'active', currentPeriodEnd: null } },
       { upsert: true }
     );
-    return res.json({ ok: true, userId: String(user._id), email: lower, plan });
+
+    // Usage collection'ını da sıfırla
+    if (isPlanChange) {
+      await Usage.updateOne(
+        { userId: user._id },
+        {
+          $set: {
+            minutes: 0,
+            updatedAt: now
+          }
+        },
+        { upsert: true }
+      );
+    }
+
+    console.log(`[admin/set-plan] Kullanıcı ${user._id} planı ${plan} olarak güncellendi, usage sıfırlandı`);
+    return res.json({ ok: true, userId: String(user._id), email: lower, plan, usageReset: isPlanChange });
   } catch (e){
     console.error('[admin/set-plan] error:', e);
     return res.status(500).json({ error: 'server_error' });

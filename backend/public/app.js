@@ -249,9 +249,7 @@ async function preloadPills(){
         const usage = me.user?.usage;
         if (usage){
           const d = document.getElementById('limitDaily');
-          const m = document.getElementById('limitMonthly');
           if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
-          if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
         }
       }
     } catch {}

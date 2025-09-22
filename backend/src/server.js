@@ -637,8 +637,24 @@ app.get('/me', authRequired, async (req, res) => {
 
     console.log(`[DEBUG] /me - user.usage mevcut değerler:`, JSON.stringify(user.usage, null, 2));
 
-    // Kullanım sıfırlama kontrolleri
+    // Kullanım objesini garanti et ve eksik alanları set et
+    user.usage = user.usage || {};
     const now = new Date();
+
+    // Eksik alanları set et
+    if (!user.usage.dailyLimit) {
+      user.usage.dailyLimit = getPlanLimit(user.plan || 'free', 'daily');
+    }
+    if (!user.usage.monthlyLimit) {
+      user.usage.monthlyLimit = getPlanLimit(user.plan || 'free', 'monthly');
+    }
+    if (!user.usage.lastReset) {
+      user.usage.lastReset = now;
+    }
+    if (!user.usage.monthlyResetAt) {
+      user.usage.monthlyResetAt = new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+
     const lastReset = new Date(user.usage.lastReset);
     const monthlyReset = new Date(user.usage.monthlyResetAt);
 
@@ -680,12 +696,12 @@ app.get('/me', authRequired, async (req, res) => {
         plan: user.plan || 'free',
         planUpdatedAt: user.planUpdatedAt,
         usage: {
-          dailyUsed: user.usage.dailyUsed || 0,
-          dailyLimit: getPlanLimit(user.plan || 'free', 'daily'),
-          monthlyUsed: user.usage.monthlyUsed || 0,
-          monthlyLimit: getPlanLimit(user.plan || 'free', 'monthly'),
-          lastReset: user.usage.lastReset,
-          monthlyResetAt: user.usage.monthlyResetAt
+          dailyUsed: user.usage?.dailyUsed || 0,
+          dailyLimit: user.usage?.dailyLimit || getPlanLimit(user.plan || 'free', 'daily'),
+          monthlyUsed: user.usage?.monthlyUsed || 0,
+          monthlyLimit: user.usage?.monthlyLimit || getPlanLimit(user.plan || 'free', 'monthly'),
+          lastReset: user.usage?.lastReset,
+          monthlyResetAt: user.usage?.monthlyResetAt
         },
         preferredLanguage: user.preferredLanguage,
         preferredVoice: user.preferredVoice,

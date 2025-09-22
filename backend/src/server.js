@@ -681,9 +681,9 @@ app.get('/me', authRequired, async (req, res) => {
         planUpdatedAt: user.planUpdatedAt,
         usage: {
           dailyUsed: user.usage.dailyUsed || 0,
-          dailyLimit: user.usage.dailyLimit || getPlanLimit(user.plan || 'free', 'daily'),
+          dailyLimit: getPlanLimit(user.plan || 'free', 'daily'),
           monthlyUsed: user.usage.monthlyUsed || 0,
-          monthlyLimit: user.usage.monthlyLimit || getPlanLimit(user.plan || 'free', 'monthly'),
+          monthlyLimit: getPlanLimit(user.plan || 'free', 'monthly'),
           lastReset: user.usage.lastReset,
           monthlyResetAt: user.usage.monthlyResetAt
         },
@@ -743,8 +743,8 @@ app.post('/api/track-usage', authRequired, async (req, res) => {
     user.usage.monthlyUsed += minutes;
     
     // Kullanım limitlerini aşıp aşmadığını kontrol et
-    const isDailyLimitExceeded = user.usage.dailyUsed > user.usage.dailyLimit;
-    const isMonthlyLimitExceeded = user.usage.monthlyUsed > user.usage.monthlyLimit;
+    const isDailyLimitExceeded = user.usage.dailyUsed > getPlanLimit(user.plan || 'free', 'daily');
+    const isMonthlyLimitExceeded = user.usage.monthlyUsed > getPlanLimit(user.plan || 'free', 'monthly');
     
     // Değişiklikleri kaydet
     await user.save();
@@ -753,9 +753,9 @@ app.post('/api/track-usage', authRequired, async (req, res) => {
       success: true,
       usage: {
         dailyUsed: user.usage.dailyUsed,
-        dailyLimit: user.usage.dailyLimit,
+        dailyLimit: getPlanLimit(user.plan || 'free', 'daily'),
         monthlyUsed: user.usage.monthlyUsed,
-        monthlyLimit: user.usage.monthlyLimit,
+        monthlyLimit: getPlanLimit(user.plan || 'free', 'monthly'),
         lastReset: user.usage.lastReset,
         monthlyResetAt: user.usage.monthlyResetAt,
         isDailyLimitExceeded,

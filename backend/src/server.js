@@ -2618,11 +2618,18 @@ wss.on('connection', (clientWs, request) => {
       const voicePref = sess?.prefs?.voice || 'alloy';
       const corr = (sess?.prefs?.correction || 'gentle').toLowerCase();
       let scenarioText = '';
+      console.log('[DEBUG] ===== SCENARIO TEXT DEBUG =====');
+      console.log('[DEBUG] sess?.prefs?.scenarioId:', sess?.prefs?.scenarioId);
+      console.log('[DEBUG] scenarios.has(sess.prefs.scenarioId):', scenarios.has(sess.prefs.scenarioId));
       if (sess?.prefs?.scenarioId && scenarios.has(sess.prefs.scenarioId)) {
         const sc = scenarios.get(sess.prefs.scenarioId);
         const crit = Array.isArray(sc.successCriteria) ? sc.successCriteria.join('; ') : '';
         scenarioText = `Bağlam: ${sc.title}. Rol: ${sc.personaPrompt}. Başarı ölçütleri: ${crit}`;
+        console.log('[DEBUG] ✅ scenarioText oluşturuldu:', scenarioText);
+      } else {
+        console.log('[DEBUG] ❌ scenarioText oluşturulamadı - scenarioId:', sess?.prefs?.scenarioId);
       }
+      console.log('[DEBUG] ================================');
       const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel);
       const sessionUpdate = {
         type: 'session.update',
@@ -2633,12 +2640,12 @@ wss.on('connection', (clientWs, request) => {
           voice: voicePref,
           temperature: 0.6,
           input_audio_transcription: { language: nlang, model: 'whisper-1' },
-          max_response_output_tokens: 20,
+          max_response_output_tokens: 100, // Artırıldı: 20'den 100'e
           turn_detection: {
             type: 'server_vad',
-            threshold: 0.35,
+            threshold: 0.4, // Artırıldı: 0.35'den 0.4'e
             prefix_padding_ms: 300,
-            silence_duration_ms: 900,
+            silence_duration_ms: 1500, // Artırıldı: 900'dan 1500'e
             create_response: false,
             interrupt_response: true,
           },
@@ -2950,7 +2957,7 @@ wss.on('connection', (clientWs, request) => {
           response: {
             modalities: RESPONSE_TEXT_ENABLED ? ['audio','text'] : ['audio'],
             instructions: `Target language: ${lang}. Native: ${nlang}. Asla başka dile kayma. Kullanıcı: ${String(obj.text)}\n1-2 kısaltma öneri ver (hedef dilde), yeni satırda ${nlang} tek cümle 'Tip:' ekle.`,
-            max_output_tokens: 30,
+            max_output_tokens: 100, // Artırıldı: 30'dan 100'e
           }
         };
         if (STRICT_REALTIME || !isResponding) {

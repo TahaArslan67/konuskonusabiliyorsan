@@ -37,13 +37,6 @@ async function loadMe(){
   return r.json();
 }
 
-async function loadUsage(){
-  const token = getToken();
-  try{ console.log('[account] /usage çağrısı', { hasToken: !!token }); }catch{}
-  const r = await fetch(`${backendBase}/usage`, { headers: { Authorization: `Bearer ${token}` }});
-  if (!r.ok) return null;
-  return r.json();
-}
 
 async function init(){
   console.log(' [account] init() FONKSİYONU ÇAĞRILDI!');
@@ -131,26 +124,12 @@ async function init(){
     const voice = $('#accVoice'); if (voice) voice.value = u.preferredVoice || '';
     const corr = $('#accCorrection'); if (corr) corr.value = u.preferredCorrectionMode || 'gentle';
 
-    const usage = await loadUsage();
+    const usage = u.usage;
     if (usage){
-      try{ console.log('[account] usage - TAM VERİ:', JSON.stringify(usage, null, 2)); }catch{}
+      try{ console.log('[account] usage - me.user.usage VERİ:', JSON.stringify(usage, null, 2)); }catch{}
       const d = $('#accUsageDaily'); const m = $('#accUsageMonthly');
-      if (d) d.textContent = `Günlük: ${(usage.usedDaily||0).toFixed(1)} / ${usage.limits?.daily ?? '-' } dk`;
-      if (m) m.textContent = `Aylık: ${(usage.usedMonthly||0).toFixed(1)} / ${usage.limits?.monthly ?? '-' } dk`;
-      // Eğer backend /me ve /usage plan alanları farklı gelirse, /usage.plan'ı kaynak olarak kullan
-      try {
-        const planText = document.getElementById('planText');
-        const badgePlan = $('#accBadgePlan');
-        if (planText && usage.plan) {
-          const planValue = usage.plan;
-          planText.textContent = planValue;
-          console.log('[account] Plan bilgisi /usage endpointinden güncellendi:', planValue);
-          console.log('[account] Plan elementi güncellendi:', planText.textContent);
-        }
-        if (badgePlan && usage.plan) {
-          badgePlan.textContent = `Plan: ${usage.plan}`;
-        }
-      } catch {}
+      if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)} / ${usage.dailyLimit ?? '-' } dk`;
+      if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)} / ${usage.monthlyLimit ?? '-' } dk`;
     }
 
     const btnSave = $('#accSave');

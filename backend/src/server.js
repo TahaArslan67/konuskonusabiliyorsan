@@ -142,7 +142,7 @@ function buildPersonaInstruction(learnLang = 'en', nativeLang = 'tr', correction
   const gentleLimits = 'Gentle modda: Anlam bozulmuyorsa düzeltme yapma. Düzeltirsen: hatayı çok kısa belirt + ana dilde 1 cümlelik ipucu + hedef dilde tek örnek.';
 
   // Get scenario persona prompt
-  const scenarioPrompt = getScenarioPersonaPrompt(sess?.prefs?.scenarioId);
+  const scenarioPrompt = getScenarioPersonaPrompt(scenarioId);
   const scenarioPart = scenarioPrompt ? ` ${scenarioPrompt}` : '';
   console.log('[DEBUG] ===== SENARYO DEBUG =====');
   console.log('[DEBUG] scenarioId:', scenarioId);

@@ -2636,7 +2636,7 @@ wss.on('connection', (clientWs, request) => {
         console.log('[DEBUG] sess.prefs object:', JSON.stringify(sess?.prefs, null, 2));
       }
       console.log('[DEBUG] ================================');
-      const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel);
+      const persona = buildPersonaInstruction(lang, nlang, corr, sess?.prefs?.scenarioId, sess.userLevel);
       const sessionUpdate = {
         type: 'session.update',
         session: {

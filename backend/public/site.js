@@ -93,36 +93,10 @@ async function onPlanClick(e){
       currentPlan = me.user?.plan || 'free';
       console.log('📊 [site.js] Mevcut plan:', currentPlan);
     } else {
-      console.log('❌ [site.js] /me çağrısı başarısız:', mr.status);
+      console.log(' [site.js] /me çağrısı başarısız:', mr.status);
     }
   } catch (error) {
-    console.log('💥 [site.js] /me çağrısı hatası:', error.message);
-  }
-
-  // Free plan için direkt geçiş yap
-  if (plan === 'free') {
-    console.log('🎯 [site.js] FREE PLAN SEÇİLDİ - Direkt geçiş yapılıyor');
-    try {
-      const r = await fetch(`${backendBase}/api/update-plan`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ plan: 'free' })
-      });
-      const j = await r.json();
-      console.log('📡 [site.js] /api/update-plan yanıtı:', r.status, r.ok);
-      console.log('📋 [site.js] /api/update-plan verisi:', JSON.stringify(j, null, 2));
-      if (r.ok) {
-        alert('Free plana geçiş yapıldı! 🎉');
-        updateHeader();
-        window.location.reload();
-      } else {
-        alert(j?.error || 'Free plana geçiş yapılamadı');
-      }
-    } catch (error) {
-      console.log('💥 [site.js] Free plan geçiş hatası:', error.message);
-      alert('Bağlantı hatası');
-    }
-    return;
+    console.log(' [site.js] /me çağrısı hatası:', error.message);
   }
 
   // Plan değişikliği mantığı - Pro'dan alt planlara geçerken onay al

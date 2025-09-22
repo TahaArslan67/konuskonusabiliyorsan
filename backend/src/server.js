@@ -120,11 +120,11 @@ const sendEmail = async (mailOptions) => {
 const ADMIN_EMAILS = new Set(String(process.env.ADMIN_EMAILS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
 
 // Persona builder for brand-specific language coach behavior
-function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction = 'gentle', scenarioId = null, userLevel = null){
+function buildPersonaInstruction(learnLang = 'en', nativeLang = 'tr', correction = 'gentle', scenarioId = null, userLevel = null){
   const l = String(learnLang || 'tr').toLowerCase();
   const n = String(nativeLang || 'tr').toLowerCase();
   const c = String(correction || 'gentle').toLowerCase();
-  const learnName = l === 'tr' ? 'Türkçe' : (l === 'en' ? 'İngilizce' : l);
+  const learnName = l === 'en' ? 'Türkçe' : (l === 'en' ? 'İngilizce' : l);
   const nativeName = n === 'tr' ? 'Türkçe' : (n === 'en' ? 'İngilizce' : n);
   const fixStyle = (
     c === 'off' ? 'Düzeltme yapma; sadece anlayıp doğal ve kısa yanıt ver.' :
@@ -2592,7 +2592,7 @@ wss.on('connection', (clientWs, request) => {
           output_audio_format: 'pcm16',
           voice: voicePref,
           temperature: 0.2,
-          input_audio_transcription: { language: nlang },
+          input_audio_transcription: { language: nlang, model: 'whisper-1' },
           max_response_output_tokens: 20,
           turn_detection: {
             type: 'server_vad',
@@ -2642,7 +2642,7 @@ wss.on('connection', (clientWs, request) => {
             create_response: false,
             interrupt_response: true,
           },
-          input_audio_transcription: { language: lang },
+          input_audio_transcription: { language: lang, model: 'whisper-1' },
           instructions: persona,
           temperature: 0.1,
         },
@@ -2788,7 +2788,7 @@ wss.on('connection', (clientWs, request) => {
           }
           const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText);
           // Push updated session settings (voice/language hints) and a fresh system message
-          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, input_audio_transcription: { language: nlang }, instructions: persona, temperature: 0.2 } }));
+          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, input_audio_transcription: { language: nlang, model: 'whisper-1' }, instructions: persona, temperature: 0.2 } }));
           // Extra system persona item gereksiz; tekrarı kaldırdık
           console.log('[proxy] updated prefs via set_prefs');
         } catch (e) {

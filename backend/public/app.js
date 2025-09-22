@@ -129,8 +129,22 @@ function vizStop(){
 
 function log(msg){
   const t = new Date().toISOString().substring(11,19);
-  logEl.textContent += `\n${t} | ${msg}`;
-  logEl.scrollTop = logEl.scrollHeight;
+  const logMessage = `${t} | ${msg}`;
+
+  // Console'a da yaz
+  console.log(`[APP] ${logMessage}`);
+
+  // Log panel'e yaz
+  try {
+    if (logEl) {
+      logEl.textContent += `\n${logMessage}`;
+      logEl.scrollTop = logEl.scrollHeight;
+    } else {
+      console.warn('logEl elementi bulunamadı!');
+    }
+  } catch (e) {
+    console.error('Log yazma hatası:', e);
+  }
 }
 
 // Global error surface to Logs panel
@@ -1485,8 +1499,12 @@ if (btnStartTalk){
 }
 
 if (btnStopTalk){
+  console.log('[APP] btnStopTalk event listener ekleniyor...');
   btnStopTalk.addEventListener('click', async () => {
     try {
+      console.log('[APP] Durdur butonuna tıklandı!');
+      log('🔴 Durdur butonuna tıklandı - bağlantı kapatılıyor...');
+
       wsStartRequested = false;
       wsForceSilence = true; // Tüm gelen sesleri sustur
 
@@ -1494,7 +1512,11 @@ if (btnStopTalk){
       wsMicOff();
 
       // WebSocket bağlantısını durdur
-      wsStop().catch(e => log('wsStop hatası: ' + (e.message || e)));
+      console.log('[APP] wsStop çağrılıyor...');
+      await wsStop().catch(e => {
+        console.error('[APP] wsStop hatası:', e);
+        log('wsStop hatası: ' + (e.message || e));
+      });
 
       // Kota güncelleme interval'ini temizle
       if (window.__hk_usage_interval) {
@@ -1514,8 +1536,14 @@ if (btnStopTalk){
       btnStopTalk.disabled = true;
 
       log('🔴 Bağlantı durduruldu - Kota dolu veya manuel durdurma');
-    } catch (e){ log('Durdurma hatası: '+(e.message||e)); }
+      console.log('[APP] Durdurma işlemi tamamlandı');
+    } catch (e){
+      console.error('[APP] Durdurma hatası:', e);
+      log('Durdurma hatası: '+(e.message||e));
+    }
   });
+} else {
+  console.error('[APP] btnStopTalk elementi bulunamadı!');
 }
 
 // Single mic toggle button

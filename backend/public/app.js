@@ -549,7 +549,7 @@ async function wsConnect(){
         const mr = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
         if (mr.ok){
           const me = await mr.json();
-          if (me && me.plan) planToUse = me.plan;
+          planToUse = me.user?.plan || 'free'; // Kullanıcının gerçek planını kullan, yoksa free
           if (me.user?.usage) usageData = me.user.usage;
         }
       } catch {}

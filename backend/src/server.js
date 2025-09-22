@@ -120,7 +120,7 @@ const sendEmail = async (mailOptions) => {
 const ADMIN_EMAILS = new Set(String(process.env.ADMIN_EMAILS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
 
 // Persona builder for brand-specific language coach behavior
-function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction = 'gentle', scenarioText = ''){
+function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction = 'gentle', scenarioText = '', userLevel = null){
   const l = String(learnLang || 'tr').toLowerCase();
   const n = String(nativeLang || 'tr').toLowerCase();
   const c = String(correction || 'gentle').toLowerCase();
@@ -142,7 +142,8 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
   const gentleLimits = 'Gentle modda: Anlam bozulmuyorsa düzeltme yapma. Düzeltirsen: hatayı çok kısa belirt + ana dilde 1 cümlelik ipucu + hedef dilde tek örnek.';
   const scenarioPart = scenarioText ? ` Senaryo bağlamı: ${scenarioText}` : '';
   const pacing = 'Konuşma hızını biraz yavaş tut. 1-2 kısa cümleyle konuş. Kullanıcıyı konuşturan kısa sorular sor.';
-  return `Markaya özel dil koçu asistan (“hemenkonus”). Kullanıcının ana dili: ${nativeName}. Öğrenilen dil: ${learnName}. ${tone} ${convo} ${langPolicy} ${lengthPolicy} ${format} ${fixStyle} ${gentleLimits} ${safety} ${pacing}${scenarioPart}`;
+  const levelInstruction = userLevel ? ` Kullanıcının dil seviyesi: ${userLevel}. Bu seviyeye uygun kelimeler, dilbilgisi yapıları ve konuşma hızı kullan.` : '';
+  return `Markaya özel dil koçu asistan ("konuskonusabilirsen"). Kullanıcının ana dili: ${nativeName}. Öğrenilen dil: ${learnName}. ${tone} ${convo} ${langPolicy} ${lengthPolicy} ${format} ${fixStyle} ${gentleLimits} ${safety} ${pacing}${scenarioPart}${levelInstruction}`;
 }
 
 // OpenAI (public) envs
@@ -2291,7 +2292,7 @@ app.post('/realtime/ephemeral', async (req, res) => {
 });
 
 // In-memory session store (v0)
-// session: { plan, createdAt, minutesUsedDaily, minutesUsedMonthly, limits: { daily, monthly }, userId, prefs: { learnLang, nativeLang, voice, correction } }
+// session: { plan, createdAt, minutesUsedDaily, minutesUsedMonthly, limits: { daily, monthly }, userId, prefs: { learnLang, nativeLang, voice, correction }, userLevel }
 const sessions = new Map();
 
 // Realtime API endpoint (Azure or OpenAI)
@@ -2334,6 +2335,7 @@ app.post('/session/start', async (req, res) => {
   };
   // Load user prefs if available
   let prefs = { learnLang: 'tr', nativeLang: 'tr', voice: 'alloy', correction: 'gentle', scenarioId: null };
+  let userLevel = null;
   try {
     if (uid) {
       const u = await User.findById(uid).lean();
@@ -2342,6 +2344,7 @@ app.post('/session/start', async (req, res) => {
         if (u.preferredNativeLanguage) prefs.nativeLang = String(u.preferredNativeLanguage).toLowerCase();
         if (u.preferredVoice) prefs.voice = String(u.preferredVoice);
         if (u.preferredCorrectionMode) prefs.correction = String(u.preferredCorrectionMode).toLowerCase();
+        if (u.placementLevel) userLevel = String(u.placementLevel);
       }
     }
   } catch {}
@@ -2349,6 +2352,7 @@ app.post('/session/start', async (req, res) => {
   let minutesUsedDaily = 0;
   let minutesUsedMonthly = 0;
   try {
+    // ...
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (token) {
       const user = await User.findById(uid);
@@ -2386,7 +2390,7 @@ app.post('/session/start', async (req, res) => {
   if (minutesUsedDaily >= limits.daily || minutesUsedMonthly >= limits.monthly) {
     return res.status(403).json({ error: 'limit_reached', message: 'Kullanım limitiniz doldu.', minutesUsedDaily, minutesUsedMonthly, minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, limits, plan: String(plan) });
   }
-  const sessObj = { plan: String(plan), createdAt, minutesUsedDaily, minutesUsedMonthly, limits, userId: uid, prefs };
+  const sessObj = { plan: String(plan), createdAt, minutesUsedDaily, minutesUsedMonthly, limits, userId: uid, prefs, userLevel };
   sessions.set(sessionId, sessObj);
   return res.json({ sessionId, wsUrl: `/realtime/ws?sessionId=${sessionId}`.replace('http','ws'), plan: String(plan), minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, minutesUsedDaily, minutesUsedMonthly });
 });
@@ -2564,7 +2568,7 @@ wss.on('connection', (clientWs, request) => {
         const crit = Array.isArray(sc.successCriteria) ? sc.successCriteria.join('; ') : '';
         scenarioText = `Bağlam: ${sc.title}. Rol: ${sc.personaPrompt}. Başarı ölçütleri: ${crit}`;
       }
-      const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText);
+      const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel);
       const sessionUpdate = {
         type: 'session.update',
         session: {
@@ -2590,6 +2594,7 @@ wss.on('connection', (clientWs, request) => {
       // Ek güvence: konuşma başında dilleri ve politika özetini sistem mesajı olarak ekle
       try {
         const langNotice = `System notice: User native=${nlang}, target=${lang}. Always answer in target language; optionally add one short ${nlang} tip line if needed.`;
+// ...
         openaiWs.send(JSON.stringify({
           type: 'conversation.item.create',
           item: {
@@ -2607,7 +2612,7 @@ wss.on('connection', (clientWs, request) => {
       const lang = (sess?.prefs?.language || 'tr').toLowerCase();
       const voicePref = sess?.prefs?.voice || 'alloy';
       const corr = (sess?.prefs?.correction || 'gentle').toLowerCase();
-      const persona = buildPersonaInstruction(lang, corr);
+      const persona = buildPersonaInstruction(lang, corr, '', sess.userLevel);
       const sessionUpdate = {
         type: 'session.update',
         session: {
@@ -2821,7 +2826,7 @@ wss.on('connection', (clientWs, request) => {
         const lang = (sess?.prefs?.learnLang || 'tr').toLowerCase();
         const nlang = (sess?.prefs?.nativeLang || 'tr').toLowerCase();
         const corr = (sess?.prefs?.correction || 'gentle').toLowerCase();
-        const persona = buildPersonaInstruction(lang, nlang, corr);
+        const persona = buildPersonaInstruction(lang, nlang, corr, '', sess.userLevel);
         const create = {
           type: 'response.create',
           response: {
@@ -2864,7 +2869,7 @@ wss.on('connection', (clientWs, request) => {
         const lang = (sess?.prefs?.learnLang || 'tr').toLowerCase();
         const nlang = (sess?.prefs?.nativeLang || 'tr').toLowerCase();
         const corr = (sess?.prefs?.correction || 'gentle').toLowerCase();
-        const persona = buildPersonaInstruction(lang, nlang, corr);
+        const persona = buildPersonaInstruction(lang, nlang, corr, '', sess.userLevel);
         // Detect if user asked for explanation in text prompt to allow longer answer
         const wantsExplain = /\b(açıkla|neden|detay|ayrıntı|örnek ver|teach|explain|why)\b/i.test(String(obj.text || ''));
         const create = {

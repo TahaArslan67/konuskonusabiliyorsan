@@ -2587,7 +2587,7 @@ wss.on('connection', (clientWs, request) => {
       const sessionUpdate = {
         type: 'session.update',
         session: {
-          modalities: ['audio'],
+          modalities: ['audio', 'text'],
           input_audio_format: 'pcm16',
           output_audio_format: 'pcm16',
           voice: voicePref,
@@ -2769,6 +2769,12 @@ wss.on('connection', (clientWs, request) => {
           if (!sessionUpdate.temperature) {
             sessionUpdate.temperature = 0.6;
           }
+          // Ensure modalities is valid
+          if (sessionUpdate.modalities && Array.isArray(sessionUpdate.modalities)) {
+            if (sessionUpdate.modalities.length === 1 && sessionUpdate.modalities[0] === 'audio') {
+              sessionUpdate.modalities = ['audio', 'text'];
+            }
+          }
           openaiWs.send(JSON.stringify({ type: 'session.update', session: sessionUpdate }));
           console.log('[proxy] forwarded session.update', JSON.stringify(sessionUpdate));
         } catch (e) {
@@ -2799,7 +2805,8 @@ wss.on('connection', (clientWs, request) => {
           }
           const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText);
           // Push updated session settings (voice/language hints) and a fresh system message
-          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, input_audio_transcription: { language: nlang, model: 'whisper-1' }, instructions: persona, temperature: 0.6 } }));
+          const sessionUpdate = { voice: voicePref, input_audio_transcription: { language: nlang, model: 'whisper-1' }, instructions: persona, temperature: 0.6, modalities: ['audio', 'text'] };
+          openaiWs.send(JSON.stringify({ type: 'session.update', session: sessionUpdate }));
           // Extra system persona item gereksiz; tekrarı kaldırdık
           console.log('[proxy] updated prefs via set_prefs');
         } catch (e) {
@@ -2856,7 +2863,7 @@ wss.on('connection', (clientWs, request) => {
         const create = {
           type: 'response.create',
           response: {
-            modalities: ['audio'],
+            modalities: ['audio', 'text'],
             // Per-turn extra instructions kaldırıldı; persona zaten session.instructions içinde
             max_output_tokens: 20,
           }

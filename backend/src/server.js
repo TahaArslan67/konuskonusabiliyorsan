@@ -2291,44 +2291,42 @@ app.post('/session/start', async (req, res) => {
       }
     }
   } catch {}
-  // Initialize usage from DB
+  // Kullanım verilerini /me endpoint'inden al
   let minutesUsedDaily = 0;
   let minutesUsedMonthly = 0;
   try {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    const dateBucket = `${y}-${m}-${d}`;
-    const monthBucket = `${y}-${m}`;
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (token) {
+      const user = await User.findById(uid);
+      if (user && user.usage) {
+        // Günlük kullanımı sıfırla (eğer yeni bir gün başladıysa)
+        const now = new Date();
+        const lastReset = new Date(user.usage.lastReset);
+        if (now.toDateString() !== lastReset.toDateString()) {
+          user.usage.dailyUsed = 0;
+          user.usage.lastReset = now;
+          await user.save();
+          minutesUsedDaily = 0;
+        } else {
+          minutesUsedDaily = user.usage.dailyUsed || 0;
+        }
 
-    console.log(`[DEBUG] Session başlangıcında kullanım verilerini yüklüyor - userId: ${uid}, dateBucket: ${dateBucket}, monthBucket: ${monthBucket}`);
+        // Aylık kullanımı sıfırla (eğer yeni bir ay başladıysa)
+        const monthlyReset = new Date(user.usage.monthlyResetAt);
+        if (now > monthlyReset) {
+          user.usage.monthlyUsed = 0;
+          user.usage.monthlyResetAt = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+          await user.save();
+          minutesUsedMonthly = 0;
+        } else {
+          minutesUsedMonthly = user.usage.monthlyUsed || 0;
+        }
 
-    const dailyDoc = await Usage.findOne({ userId: uid, dateBucket }).lean();
-    const monthAgg = await Usage.aggregate([
-      { $match: { userId: new mongoose.Types.ObjectId(uid), monthBucket } },
-      { $group: { _id: null, minutes: { $sum: '$minutes' } } }
-    ]);
-
-    minutesUsedDaily = Number(dailyDoc?.minutes || 0);
-    minutesUsedMonthly = Number(monthAgg?.[0]?.minutes || 0);
-
-    console.log(`[DEBUG] Usage collection'dan yüklenen değerler - daily: ${minutesUsedDaily}, monthly: ${minutesUsedMonthly}`);
-
-    // User.usage'yi de güncelle ki /me endpoint'i doğru değeri görsün
-    await User.findByIdAndUpdate(uid, {
-      $set: {
-        'usage.dailyUsed': minutesUsedDaily,
-        'usage.monthlyUsed': minutesUsedMonthly,
-        'usage.lastReset': now,
-        'usage.monthlyResetAt': new Date(now.getFullYear(), now.getMonth() + 1, 1)
+        console.log(`[DEBUG] /me usage'den yüklenen değerler - daily: ${minutesUsedDaily}, monthly: ${minutesUsedMonthly}`);
       }
-    });
-
-    console.log(`[DEBUG] User.usage de güncellendi - daily: ${minutesUsedDaily}, monthly: ${minutesUsedMonthly}`);
-
+    }
   } catch (e) {
-    console.warn('[session] usage preload error:', e?.message || e);
+    console.warn('[session] usage load error:', e?.message || e);
   }
   // If over limit, block session start
   if (minutesUsedDaily >= limits.daily || minutesUsedMonthly >= limits.monthly) {

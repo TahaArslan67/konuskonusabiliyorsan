@@ -2838,14 +2838,28 @@ wss.on('connection', (clientWs, request) => {
       if (t === 'set_prefs' && obj?.prefs) {
         try {
           const p = obj.prefs || {};
+          console.log('[DEBUG] ===== SET_PREFS DEBUG =====');
+          console.log('[DEBUG] obj.prefs:', JSON.stringify(p, null, 2));
+          console.log('[DEBUG] p.scenarioId:', p.scenarioId);
+          console.log('[DEBUG] sess?.prefs before:', JSON.stringify(sess?.prefs, null, 2));
+
           // Update in-memory prefs
           if (sess && sess.prefs) {
             if (typeof p.learnLang === 'string') sess.prefs.learnLang = String(p.learnLang).toLowerCase();
             if (typeof p.nativeLang === 'string') sess.prefs.nativeLang = String(p.nativeLang).toLowerCase();
             if (typeof p.voice === 'string') sess.prefs.voice = String(p.voice);
             if (typeof p.correction === 'string') sess.prefs.correction = String(p.correction).toLowerCase();
-            if (typeof p.scenarioId === 'string') sess.prefs.scenarioId = p.scenarioId || null;
+            if (typeof p.scenarioId === 'string') {
+          sess.prefs.scenarioId = p.scenarioId || null;
+          console.log('[DEBUG] ✅ scenarioId güncellendi:', sess.prefs.scenarioId);
+        } else {
+          console.log('[DEBUG] ⚠️ p.scenarioId string değil:', typeof p.scenarioId, p.scenarioId);
+        }
+
+            console.log('[DEBUG] sess?.prefs after:', JSON.stringify(sess?.prefs, null, 2));
+            console.log('[DEBUG] sess?.prefs.scenarioId:', sess?.prefs.scenarioId);
           }
+          console.log('[DEBUG] ===========================');
           const lang = (sess?.prefs?.learnLang || 'tr').toLowerCase();
           const nlang = (sess?.prefs?.nativeLang || 'tr').toLowerCase();
           const voicePref = sess?.prefs?.voice || 'alloy';

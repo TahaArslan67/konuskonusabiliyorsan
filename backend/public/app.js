@@ -561,8 +561,10 @@ async function connect(){
   if (pc) return;
   $('#btnConnect').disabled = true;
   try {
-    // 1) ephemeral token
-    const r = await fetch(`${backendBase}/realtime/ephemeral`, { method: 'POST', headers: { 'Content-Type': 'application/json' }});
+    // 1) ephemeral token - include scenario preference
+    const scenarioId = scenarioSelect && scenarioSelect.value ? scenarioSelect.value : null;
+    const body = { scenarioId };
+    const r = await fetch(`${backendBase}/realtime/ephemeral`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!r.ok) throw new Error(`ephemeral failed: ${r.status}`);
     const { client_secret: token, model } = await r.json();
     if (!token) throw new Error('empty token');

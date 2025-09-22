@@ -120,7 +120,7 @@ const sendEmail = async (mailOptions) => {
 const ADMIN_EMAILS = new Set(String(process.env.ADMIN_EMAILS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
 
 // Persona builder for brand-specific language coach behavior
-function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction = 'gentle', scenarioText = '', userLevel = null){
+function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction = 'gentle', scenarioId = null, userLevel = null){
   const l = String(learnLang || 'tr').toLowerCase();
   const n = String(nativeLang || 'tr').toLowerCase();
   const c = String(correction || 'gentle').toLowerCase();
@@ -128,8 +128,8 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
   const nativeName = n === 'tr' ? 'Türkçe' : (n === 'en' ? 'İngilizce' : n);
   const fixStyle = (
     c === 'off' ? 'Düzeltme yapma; sadece anlayıp doğal ve kısa yanıt ver.' :
-    c === 'strict' ? 'Dil hatalarını tespit et ve nazik ama net şekilde düzelt. Önce kısa yanıt ver, ardından bir cümle içinde düzeltmeyi açıkla ve bir örnek ver. Örnek formatı: “Şöyle de diyebilirsin: …”.' :
-    'Gerekirse hataları nazikçe düzelt. Kısa yanıt ver; en fazla bir cümlelik açıklama ve küçük bir örnek ekle. Örnek formatı: “Şöyle de diyebilirsin: …”.'
+    c === 'strict' ? 'Dil hatalarını tespit et ve nazik ama net şekilde düzelt. Önce kısa yanıt ver, ardından bir cümle içinde düzeltmeyi açıkla ve bir örnek ver. Örnek formatı: "Şöyle de diyebilirsin: …".' :
+    'Gerekirse hataları nazikçe düzelt. Kısa yanıt ver; en fazla bir cümlelik açıklama ve küçük bir örnek ekle. Örnek formatı: "Şöyle de diyebilirsin: …".'
   );
   const safety = 'Konudan sapma; sadece kullanıcının söylediğine yanıt ver. Anlamazsan kibarca tekrar iste.';
   const tone = 'Sıcak, motive edici ve saygılı bir dil koçu gibi konuş.';
@@ -140,15 +140,26 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
   const format = `BİÇİM: (1) ${learnName} dilinde 1-2 kısa öneri söyle. (2) Gerekirse ${nativeName} dilinde 1 cümlelik çok kısa ipucu ekle ("Tip:" ile başlat). (3) Mümkünse tek basit dilbilgisi noktası vurgula.`;
   const lengthPolicy = 'UZUNLUK: Varsayılan 1-2 cümle. Kullanıcı açıkça daha detay isterse 3-4 cümleye çık.';
   const gentleLimits = 'Gentle modda: Anlam bozulmuyorsa düzeltme yapma. Düzeltirsen: hatayı çok kısa belirt + ana dilde 1 cümlelik ipucu + hedef dilde tek örnek.';
-  const scenarioPart = scenarioText ? ` Senaryo bağlamı: ${scenarioText}` : '';
+
+  // Get scenario persona prompt
+  const scenarioPrompt = getScenarioPersonaPrompt(scenarioId);
+  const scenarioPart = scenarioPrompt ? ` ${scenarioPrompt}` : '';
+
   const pacing = 'Konuşma hızını biraz yavaş tut. 1-2 kısa cümleyle konuş. Kullanıcıyı konuşturan kısa sorular sor.';
   const levelInstruction = userLevel ? ` Kullanıcının dil seviyesi: ${userLevel}. Bu seviyeye uygun kelimeler, dilbilgisi yapıları ve konuşma hızı kullan.` : '';
   return `Markaya özel dil koçu asistan ("konuskonusabilirsen"). Kullanıcının ana dili: ${nativeName}. Öğrenilen dil: ${learnName}. ${tone} ${convo} ${langPolicy} ${lengthPolicy} ${format} ${fixStyle} ${gentleLimits} ${safety} ${pacing}${scenarioPart}${levelInstruction}`;
 }
 
+// Helper function to get scenario persona prompt
+function getScenarioPersonaPrompt(scenarioId) {
+  if (!scenarioId || !scenarios.has(scenarioId)) return '';
+  const scenario = scenarios.get(scenarioId);
+  return scenario.personaPrompt || '';
+}
+
 // OpenAI (public) envs
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
-const REALTIME_MODEL = process.env.OPENAI_REALTIME_MODEL || 'gpt-4o-realtime-preview-2025-08-28';
+const REALTIME_MODEL = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime';
 const RESPONSE_TEXT_ENABLED = (process.env.RESPONSE_TEXT_ENABLED ?? 'true').toLowerCase() !== 'false';
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || '';
 const IPINFO_TOKEN = process.env.IPINFO_TOKEN || '';
@@ -2250,7 +2261,9 @@ app.post('/realtime/ephemeral', async (req, res) => {
     const learnLang = (req.body?.preferredLearningLanguage || req.body?.preferredLanguage || 'tr').toLowerCase();
     const nativeLang = (req.body?.preferredNativeLanguage || 'tr').toLowerCase();
     const corr = (req.body?.preferredCorrectionMode || 'gentle').toLowerCase();
-    const persona = buildPersonaInstruction(learnLang, nativeLang, corr);
+    const scenarioId = req.body?.scenarioId || null;
+    const scenarioPrompt = getScenarioPersonaPrompt(scenarioId);
+    const persona = buildPersonaInstruction(learnLang, nativeLang, corr, scenarioId, null);
     const r = await fetchFn('https://api.openai.com/v1/realtime/sessions', {
       method: 'POST',
       headers: {
@@ -2345,6 +2358,8 @@ app.post('/session/start', async (req, res) => {
         if (u.preferredVoice) prefs.voice = String(u.preferredVoice);
         if (u.preferredCorrectionMode) prefs.correction = String(u.preferredCorrectionMode).toLowerCase();
         if (u.placementLevel) userLevel = String(u.placementLevel);
+        // Senaryo ID'sini de yükle
+        // Note: Senaryo tercihi runtime'da tutuluyor, kalıcı değil
       }
     }
   } catch {}

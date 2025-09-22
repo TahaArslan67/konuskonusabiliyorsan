@@ -257,10 +257,43 @@ async function preloadPills(){
     } catch {}
   } catch {}
 }
-try { preloadPills(); } catch {}
+async function debugUpdateUsage(){
+  try {
+    const token = localStorage.getItem('hk_token');
+    if (!token) {
+      log('DEBUG: Token bulunamadı');
+      return;
+    }
 
-// DOM yüklendiğinde kota bilgilerini güncelle
-document.addEventListener('DOMContentLoaded', async () => {
+    log('DEBUG: /me çağrısı yapılıyor...');
+    const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
+    log('DEBUG: /me yanıtı:', r.status, r.ok);
+
+    if (r.ok){
+      const me = await r.json();
+      log('DEBUG: /me verisi:', JSON.stringify(me, null, 2));
+
+      const usage = me.user?.usage;
+      if (usage){
+        log('DEBUG: usage verisi:', JSON.stringify(usage, null, 2));
+        const d = document.getElementById('limitDaily');
+        const m = document.getElementById('limitMonthly');
+        if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
+        if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
+        log(`DEBUG: Kota güncellendi: Günlük ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk, Aylık ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`);
+      } else {
+        log('DEBUG: usage verisi bulunamadı');
+      }
+    } else {
+      log('DEBUG: /me çağrısı başarısız:', r.status);
+    }
+  } catch (e) {
+    log('DEBUG: Hata:', e.message || e);
+  }
+}
+
+// Debug fonksiyonunu global olarak erişilebilir yap
+window.debugUpdateUsage = debugUpdateUsage;
   try {
     const token = localStorage.getItem('hk_token');
     if (token){
@@ -279,8 +312,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   } catch (e) {
     log('DOMContentLoaded kota güncelleme hatası: ' + (e.message || e));
-  }
-});
+  };
 
 async function persistPrefs(partial){
   try{
@@ -893,6 +925,12 @@ async function wsStop(){
         wsBargeInTimer = null;
       }
       wsStartRequested = false;
+
+      // Kota güncelleme interval'ini temizle
+      if (window.__hk_usage_interval) {
+        clearInterval(window.__hk_usage_interval);
+        window.__hk_usage_interval = null;
+      }
     } catch (e) {
       log('State reset hatası: ' + (e.message || e));
     }
@@ -1238,6 +1276,37 @@ if (btnStartTalk){
           await updateUsageAfterDelay();
         }
       }, 500);
+
+      // Konuşma sırasında kota bilgilerini düzenli olarak güncelle (5 saniyede bir)
+      const usageInterval = setInterval(async () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          try {
+            const token = localStorage.getItem('hk_token');
+            if (token){
+              const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
+              if (r.ok){
+                const me = await r.json();
+                const usage = me.user?.usage;
+                if (usage){
+                  const d = document.getElementById('limitDaily');
+                  const m = document.getElementById('limitMonthly');
+                  if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
+                  if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
+                  log(`Kota düzenli güncelleme: Günlük ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk, Aylık ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`);
+                }
+              }
+            }
+          } catch (e) {
+            log('Düzenli kota güncelleme hatası: ' + (e.message || e));
+          }
+        } else {
+          // Bağlantı kapandıysa interval'i durdur
+          clearInterval(usageInterval);
+        }
+      }, 5000); // Her 5 saniyede bir
+
+      // Interval'i global olarak sakla ki durdururken temizleyebilelim
+      window.__hk_usage_interval = usageInterval;
     } catch (e){
       log('Başlatma hatası: '+(e.message||e));
       btnStartTalk.disabled = false; wsStartRequested = false;
@@ -1256,6 +1325,12 @@ if (btnStopTalk){
 
       // WebSocket bağlantısını durdur
       wsStop().catch(e => log('wsStop hatası: ' + (e.message || e)));
+
+      // Kota güncelleme interval'ini temizle
+      if (window.__hk_usage_interval) {
+        clearInterval(window.__hk_usage_interval);
+        window.__hk_usage_interval = null;
+      }
 
       // Tüm ses bileşenlerini temizle
       try { if (wsPlaybackSource) { wsPlaybackSource.stop(); wsPlaybackSource = null; } } catch {}
@@ -1299,6 +1374,12 @@ if (btnToggleMic){
         btnToggleMic.textContent = 'Mikrofon Aç';
         updateStatus();
         log('Mikrofon kapatıldı');
+
+        // Kota güncelleme interval'ini temizle
+        if (window.__hk_usage_interval) {
+          clearInterval(window.__hk_usage_interval);
+          window.__hk_usage_interval = null;
+        }
       }
     } catch (e){ log('Mic toggle hatası: '+(e.message||e)); }
   });

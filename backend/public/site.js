@@ -125,9 +125,27 @@ async function onPlanClick(e){
     return;
   }
 
-  // Free plan için direkt geçiş yap
+  // Plan değişikliği mantığı - Pro'dan alt planlara geçerken onay al
+  console.log('📊 [site.js] Plan karşılaştırması yapılıyor...');
+  const planHierarchy = { free: 0, starter: 1, pro: 2, enterprise: 3 };
+  const currentLevel = planHierarchy[currentPlan] || 0;
+  const newLevel = planHierarchy[plan] || 0;
+  console.log('📊 [site.js] Plan seviyeleri:', { current: currentLevel, new: newLevel, isDowngrade: newLevel < currentLevel });
+
+  // Pro'dan alt planlara geçerken onay al
+  if (currentPlan === 'pro' && newLevel < currentLevel) {
+    const planNames = { 'free': 'Ücretsiz', 'starter': 'Starter', 'pro': 'Pro' };
+    console.log(`⚠️ [site.js] PRO -> ${plan.toUpperCase()} DOWNGRADE - Özel modal gösteriliyor`);
+    const confirmed = await showPlanChangeModal(currentPlan, plan);
+    console.log('✅ [site.js] Kullanıcı seçimi:', confirmed ? 'EVET' : 'HAYIR');
+    if (!confirmed) return;
+  } else {
+    console.log('✅ [site.js] Direkt geçiş yapılıyor (modal gerekmiyor)');
+  }
+
+  // Free plan için direkt API çağrısı yap
   if (plan === 'free') {
-    console.log('🎯 [site.js] FREE PLAN SEÇİLDİ - Direkt geçiş yapılıyor');
+    console.log('🎯 [site.js] FREE PLAN SEÇİLDİ - Direkt API çağrısı yapılıyor');
     try {
       const r = await fetch(`${backendBase}/api/update-plan`, {
         method: 'POST',
@@ -149,24 +167,6 @@ async function onPlanClick(e){
       alert('Bağlantı hatası');
     }
     return;
-  }
-
-  // Plan değişikliği mantığı - sadece Pro'dan alt planlara geçerken onay al
-  console.log('📊 [site.js] Plan karşılaştırması yapılıyor...');
-  const planHierarchy = { free: 0, starter: 1, pro: 2, enterprise: 3 };
-  const currentLevel = planHierarchy[currentPlan] || 0;
-  const newLevel = planHierarchy[plan] || 0;
-  console.log('📊 [site.js] Plan seviyeleri:', { current: currentLevel, new: newLevel, isDowngrade: newLevel < currentLevel });
-
-  // Pro'dan alt planlara geçerken onay al
-  if (currentPlan === 'pro' && newLevel < currentLevel) {
-    const planNames = { 'free': 'Ücretsiz', 'starter': 'Starter', 'pro': 'Pro' };
-    console.log(`⚠️ [site.js] PRO -> ${plan.toUpperCase()} DOWNGRADE - Özel modal gösteriliyor`);
-    const confirmed = await showPlanChangeModal(currentPlan, plan);
-    console.log('✅ [site.js] Kullanıcı seçimi:', confirmed ? 'EVET' : 'HAYIR');
-    if (!confirmed) return;
-  } else {
-    console.log('✅ [site.js] Direkt geçiş yapılıyor (modal gerekmiyor)');
   }
 
   // PayTR checkout session oluştur

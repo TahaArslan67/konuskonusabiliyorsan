@@ -2836,6 +2836,16 @@ wss.on('connection', (clientWs, request) => {
         return;
       }
       if (t === 'set_prefs' && obj?.prefs) {
+        console.log('[DEBUG] ===== SET_PREFS MESAJI GELDİ =====');
+        console.log('[DEBUG] obj.prefs:', JSON.stringify(obj.prefs, null, 2));
+        console.log('[DEBUG] obj.prefs.scenarioId:', obj.prefs.scenarioId);
+        console.log('[DEBUG] obj.prefs keys:', Object.keys(obj.prefs || {}));
+        console.log('[DEBUG] ==================================');
+        console.log('[DEBUG] ===== SET_PREFS MESAJI GELDİ =====');
+        console.log('[DEBUG] obj.prefs:', JSON.stringify(obj.prefs, null, 2));
+        console.log('[DEBUG] obj.prefs.scenarioId:', obj.prefs.scenarioId);
+        console.log('[DEBUG] obj.prefs keys:', Object.keys(obj.prefs || {}));
+        console.log('[DEBUG] ==================================');
         try {
           const p = obj.prefs || {};
           console.log('[DEBUG] ===== SET_PREFS DEBUG =====');

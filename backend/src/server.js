@@ -124,7 +124,7 @@ function buildPersonaInstruction(learnLang = 'en', nativeLang = 'tr', correction
   const l = String(learnLang || 'tr').toLowerCase();
   const n = String(nativeLang || 'tr').toLowerCase();
   const c = String(correction || 'gentle').toLowerCase();
-  const learnName = l === 'en' ? 'Türkçe' : (l === 'en' ? 'İngilizce' : l);
+  const learnName = l === 'tr' ? 'Türkçe' : (l === 'en' ? 'İngilizce' : l);
   const nativeName = n === 'tr' ? 'Türkçe' : (n === 'en' ? 'İngilizce' : n);
   const fixStyle = (
     c === 'off' ? 'Düzeltme yapma; sadece anlayıp doğal ve kısa yanıt ver.' :
@@ -147,14 +147,27 @@ function buildPersonaInstruction(learnLang = 'en', nativeLang = 'tr', correction
 
   const pacing = 'Konuşma hızını biraz yavaş tut. 1-2 kısa cümleyle konuş. Kullanıcıyı konuşturan kısa sorular sor.';
   const levelInstruction = userLevel ? ` Kullanıcının dil seviyesi: ${userLevel}. Bu seviyeye uygun kelimeler, dilbilgisi yapıları ve konuşma hızı kullan.` : '';
-  return `Markaya özel dil koçu asistan ("konuskonusabilirsen"). Kullanıcının ana dili: ${nativeName}. Öğrenilen dil: ${learnName}. ${tone} ${convo} ${langPolicy} ${lengthPolicy} ${format} ${fixStyle} ${gentleLimits} ${safety} ${pacing}${scenarioPart}${levelInstruction}`;
+  const fullPersona = `Markaya özel dil koçu asistan ("konuskonusabilirsen"). Kullanıcının ana dili: ${nativeName}. Öğrenilen dil: ${learnName}. ${tone} ${convo} ${langPolicy} ${lengthPolicy} ${format} ${fixStyle} ${gentleLimits} ${safety} ${pacing}${scenarioPart}${levelInstruction}`;
+  console.log('[DEBUG] Full persona length:', fullPersona.length);
+  console.log('[DEBUG] scenarioPart:', scenarioPart);
+  console.log('[DEBUG] scenarioId:', scenarioId);
+  console.log('[DEBUG] scenarioPrompt:', scenarioPrompt);
+  return fullPersona;
 }
 
-// Helper function to get scenario persona prompt
 function getScenarioPersonaPrompt(scenarioId) {
-  if (!scenarioId || !scenarios.has(scenarioId)) return '';
+  console.log('[DEBUG] getScenarioPersonaPrompt çağrıldı:', scenarioId);
+  console.log('[DEBUG] scenarios.size:', scenarios.size);
+  console.log('[DEBUG] scenarios.has(scenarioId):', scenarios.has(scenarioId));
+  if (!scenarioId || !scenarios.has(scenarioId)) {
+    console.log('[DEBUG] Senaryo bulunamadı veya ID boş');
+    return '';
+  }
   const scenario = scenarios.get(scenarioId);
-  return scenario.personaPrompt || '';
+  console.log('[DEBUG] Senaryo bulundu:', JSON.stringify(scenario, null, 2));
+  const prompt = scenario.personaPrompt || '';
+  console.log('[DEBUG] personaPrompt:', prompt);
+  return prompt;
 }
 
 // OpenAI (public) envs
@@ -887,14 +900,27 @@ const publicDir = path.join(__dirname, '..', 'public');
 const scenarios = new Map();
 function loadScenarios(){
   try {
+    console.log('[DEBUG] loadScenarios çağrıldı');
     const scenariosDir = path.join(__dirname, 'scenarios');
-    if (!fs.existsSync(scenariosDir)) return;
+    console.log('[DEBUG] scenariosDir:', scenariosDir);
+    if (!fs.existsSync(scenariosDir)) {
+      console.log('[DEBUG] scenarios klasörü bulunamadı');
+      return;
+    }
+    console.log('[DEBUG] scenarios klasörü var');
     const files = fs.readdirSync(scenariosDir).filter(f => f.endsWith('.json'));
+    console.log('[DEBUG] JSON dosyaları:', files);
     for (const f of files) {
       try {
         const raw = fs.readFileSync(path.join(scenariosDir, f), 'utf8');
         const obj = JSON.parse(raw);
-        if (obj && obj.id) scenarios.set(String(obj.id), obj);
+        console.log('[DEBUG] JSON parse edildi:', f, 'obj:', obj);
+        if (obj && obj.id) {
+          scenarios.set(String(obj.id), obj);
+          console.log('[DEBUG] Senaryo eklendi:', obj.id);
+        } else {
+          console.log('[DEBUG] Senaryoda id alanı yok:', f);
+        }
       } catch (e) {
         console.warn('[scenarios] parse error for', f, e?.message || e);
       }

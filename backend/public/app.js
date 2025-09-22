@@ -227,7 +227,7 @@ async function preloadPills(){
     const token = localStorage.getItem('hk_token');
     if (!token) return;
     const headers = { Authorization: `Bearer ${token}` };
-    // /me -> plan + placementLevel + usage
+    // /me -> plan + placementLevel (kota bilgisi artık usage_update'den geliyor)
     try {
       const mr = await fetch(`${backendBase}/me`, { headers });
       if (mr.ok){
@@ -235,16 +235,6 @@ async function preloadPills(){
         const p = document.getElementById('statusPlan');
         const badge = document.getElementById('placementBadge');
         if (p) p.textContent = `Plan: ${me.user?.plan || 'free'}`;
-        if (badge) badge.textContent = `Seviye: ${me.user?.placementLevel || '-'}`;
-        // Also preload preference selects to user's saved values
-        try{
-          const learnSel = document.getElementById('learnLangSelect');
-          const nativeSel = document.getElementById('nativeLangSelect');
-          const voiceSel = document.getElementById('voiceSelect');
-          if (learnSel && me.user?.preferredLearningLanguage){ learnSel.value = me.user?.preferredLearningLanguage; }
-          if (nativeSel && me.user?.preferredNativeLanguage){ nativeSel.value = me.user?.preferredNativeLanguage; }
-          if (voiceSel && me.user?.preferredVoice){ voiceSel.value = me.user?.preferredVoice; }
-        } catch {}
         // Update usage from me.user.usage
         const usage = me.user?.usage;
         if (usage){
@@ -253,11 +243,11 @@ async function preloadPills(){
           if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
           if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
         }
+        if (badge) badge.textContent = `Seviye: ${me.user?.placementLevel || '-'}`;
       }
     } catch {}
   } catch {}
 }
-try { preloadPills(); } catch {}
 
 async function persistPrefs(partial){
   try{
@@ -595,7 +585,7 @@ async function wsConnect(){
     const p = document.getElementById('statusPlan');
     if (p) p.textContent = `Plan: ${plan || 'free'}`;
 
-    // Update usage from me.user.usage
+    // Update usage from me.user.usage (only once at the beginning)
     if (usageData){
       const d = document.getElementById('limitDaily');
       const m = document.getElementById('limitMonthly');
@@ -614,40 +604,8 @@ async function wsConnect(){
       try { const el=$('#btnWsCommit'); if (el) el.disabled = false; } catch {}
       try { const el=$('#btnWsTts'); if (el) el.disabled = false; } catch {}
       updateStatus();
-      // WS açıldıktan sonra da tekrar /me ile tazele (eventual consistency için)
-      try {
-        const token = localStorage.getItem('hk_token');
-        if (token){
-          const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
-          if (r.ok){
-            const me = await r.json();
-            const usage = me.user?.usage;
-            if (usage){
-              const d = document.getElementById('limitDaily');
-              const m = document.getElementById('limitMonthly');
-              if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
-              if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
-            }
-          }
-        }
-      } catch {}
-      // Kısa bir gecikmeyle bir kez daha tazele
-      try { setTimeout(() => {
-        const token = localStorage.getItem('hk_token');
-        if (token){
-          fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } })
-          .then(r => r.json())
-          .then(me => {
-            const usage = me.user?.usage;
-            if (usage){
-              const d = document.getElementById('limitDaily');
-              const m = document.getElementById('limitMonthly');
-              if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
-              if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
-            }
-          }).catch(() => {});
-        }
-      }, 1200); } catch {}
+      // WS açıldıktan sonra kota bilgilerini usage_update mesajlarından güncelleyeceğiz
+      // (gereksiz /me çağrıları kaldırıldı)
       try {
         const voiceSel = document.getElementById('voiceSelect');
         const voice = voiceSel && voiceSel.value ? voiceSel.value : 'alloy';
@@ -676,19 +634,6 @@ async function wsConnect(){
       // Allow toggling mic after connection
       const btnToggleMic = document.getElementById('btnToggleMic');
       if (btnToggleMic){ btnToggleMic.disabled = false; }
-      // Update placement badge from /me
-      try{
-        const token = localStorage.getItem('hk_token');
-        if (token){
-          const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }});
-          if (r.ok){
-            const me = await r.json();
-            const badge = document.getElementById('placementBadge');
-            if (badge) badge.textContent = `Seviye: ${me.user?.placementLevel || '-'}`;
-            try{ console.log('[app] placement badge güncellendi:', me.user?.placementLevel); }catch{}
-          }
-        }
-      }catch{}
       // Sync session prefs on open and, if Start is requested, auto-start mic
       try{
         // Send full preferences first (voice, learnLang, nativeLang, correction, scenario)
@@ -724,24 +669,15 @@ async function wsConnect(){
           const obj = JSON.parse(ev.data);
           if (obj && obj.type) {
             if (obj.type === 'usage_update' && obj.usage){
-              // Update usage from me.user.usage
-              try {
-                const token = localStorage.getItem('hk_token');
-                if (token){
-                  fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } })
-                  .then(r => r.json())
-                  .then(me => {
-                    const usage = me.user?.usage;
-                    if (usage){
-                      const d = document.getElementById('limitDaily');
-                      const m = document.getElementById('limitMonthly');
-                      if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
-                      if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
-                      log(`Kota güncellendi (usage_update): Günlük ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk, Aylık ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`);
-                    }
-                  }).catch(() => {});
-                }
-              } catch {}
+              // Update usage from obj.usage directly (no need for /me call)
+              const usage = obj.usage;
+              if (usage){
+                const d = document.getElementById('limitDaily');
+                const m = document.getElementById('limitMonthly');
+                if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
+                if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
+                log(`Kota güncellendi (usage_update): Günlük ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk, Aylık ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`);
+              }
             }
             if (obj.type === 'limit_reached'){
               log('LİMİT: kullanım limiti aşıldı. Plan yükseltin veya yarın tekrar deneyin.');
@@ -752,7 +688,7 @@ async function wsConnect(){
               wrapper.style.marginTop = '8px';
               const info = document.createElement('div');
               info.className = 'subtle';
-              info.innerHTML = `Limit aşıldı.`;
+              info.innerHTML = `Günlük/Aylık limit aşıldı. Kullanım: gün ${(j.dailyUsed||0).toFixed?.(1) ?? j.dailyUsed}/${j.dailyLimit} dk, ay ${(j.monthlyUsed||0).toFixed?.(1) ?? j.monthlyUsed}/${j.monthlyLimit} dk.`;
               const btn = document.createElement('button');
               btn.className = 'btn btn-primary';
               const cur = window.__hk_current_plan || 'free';
@@ -1169,26 +1105,8 @@ if (btnStartTalk){
       if (btnStopTalk) btnStopTalk.disabled = false;
       log('Konuşma başlatıldı');
 
-      // 5) Kota bilgilerini güncelle (WS bağlantısı kurulduktan sonra)
-      try {
-        const token = localStorage.getItem('hk_token');
-        if (token){
-          const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
-          if (r.ok){
-            const me = await r.json();
-            const usage = me.user?.usage;
-            if (usage){
-              const d = document.getElementById('limitDaily');
-              const m = document.getElementById('limitMonthly');
-              if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
-              if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
-              log(`Kota güncellendi: Günlük ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk, Aylık ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`);
-            }
-          }
-        }
-      } catch (e) {
-        log('Kota güncelleme hatası: ' + (e.message || e));
-      }
+      // Kota bilgilerini zaten başlangıçta aldık ve usage_update mesajlarından güncelliyoruz
+      // (gereksiz /me çağrısı kaldırıldı)
     } catch (e){
       log('Başlatma hatası: '+(e.message||e));
       btnStartTalk.disabled = false; wsStartRequested = false;

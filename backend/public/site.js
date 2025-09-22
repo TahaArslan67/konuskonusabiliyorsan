@@ -688,17 +688,12 @@ items.forEach(el => io.observe(el));
 } catch {}
 })();
 
-// Inline script bağımlılığını azaltmak için logo fallback'ını JS'e taşı
-// index.html içindeki <img src="/logo.png"> için hata olursa svg/icon'a düş
-window.addEventListener('DOMContentLoaded', () => {
-  const logoImg = document.querySelector('header .brand img');
-  if (!logoImg) return;
-  logoImg.addEventListener('error', function onErr(){
-    if (!this.dataset.fallback){
-      this.dataset.fallback = 'svg';
-      this.src = '/logo.svg';
-    } else {
-      this.src = '/logo-icon.svg';
-    }
-  }, { once: false });
+// Plan butonu event listener'ları
+console.log('🔗 [site.js] Plan butonu event listener\'ları bağlanıyor...');
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('[data-plan]')
+    .forEach(btn => {
+      console.log('🔘 [site.js] Buton bulundu:', btn, 'data-plan:', btn.getAttribute('data-plan'));
+      btn.addEventListener('click', onPlanClick);
+    });
 });

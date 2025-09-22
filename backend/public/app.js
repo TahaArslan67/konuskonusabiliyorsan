@@ -304,7 +304,7 @@ window.debugUpdateUsage = debugUpdateUsage;
 
 // Debug fonksiyonunu global olarak erişilebilir yap
 window.debugUpdateUsage = debugUpdateUsage;
-});
+
 
 async function persistPrefs(partial){
   try{

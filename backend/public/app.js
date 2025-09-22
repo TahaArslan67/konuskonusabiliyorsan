@@ -313,6 +313,92 @@ async function persistPrefs(partial){
   }catch{}
 }
 
+// Plan değişikliği için onay dialog'u ve işlemi
+async function confirmPlanChange(currentPlan, targetPlan) {
+  const planNames = {
+    'free': 'Ücretsiz',
+    'starter': 'Starter',
+    'pro': 'Pro'
+  };
+
+  const planLimits = {
+    'free': { daily: 3, monthly: 30 },
+    'starter': { daily: 30, monthly: 300 },
+    'pro': { daily: 120, monthly: 3600 }
+  };
+
+  const currentLimits = planLimits[currentPlan] || planLimits['free'];
+  const targetLimits = planLimits[targetPlan] || planLimits['free'];
+
+  const isDowngrade = (currentPlan === 'pro' && targetPlan === 'starter') ||
+                     (currentPlan === 'starter' && targetPlan === 'free') ||
+                     (currentPlan === 'pro' && targetPlan === 'free');
+
+  let message = '';
+  if (isDowngrade) {
+    message = `⚠️ ${planNames[currentPlan]} planından ${planNames[targetPlan]} planına geçiş yapacaksınız.\n\n`;
+    message += `Mevcut limitler: ${currentLimits.daily} dk/gün, ${currentLimits.monthly} dk/ay\n`;
+    message += `Yeni limitler: ${targetLimits.daily} dk/gün, ${targetLimits.monthly} dk/ay\n\n`;
+    message += `Bu değişiklikle:\n`;
+    message += `• Günlük kullanım limitiniz ${currentLimits.daily} dk'dan ${targetLimits.daily} dk'ya düşecek\n`;
+    message += `• Aylık kullanım limitiniz ${currentLimits.monthly} dk'dan ${targetLimits.monthly} dk'ya düşecek\n\n`;
+    message += `Devam etmek istediğinizden emin misiniz?`;
+  } else {
+    message = `${planNames[currentPlan]} planından ${planNames[targetPlan]} planına geçiyorsunuz.\n\n`;
+    message += `Yeni limitler: ${targetLimits.daily} dk/gün, ${targetLimits.monthly} dk/ay\n\n`;
+    message += `Devam etmek istiyor musunuz?`;
+  }
+
+  const confirmed = confirm(message);
+  return confirmed;
+}
+
+// Plan değişikliği işlemi
+async function changePlan(targetPlan) {
+  const token = localStorage.getItem('hk_token');
+  if (!token) {
+    alert('Devam etmek için giriş yapın. Ana sayfaya yönlendiriyorum.');
+    window.location.href = '/#pricing';
+    return;
+  }
+
+  try {
+    const r = await fetch(`${backendBase}/api/paytr/checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ plan: targetPlan })
+    });
+
+    const j = await r.json();
+    log('Plan değiştirme yanıtı:', j);
+
+    if (j?.iframe_url) {
+      window.location.href = j.iframe_url;
+      return;
+    }
+
+    if (j?.error) {
+      alert(`Plan değişikliği hatası: ${j.error}`);
+      return;
+    }
+
+    alert('Plan değişikliği başlatıldı!');
+    window.__hk_current_plan = targetPlan;
+
+    // UI'ı güncelle
+    const p = document.getElementById('statusPlan');
+    if (p) p.textContent = `Plan: ${targetPlan}`;
+
+    const badge = document.getElementById('proBadge');
+    if (badge && targetPlan === 'pro') badge.style.display = 'inline-block';
+    else if (badge && targetPlan !== 'pro') badge.style.display = 'none';
+
+  } catch (e) {
+    log('Plan değiştirme hatası:', e.message || e);
+    alert('Bağlantı hatası oluştu. Lütfen tekrar deneyin.');
+  }
+}
+
 function sendPrefsToWs(){
   try{
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
@@ -550,15 +636,25 @@ async function micOn(){
   if (!pc) return;
   try {
     if (!localStream){
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      localStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
     }
     // addTrack (creates/sendrecv m-line). Some browsers require replacing transceiver.
     localStream.getAudioTracks().forEach(track => pc.addTrack(track, localStream));
     $('#micStatus').textContent = 'mic: on';
-    try { document.body.classList.add('mic-on'); } catch {}
+    document.body.classList.add('mic-on');
     log('mic: on');
-  } catch (e){
+  } catch (e) {
     log('mic error: '+ (e.message || e));
+    // DOM manipülasyon hatası da yakala
+    if (e.message && e.message.includes('classList')) {
+      log('DOM class hatası: ' + e.message);
+    }
   }
 }
 
@@ -627,33 +723,16 @@ async function wsConnect(){
               const nextPlan = (cur === 'starter') ? 'pro' : 'starter';
               btn.textContent = (nextPlan === 'pro') ? 'Pro\'ya Geç' : 'Starter\'a Geç';
               btn.addEventListener('click', async () => {
-                const token = localStorage.getItem('hk_token');
-                if (!token){
-                  alert('Devam etmek için giriş yapın. Ana sayfaya yönlendiriyorum.');
-                  window.location.href = '/#pricing';
-                  return;
-                }
-                try{
-                  const r = await fetch(`${backendBase}/api/paytr/checkout`, { method:'POST', headers:{ 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ plan: nextPlan }) });
-                  const j = await r.json();
-                  log('Plan değiştirme başarılı:', j);
-                  window.__hk_current_plan = nextPlan;
-                  const p = document.getElementById('statusPlan');
-                  if (p) p.textContent = `Plan: ${nextPlan}`;
-                  const badge = document.getElementById('proBadge');
-                  if (badge && nextPlan === 'pro') badge.style.display = 'inline-block';
-                  else if (badge && nextPlan !== 'pro') badge.style.display = 'none';
-                  const wrapper = document.createElement('div');
-                  wrapper.className = 'row';
-                  wrapper.style.marginTop = '8px';
-                  const info = document.createElement('div');
-                  info.className = 'subtle';
-                  info.innerHTML = `Plan değiştirildi: ${nextPlan}`;
-                  const btn = document.createElement('button');
-                  btn.className = 'btn btn-primary';
-                  btn.textContent = 'Tamam';
-                  wrapper.appendChild(info); wrapper.appendChild(btn);
-                  card.appendChild(wrapper);
+                try {
+                  const token = localStorage.getItem('hk_token');
+                  if (!token){
+                    alert('Devam etmek için giriş yapın. Ana sayfaya yönlendiriyorum.');
+                    window.location.href = '/#pricing';
+                    return;
+                  }
+                  if (await confirmPlanChange(cur, nextPlan)) {
+                    await changePlan(nextPlan);
+                  }
                 } catch (e) {
                   log('Plan değiştirme hatası:', e.message || e);
                 }
@@ -847,18 +926,19 @@ async function wsConnect(){
               const nextPlan = (cur === 'starter') ? 'pro' : 'starter';
               btn.textContent = (nextPlan === 'pro') ? 'Pro\'ya Geç' : 'Starter\'a Geç';
               btn.addEventListener('click', async () => {
-                const token = localStorage.getItem('hk_token');
-                if (!token){
-                  alert('Devam etmek için giriş yapın. Ana sayfaya yönlendiriyorum.');
-                  window.location.href = '/#pricing';
-                  return;
+                try {
+                  const token = localStorage.getItem('hk_token');
+                  if (!token){
+                    alert('Devam etmek için giriş yapın. Ana sayfaya yönlendiriyorum.');
+                    window.location.href = '/#pricing';
+                    return;
+                  }
+                  if (await confirmPlanChange(cur, nextPlan)) {
+                    await changePlan(nextPlan);
+                  }
+                } catch (e) {
+                  log('Plan değiştirme hatası:', e.message || e);
                 }
-                try{
-                  const r = await fetch(`${backendBase}/api/paytr/checkout`, { method:'POST', headers:{ 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ plan: nextPlan }) });
-                  const j = await r.json();
-                  if (j?.iframe_url){ window.location.href = j.iframe_url; return; }
-                  alert(j?.error || 'Ödeme başlatılamadı');
-                }catch(e){ alert('Bağlantı hatası'); }
               });
               const link = document.createElement('a');
               link.href = '/#pricing';

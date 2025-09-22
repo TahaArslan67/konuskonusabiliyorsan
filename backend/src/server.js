@@ -2617,10 +2617,13 @@ wss.on('connection', (clientWs, request) => {
       const nlang = (sess?.prefs?.nativeLang || 'tr').toLowerCase();
       const voicePref = sess?.prefs?.voice || 'alloy';
       const corr = (sess?.prefs?.correction || 'gentle').toLowerCase();
-      let scenarioText = '';
-      console.log('[DEBUG] ===== SCENARIO TEXT DEBUG =====');
+      console.log('[DEBUG] ===== SESSION PREFS DEBUG =====');
+      console.log('[DEBUG] sess?.prefs:', JSON.stringify(sess?.prefs, null, 2));
       console.log('[DEBUG] sess?.prefs?.scenarioId:', sess?.prefs?.scenarioId);
-      console.log('[DEBUG] scenarios.has(sess.prefs.scenarioId):', scenarios.has(sess.prefs.scenarioId));
+      console.log('[DEBUG] sess?.prefs?.learnLang:', sess?.prefs?.learnLang);
+      console.log('[DEBUG] sess?.prefs?.nativeLang:', sess?.prefs?.nativeLang);
+      console.log('[DEBUG] ================================');
+      let scenarioText = '';
       if (sess?.prefs?.scenarioId && scenarios.has(sess.prefs.scenarioId)) {
         const sc = scenarios.get(sess.prefs.scenarioId);
         const crit = Array.isArray(sc.successCriteria) ? sc.successCriteria.join('; ') : '';
@@ -2628,6 +2631,9 @@ wss.on('connection', (clientWs, request) => {
         console.log('[DEBUG] ✅ scenarioText oluşturuldu:', scenarioText);
       } else {
         console.log('[DEBUG] ❌ scenarioText oluşturulamadı - scenarioId:', sess?.prefs?.scenarioId);
+        console.log('[DEBUG] Available scenario IDs:', Array.from(scenarios.keys()));
+        console.log('[DEBUG] sess.prefs keys:', Object.keys(sess?.prefs || {}));
+        console.log('[DEBUG] sess.prefs object:', JSON.stringify(sess?.prefs, null, 2));
       }
       console.log('[DEBUG] ================================');
       const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel);

@@ -137,7 +137,7 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
   // Dil politikası: daima hedef dilde; ana dil sadece gerekirse 1 çok kısa ipucu için
   const langPolicy = `YANIT DİLİ: ${learnName} ve ${nativeName} birlikte kullan (yaklaşık %50/%50). Önce ${learnName} dilinde 1-2 doğal cümle; ardından ${nativeName} dilinde 1-2 kısa açıklama/özet ver.`;
   // Sesli çıktı için sade biçim
-  const format = `BİÇİM: (1) ${learnName} dilinde 1-2 cümle doğal yanıt. (2) ${nativeName} dilinde 1-2 cümle kısa açıklama / ipucu. (3) Mümkünse tek basit dilbilgisi noktası vurgula.`;
+  const format = `BİÇİM: (1) ${learnName} dilinde 1-2 cümle doğal yanıt. (2) ${nativeName} dilinde 1-2 cümle kısa açıklama / ipucu. (3) Örnek verirken asla 'you could say/say:' gibi giriş kullanma; örnek cümleyi doğrudan tırnak içinde ver.`;
   const lengthPolicy = 'UZUNLUK: Varsayılan 1-2 cümle. Kullanıcı açıkça uzun isterse 3 cümleye çık.';
   const gentleLimits = 'Gentle modda: Anlam bozulmuyorsa düzeltme yapma. Düzeltirsen: hatayı çok kısa belirt + ana dilde 1 cümlelik ipucu + hedef dilde tek örnek.';
   const scenarioPart = scenarioText ? ` Senaryo bağlamı: ${scenarioText}` : '';
@@ -2585,7 +2585,7 @@ wss.on('connection', (clientWs, request) => {
             prefix_padding_ms: 300,
             silence_duration_ms: 900,
             create_response: false,
-            interrupt_response: true,
+            interrupt_response: false,
           },
           instructions: persona
         },
@@ -2624,7 +2624,7 @@ wss.on('connection', (clientWs, request) => {
             prefix_padding_ms: 300,
             silence_duration_ms: 600,
             create_response: false,
-            interrupt_response: true,
+            interrupt_response: false,
           },
           input_audio_transcription: { language: lang },
           instructions: persona,

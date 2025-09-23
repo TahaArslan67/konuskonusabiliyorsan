@@ -2576,7 +2576,7 @@ wss.on('connection', (clientWs, request) => {
           input_audio_format: 'pcm16',
           output_audio_format: 'pcm16',
           voice: voicePref,
-          temperature: 0.2,
+          temperature: 0.8,
           input_audio_transcription: { model: 'gpt-4o-transcribe', language: lang },
           max_response_output_tokens: 20,
           turn_detection: {
@@ -2637,7 +2637,7 @@ wss.on('connection', (clientWs, request) => {
           },
           input_audio_transcription: { language: lang },
           instructions: persona,
-          temperature: 0.1,
+          temperature: 0.8,
         },
       };
       openaiWs.send(JSON.stringify(sessionUpdate));
@@ -2781,7 +2781,7 @@ wss.on('connection', (clientWs, request) => {
           }
           const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel);
           // Push updated session settings (voice/language hints) and a fresh system message
-          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, input_audio_transcription: { model: 'gpt-4o-transcribe', language: lang }, instructions: persona, temperature: 0.2 } }));
+          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, input_audio_transcription: { model: 'gpt-4o-transcribe', language: lang }, instructions: persona, temperature: 0.8 } }));
           // Persona'yı güçlü uygulamak için sistem mesajı olarak da ekle
           openaiWs.send(JSON.stringify({
             type: 'conversation.item.create',

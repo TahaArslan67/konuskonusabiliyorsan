@@ -54,6 +54,16 @@ function waitWsOpen(timeoutMs = 4000){
   });
 }
 }
+function waitWsOpen(timeoutMs = 4000){
+  return new Promise((resolve) => {
+    try{
+      if (ws && ws.readyState === WebSocket.OPEN) return resolve(true);
+      const t = setTimeout(() => resolve(false), timeoutMs);
+      const onOpen = () => { try { clearTimeout(t); } catch {}; try { ws && ws.removeEventListener('open', onOpen); } catch {}; resolve(true); };
+      ws && ws.addEventListener('open', onOpen);
+    } catch { resolve(false); }
+  });
+}
 function vizStart(){
   if (!vizCanvas || !vizCtx) vizInit();
   if (vizAnimId) return;

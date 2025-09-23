@@ -2923,6 +2923,11 @@ wss.on('connection', (clientWs, request) => {
       }
       switch (t) {
         case 'output_audio_buffer.append': {
+          // Mark start of bot speaking on first audio chunk (buffer mode)
+          if (openaiWs._audioStreamMode === null) {
+            openaiWs._audioStreamMode = 'buffer';
+            try { clientWs.send(JSON.stringify({ type: 'bot_speaking' })); } catch {}
+          }
           const b64 = obj?.audio;
           if (typeof b64 === 'string' && b64.length > 0) {
             const pcm = Buffer.from(b64, 'base64');
@@ -2938,7 +2943,11 @@ wss.on('connection', (clientWs, request) => {
         }
         case 'response.output_audio.delta':
         case 'response.audio.delta': {
-          // Base64 delta field
+          // Base64 delta field (delta mode)
+          if (openaiWs._audioStreamMode === null) {
+            openaiWs._audioStreamMode = 'delta';
+            try { clientWs.send(JSON.stringify({ type: 'bot_speaking' })); } catch {}
+          }
           const b64 = obj?.delta;
           if (typeof b64 === 'string' && b64.length > 0) {
             const pcm = Buffer.from(b64, 'base64');
@@ -2969,8 +2978,6 @@ wss.on('connection', (clientWs, request) => {
             const payload = { type: 'transcript', text: String(text), final: true };
             clientWs.send(JSON.stringify(payload));
           }
-          // Also ensure audio_end for safety
-          clientWs.send(JSON.stringify({ type: 'audio_end' }));
           break;
         }
         default: {

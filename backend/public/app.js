@@ -1261,8 +1261,9 @@ async function wsStartMic(){
     const chunkMs = (input.length / 24000) * 1000;
     // Start of speech: if not streaming, after cooldown, and energy above threshold
     const nowMs = Date.now();
-    // Raise threshold slightly to avoid false positives
-    const speakThreshold = 0.025;
+    // Adaptive threshold: higher while bot is speaking to reduce barge-in cuts
+    const baseThreshold = 0.03;
+    const speakThreshold = (wsBotSpeaking ? Math.max(0.06, baseThreshold * 2) : baseThreshold);
     if (!wsMicStreaming && nowMs >= wsNoStartUntil && energy > speakThreshold) {
       if (wsBotSpeaking && !wsBargeInConfirmed) {
         // Start debounce window (~200ms) to confirm user intent before cancelling bot
@@ -1280,7 +1281,7 @@ async function wsStartMic(){
               wsBargeInConfirmed = true;
             } catch {}
             wsBargeInPending = false; wsBargeInTimer = null;
-          }, 200);
+          }, 500);
         }
         // Do not start mic until barge-in confirmed
       } else {

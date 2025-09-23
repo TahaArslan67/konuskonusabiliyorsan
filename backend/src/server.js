@@ -138,7 +138,7 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
   const langPolicy = `YANIT DİLİ: ${learnName} ve ${nativeName} birlikte kullan (yaklaşık %50/%50). Önce ${learnName} dilinde 1-2 doğal cümle; ardından ${nativeName} dilinde 1-2 kısa açıklama/özet ver.`;
   // Sesli çıktı için sade biçim
   const format = `BİÇİM: (1) ${learnName} dilinde 1-2 cümle doğal yanıt. (2) ${nativeName} dilinde 1-2 cümle kısa açıklama / ipucu. (3) Mümkünse tek basit dilbilgisi noktası vurgula.`;
-  const lengthPolicy = 'UZUNLUK: Varsayılan 2-4 cümle. Kullanıcı açıkça kısa isterse 1-2 cümleye in.';
+  const lengthPolicy = 'UZUNLUK: Varsayılan 1-2 cümle. Kullanıcı açıkça uzun isterse 3 cümleye çık.';
   const gentleLimits = 'Gentle modda: Anlam bozulmuyorsa düzeltme yapma. Düzeltirsen: hatayı çok kısa belirt + ana dilde 1 cümlelik ipucu + hedef dilde tek örnek.';
   const scenarioPart = scenarioText ? ` Senaryo bağlamı: ${scenarioText}` : '';
   const pacing = 'Konuşma hızını biraz yavaş tut. 1-2 kısa cümleyle konuş. Kullanıcıyı konuşturan kısa sorular sor.';

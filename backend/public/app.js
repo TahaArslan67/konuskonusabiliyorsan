@@ -1262,7 +1262,7 @@ async function wsStartMic(){
     // Start of speech: if not streaming, after cooldown, and energy above threshold
     const nowMs = Date.now();
     // Raise threshold slightly to avoid false positives
-    const speakThreshold = 0.02;
+    const speakThreshold = 0.3;
     if (!wsMicStreaming && nowMs >= wsNoStartUntil && energy > speakThreshold) {
       if (wsBotSpeaking && !wsBargeInConfirmed) {
         // Start debounce window (~200ms) to confirm user intent before cancelling bot
@@ -1306,7 +1306,7 @@ async function wsStartMic(){
     // Silence tracking to auto-commit
     if (energy < 0.005) {
       wsVadSilenceMs += chunkMs;
-      if (wsMicStreaming && wsVadSilenceMs >= 600 && wsBytesSinceStart >= 4800) {
+      if (wsMicStreaming && wsVadSilenceMs >= 800 && wsBytesSinceStart >= 12000) {
         try { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'audio_stop' })); } catch {}
         log('VAD: voice stop (commit)');
         wsMicStreaming = false;

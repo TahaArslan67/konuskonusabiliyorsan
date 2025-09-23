@@ -135,10 +135,10 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
   const tone = 'Sıcak, motive edici ve saygılı bir dil koçu gibi konuş.';
   const convo = 'Her turda: 1 kısa doğal yanıt + kullanıcıyı konuşturan tek bir kısa soru.';
   // Dil politikası: daima hedef dilde; ana dil sadece gerekirse 1 çok kısa ipucu için
-  const langPolicy = `YANIT DİLİ: Daima ${learnName}. ${nativeName} en fazla tek cümlelik çok kısa ipucu için (gerekirse). Başka dillere kayma.`;
+  const langPolicy = `YANIT DİLİ: ${learnName} ve ${nativeName} birlikte kullan (yaklaşık %50/%50). Önce ${learnName} dilinde 1-2 doğal cümle; ardından ${nativeName} dilinde 1-2 kısa açıklama/özet ver.`;
   // Sesli çıktı için sade biçim
-  const format = `BİÇİM: (1) ${learnName} dilinde 1-2 kısa öneri söyle. (2) Gerekirse ${nativeName} dilinde 1 cümlelik çok kısa ipucu ekle ("Tip:" ile başlat). (3) Mümkünse tek basit dilbilgisi noktası vurgula.`;
-  const lengthPolicy = 'UZUNLUK: Varsayılan 1-2 cümle. Kullanıcı açıkça daha detay isterse 3-4 cümleye çık.';
+  const format = `BİÇİM: (1) ${learnName} dilinde 1-2 cümle doğal yanıt. (2) ${nativeName} dilinde 1-2 cümle kısa açıklama / ipucu. (3) Mümkünse tek basit dilbilgisi noktası vurgula.`;
+  const lengthPolicy = 'UZUNLUK: Varsayılan 2-4 cümle. Kullanıcı açıkça kısa isterse 1-2 cümleye in.';
   const gentleLimits = 'Gentle modda: Anlam bozulmuyorsa düzeltme yapma. Düzeltirsen: hatayı çok kısa belirt + ana dilde 1 cümlelik ipucu + hedef dilde tek örnek.';
   const scenarioPart = scenarioText ? ` Senaryo bağlamı: ${scenarioText}` : '';
   const pacing = 'Konuşma hızını biraz yavaş tut. 1-2 kısa cümleyle konuş. Kullanıcıyı konuşturan kısa sorular sor.';
@@ -2593,22 +2593,13 @@ wss.on('connection', (clientWs, request) => {
       openaiWs.send(JSON.stringify(sessionUpdate));
       // Ek güvence: konuşma başında persona ve dil politikasını sistem mesajı olarak ekle
       try {
-        // Persona'yı (senaryo dahil) sistem mesajı olarak da ekle
+        // Persona'yı (senaryo + iki dilli politika) sistem mesajı olarak ekle
         openaiWs.send(JSON.stringify({
           type: 'conversation.item.create',
           item: {
             type: 'message',
             role: 'system',
             content: [{ type: 'input_text', text: persona }]
-          }
-        }));
-        const langNotice = `System notice: User native=${nlang}, target=${lang}. Always answer in target language; optionally add one short ${nlang} tip line if needed.`;
-        openaiWs.send(JSON.stringify({
-          type: 'conversation.item.create',
-          item: {
-            type: 'message',
-            role: 'system',
-            content: [{ type: 'input_text', text: langNotice }]
           }
         }));
       } catch {}
@@ -2782,7 +2773,7 @@ wss.on('connection', (clientWs, request) => {
           const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel);
           // Push updated session settings (voice/language hints) and a fresh system message
           openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, input_audio_transcription: { model: 'gpt-4o-transcribe', language: lang }, instructions: persona, temperature: 0.8 } }));
-          // Persona'yı güçlü uygulamak için sistem mesajı olarak da ekle
+          // Persona'yı güçlü uygulamak için sistem mesajı olarak ekle (ayrıca tekil langNotice kaldırıldı)
           openaiWs.send(JSON.stringify({
             type: 'conversation.item.create',
             item: {

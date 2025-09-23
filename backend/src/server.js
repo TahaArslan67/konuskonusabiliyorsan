@@ -2578,7 +2578,7 @@ wss.on('connection', (clientWs, request) => {
           voice: voicePref,
           temperature: 0.8,
           input_audio_transcription: { model: 'gpt-4o-transcribe', language: lang },
-          max_response_output_tokens: 20,
+          max_response_output_tokens: 80,
           turn_detection: {
             type: 'server_vad',
             threshold: 0.35,
@@ -2848,7 +2848,7 @@ wss.on('connection', (clientWs, request) => {
           response: {
             modalities: ['audio','text'],
             // Per-turn extra instructions kaldırıldı; persona zaten session.instructions içinde
-            max_output_tokens: 20,
+            max_output_tokens: 80,
           }
         };
         if (usage.over) {

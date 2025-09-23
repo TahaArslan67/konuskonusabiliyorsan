@@ -15,6 +15,7 @@ let wsBotSpeaking = false; // whether bot is currently speaking
 let wsBargeInPending = false; // debounce for barge-in
 let wsBargeInTimer = null; // timer handle
 let wsBargeInConfirmed = false; // set true after debounce passes
+let wsBargeInAboveMs = 0; // accumulated above-threshold ms while bot speaking
 let wsAudioChunks = [];
 let lastResponseBuffer = null;
 let wsMicWasOnBeforeBot = false;
@@ -1263,7 +1264,8 @@ async function wsStartMic(){
     const nowMs = Date.now();
     // Adaptive threshold: higher while bot is speaking to reduce barge-in cuts
     const baseThreshold = 0.03;
-    const speakThreshold = (wsBotSpeaking ? Math.max(0.06, baseThreshold * 2) : baseThreshold);
+    const highThreshold = 0.08; // stricter while bot is speaking
+    const speakThreshold = (wsBotSpeaking ? highThreshold : baseThreshold);
     if (!wsMicStreaming && nowMs >= wsNoStartUntil && energy > speakThreshold) {
       if (wsBotSpeaking && !wsBargeInConfirmed) {
         // Start debounce window (~200ms) to confirm user intent before cancelling bot
@@ -1271,14 +1273,18 @@ async function wsStartMic(){
           wsBargeInPending = true;
           wsBargeInTimer = setTimeout(() => {
             try {
-              // Confirm barge-in
-              if (wsPlaybackSource) { try { wsPlaybackSource.stop(); } catch {} wsPlaybackSource = null; }
-              if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'response.cancel' }));
-                log('Barge-in: response.cancel gönderildi (200ms)');
+              // Require strong above-threshold evidence to cancel bot speech
+              if (wsBargeInAboveMs >= 250) {
+                if (wsPlaybackSource) { try { wsPlaybackSource.stop(); } catch {} wsPlaybackSource = null; }
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                  ws.send(JSON.stringify({ type: 'response.cancel' }));
+                  log('Barge-in: response.cancel gönderildi (>=250ms above threshold)');
+                }
+                wsBotSpeaking = false;
+                wsBargeInConfirmed = true;
+              } else {
+                log('Barge-in: yetersiz sinyal, bot kesilmedi');
               }
-              wsBotSpeaking = false;
-              wsBargeInConfirmed = true;
             } catch {}
             wsBargeInPending = false; wsBargeInTimer = null;
           }, 500);
@@ -1318,6 +1324,16 @@ async function wsStartMic(){
       }
     } else {
       wsVadSilenceMs = 0;
+      // While bot is speaking, accumulate time above high threshold to decide true barge-in
+      if (wsBotSpeaking) {
+        if (energy > highThreshold) {
+          wsBargeInAboveMs += chunkMs;
+        } else {
+          wsBargeInAboveMs = 0;
+        }
+      } else {
+        wsBargeInAboveMs = 0;
+      }
     }
   };
   wsSource.connect(wsProcessor);

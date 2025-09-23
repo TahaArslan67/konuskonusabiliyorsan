@@ -2263,7 +2263,7 @@ app.post('/realtime/ephemeral', async (req, res) => {
         modalities: ['audio','text'],
         voice: 'alloy',
         instructions: persona,
-        max_response_output_tokens: 30,
+        max_response_output_tokens: 160,
         turn_detection: {
           type: 'server_vad',
           // conservative defaults; can be tuned later

@@ -1010,7 +1010,7 @@ async function wsConnect(){
             }
             if (obj.type === 'audio_end') {
               // concatenate and play
-              if (!wsForceSilence && wsAudioChunks.length > 0) {
+            if (!wsForceSilence && wsAudioChunks.length > 0) {
                 const total = wsAudioChunks.reduce((s, a) => s + a.byteLength, 0);
                 const merged = new Uint8Array(total);
                 let off = 0;
@@ -1021,7 +1021,12 @@ async function wsConnect(){
                 log(`playback: ${wsAudioChunks.length} chunks, total ${total} bytes`);
                 lastResponseBuffer = merged.buffer;
                 try{ const btnReplay = document.getElementById('btnReplay'); if (btnReplay) btnReplay.disabled = false; }catch{}
+              // Do not interrupt current playback; if playing, append a short pause and then play
+              if (wsPlaybackSource) {
+                setTimeout(() => { try { wsPlayPcm(lastResponseBuffer); } catch {} }, 60);
+              } else {
                 wsPlayPcm(lastResponseBuffer);
+              }
                 wsAudioChunks = [];
               } else {
                 // force-silenced: just drop
@@ -1263,8 +1268,8 @@ async function wsStartMic(){
     // Start of speech: if not streaming, after cooldown, and energy above threshold
     const nowMs = Date.now();
     // Adaptive threshold: higher while bot is speaking to reduce barge-in cuts
-    const baseThreshold = 0.03;
-    const highThreshold = 0.08; // stricter while bot is speaking
+    const baseThreshold = 0.035;
+    const highThreshold = 0.1; // stricter while bot is speaking
     const speakThreshold = (wsBotSpeaking ? highThreshold : baseThreshold);
     if (!wsMicStreaming && nowMs >= wsNoStartUntil && energy > speakThreshold) {
       if (wsBotSpeaking && !wsBargeInConfirmed) {
@@ -1287,7 +1292,7 @@ async function wsStartMic(){
               }
             } catch {}
             wsBargeInPending = false; wsBargeInTimer = null;
-          }, 500);
+          }, 700);
         }
         // Do not start mic until barge-in confirmed
       } else {

@@ -128,8 +128,8 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
   const nativeName = n === 'tr' ? 'Türkçe' : (n === 'en' ? 'İngilizce' : n);
   const fixStyle = (
     c === 'off' ? 'Düzeltme yapma; sadece anlayıp doğal ve kısa yanıt ver.' :
-    c === 'strict' ? 'Dil hatalarını tespit et ve nazik ama net şekilde düzelt. Önce kısa yanıt ver, ardından bir cümle içinde düzeltmeyi açıkla ve bir örnek ver. Örnek formatı: “Şöyle de diyebilirsin: …”.' :
-    'Gerekirse hataları nazikçe düzelt. Kısa yanıt ver; en fazla bir cümlelik açıklama ve küçük bir örnek ekle. Örnek formatı: “Şöyle de diyebilirsin: …”.'
+    c === 'strict' ? 'Dil hatalarını tespit et ve nazik ama net şekilde düzelt. Önce kısa yanıt ver, ardından bir cümle içinde düzeltmeyi açıkla ve bir örnek ver. Örnek formatı: "Şöyle de diyebilirsin: …".' :
+    'Gerekirse hataları nazikçe düzelt. Kısa yanıt ver; en fazla bir cümlelik açıklama ve küçük bir örnek ekle. Örnek formatı: "Şöyle de diyebilirsin: …".'
   );
   const safety = 'Konudan sapma; sadece kullanıcının söylediğine yanıt ver. Anlamazsan kibarca tekrar iste.';
   const tone = 'Sıcak, motive edici ve saygılı bir dil koçu gibi konuş.';
@@ -2577,7 +2577,7 @@ wss.on('connection', (clientWs, request) => {
           output_audio_format: 'pcm16',
           voice: voicePref,
           temperature: 0.2,
-          input_audio_transcription: { language: nlang },
+          input_audio_transcription: { language: lang },
           max_response_output_tokens: 20,
           turn_detection: {
             type: 'server_vad',
@@ -2591,10 +2591,18 @@ wss.on('connection', (clientWs, request) => {
         },
       };
       openaiWs.send(JSON.stringify(sessionUpdate));
-      // Ek güvence: konuşma başında dilleri ve politika özetini sistem mesajı olarak ekle
+      // Ek güvence: konuşma başında persona ve dil politikasını sistem mesajı olarak ekle
       try {
+        // Persona'yı (senaryo dahil) sistem mesajı olarak da ekle
+        openaiWs.send(JSON.stringify({
+          type: 'conversation.item.create',
+          item: {
+            type: 'message',
+            role: 'system',
+            content: [{ type: 'input_text', text: persona }]
+          }
+        }));
         const langNotice = `System notice: User native=${nlang}, target=${lang}. Always answer in target language; optionally add one short ${nlang} tip line if needed.`;
-// ...
         openaiWs.send(JSON.stringify({
           type: 'conversation.item.create',
           item: {
@@ -2771,10 +2779,18 @@ wss.on('connection', (clientWs, request) => {
             const crit = Array.isArray(sc.successCriteria) ? sc.successCriteria.join('; ') : '';
             scenarioText = `Bağlam: ${sc.title}. Rol: ${sc.personaPrompt}. Başarı ölçütleri: ${crit}`;
           }
-          const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText);
+          const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel);
           // Push updated session settings (voice/language hints) and a fresh system message
-          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, input_audio_transcription: { language: nlang }, instructions: persona, temperature: 0.2 } }));
-          // Extra system persona item gereksiz; tekrarı kaldırdık
+          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, input_audio_transcription: { language: lang }, instructions: persona, temperature: 0.2 } }));
+          // Persona'yı güçlü uygulamak için sistem mesajı olarak da ekle
+          openaiWs.send(JSON.stringify({
+            type: 'conversation.item.create',
+            item: {
+              type: 'message',
+              role: 'system',
+              content: [{ type: 'input_text', text: persona }]
+            }
+          }));
           console.log('[proxy] updated prefs via set_prefs');
         } catch (e) {
           console.error('[proxy] set_prefs error:', e);

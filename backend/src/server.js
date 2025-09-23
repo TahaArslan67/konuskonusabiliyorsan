@@ -2572,7 +2572,7 @@ wss.on('connection', (clientWs, request) => {
       const sessionUpdate = {
         type: 'session.update',
         session: {
-          modalities: ['audio'],
+          modalities: ['audio','text'],
           input_audio_format: 'pcm16',
           output_audio_format: 'pcm16',
           voice: voicePref,
@@ -2846,7 +2846,7 @@ wss.on('connection', (clientWs, request) => {
         const create = {
           type: 'response.create',
           response: {
-            modalities: ['audio'],
+            modalities: ['audio','text'],
             // Per-turn extra instructions kaldırıldı; persona zaten session.instructions içinde
             max_output_tokens: 20,
           }

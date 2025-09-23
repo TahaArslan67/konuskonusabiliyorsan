@@ -1262,7 +1262,7 @@ async function wsStartMic(){
     // Start of speech: if not streaming, after cooldown, and energy above threshold
     const nowMs = Date.now();
     // Raise threshold slightly to avoid false positives
-    const speakThreshold = 0.3;
+    const speakThreshold = 0.1;
     if (!wsMicStreaming && nowMs >= wsNoStartUntil && energy > speakThreshold) {
       if (wsBotSpeaking && !wsBargeInConfirmed) {
         // Start debounce window (~200ms) to confirm user intent before cancelling bot

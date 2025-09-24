@@ -2937,8 +2937,9 @@ wss.on('connection', (clientWs, request) => {
           break;
         }
         case 'output_audio_buffer.commit': {
+          // OpenAI may commit multiple times per response; do NOT end playback yet to avoid mid-word cuts.
+          // We'll signal audio_end on 'response.output_audio.done' instead.
           console.log('[proxy] OpenAI buffer.commit');
-          clientWs.send(JSON.stringify({ type: 'audio_end' }));
           break;
         }
         case 'response.output_audio.delta':
@@ -2958,7 +2959,10 @@ wss.on('connection', (clientWs, request) => {
         }
         case 'response.output_audio.done':
         case 'response.audio.done': {
+          // Signal end of current response audio
           clientWs.send(JSON.stringify({ type: 'audio_end' }));
+          // Reset stream mode for next response
+          openaiWs._audioStreamMode = null;
           break;
         }
         case 'response.delta':

@@ -19,6 +19,8 @@ let wsBargeInAboveMs = 0; // accumulated above-threshold ms while bot speaking
 let wsAudioChunks = [];
 let lastResponseBuffer = null;
 let wsMicWasOnBeforeBot = false;
+// Global barge-in toggle: when false, user speech will not interrupt bot audio
+const wsAllowBargeIn = false;
 let wsVadSpeaking = false;
 let wsVadSilenceMs = 0;
 let wsBytesSinceStart = 0;
@@ -1271,8 +1273,13 @@ async function wsStartMic(){
     const baseThreshold = 0.035;
     const highThreshold = 0.1; // stricter while bot is speaking
     const speakThreshold = (wsBotSpeaking ? highThreshold : baseThreshold);
+    // Completely disable starting mic while bot is speaking if barge-in is not allowed
+    if (wsBotSpeaking && !wsAllowBargeIn) {
+      wsVadSilenceMs = 0;
+      return;
+    }
     if (!wsMicStreaming && nowMs >= wsNoStartUntil && energy > speakThreshold) {
-      if (wsBotSpeaking && !wsBargeInConfirmed) {
+      if (wsAllowBargeIn && wsBotSpeaking && !wsBargeInConfirmed) {
         // Start debounce window (~200ms) to confirm user intent before cancelling bot
         if (!wsBargeInPending) {
           wsBargeInPending = true;
@@ -1311,7 +1318,7 @@ async function wsStartMic(){
     }
     // If streaming, send PCM
     const pcm = floatTo16BitPCM(input);
-    if (ws && ws.readyState === WebSocket.OPEN && wsMicStreaming) {
+    if (ws && ws.readyState === WebSocket.OPEN && wsMicStreaming && (!wsBotSpeaking || wsAllowBargeIn)) {
       ws.send(pcm);
       wsBytesSinceStart += pcm.byteLength;
     }

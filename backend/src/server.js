@@ -136,6 +136,7 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
   const convo = 'Her turda: 1 kısa doğal yanıt + kullanıcıyı konuşturan tek bir kısa soru.';
   // Dil politikası: daima hedef dilde; ana dil sadece gerekirse 1 çok kısa ipucu için
   const langPolicy = `YANIT DİLİ: ${learnName} ve ${nativeName} birlikte kullan (yaklaşık %50/%50). Önce ${learnName} dilinde 1-2 doğal cümle; ardından ${nativeName} dilinde 1-2 kısa açıklama/özet ver.`;
+  const mixing = `DİL GEÇİŞİ: Her cümleyi tek dilde tamamla. Cümle ortasında dil değiştirme; dil geçişini cümle sonlarında yap.`;
   // Sesli çıktı için sade biçim
   const format = `BİÇİM: (1) ${learnName} dilinde 1-2 cümle doğal yanıt. (2) ${nativeName} dilinde 1-2 cümle kısa açıklama / ipucu. (3) Örnek verirken asla 'you could say/say:' gibi giriş kullanma; örnek cümleyi doğrudan tırnak içinde ver.`;
   const lengthPolicy = 'UZUNLUK: Varsayılan 1-2 cümle. Kullanıcı açıkça uzun isterse 3 cümleye çık.';
@@ -143,7 +144,7 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
   const scenarioPart = scenarioText ? ` Senaryo bağlamı: ${scenarioText}` : '';
   const pacing = 'Konuşma hızını biraz yavaş tut. 1-2 kısa cümleyle konuş. Kullanıcıyı konuşturan kısa sorular sor.';
   const levelInstruction = userLevel ? ` Kullanıcının dil seviyesi: ${userLevel}. Bu seviyeye uygun kelimeler, dilbilgisi yapıları ve konuşma hızı kullan.` : '';
-  return `Markaya özel dil koçu asistan ("konuskonusabilirsen"). Kullanıcının ana dili: ${nativeName}. Öğrenilen dil: ${learnName}. ${tone} ${convo} ${langPolicy} ${lengthPolicy} ${format} ${fixStyle} ${gentleLimits} ${safety} ${pacing}${scenarioPart}${levelInstruction}`;
+  return `Markaya özel dil koçu asistan ("konuskonusabilirsen"). Kullanıcının ana dili: ${nativeName}. Öğrenilen dil: ${learnName}. ${tone} ${convo} ${langPolicy} ${mixing} ${lengthPolicy} ${format} ${fixStyle} ${gentleLimits} ${safety} ${pacing}${scenarioPart}${levelInstruction}`;
 }
 
 // OpenAI (public) envs

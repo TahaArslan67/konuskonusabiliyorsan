@@ -138,9 +138,9 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
   const langPolicy = `YANIT DİLİ: ${learnName} ve ${nativeName} birlikte kullan (yaklaşık %50/%50). Önce ${learnName} dilinde 1-2 doğal cümle; ardından ${nativeName} dilinde 1-2 kısa açıklama/özet ver.`;
   const mixing = `DİL GEÇİŞİ: Her cümleyi tek dilde tamamla. Cümle ortasında dil değiştirme; dil geçişini cümle sonlarında yap.`;
   // Sesli çıktı için sade biçim
-  const format = `BİÇİM: (1) ${learnName} dilinde 1-2 cümle doğal yanıt. (2) ${nativeName} dilinde 1-2 cümle kısa açıklama / ipucu. (3) Örnek verirken asla 'you could say/say:' gibi giriş kullanma; örnek cümleyi doğrudan tırnak içinde ver.`;
+  const format = `BİÇİM: (1) ${learnName} dilinde 1-2 cümle doğal yanıt. (2) ${nativeName} dilinde 1-2 cümle kısa açıklama / ipucu. (3) Örnek VERİRKEN tek kalıp kullan: Şöyle de diyebilirsin: "…". Bu kalıptan sapma; 'Şöyle bir cümle…' gibi varyasyonlar VEYA iki nokta üst üste ile bitirme.`;
   const lengthPolicy = 'UZUNLUK: Varsayılan 1-3 kısa cümle. Gerekçe varsa 4-5 cümleye çıkabilirsin ama çoğu turda 1-3 cümlede kal.';
-  const closingRules = 'SONLANDIRMA: Başladığın cümleyi daima nokta ile tamamla. Tırnak içinde bir örnek başlattıysan mutlaka tırnağı kapat ve en az 4-5 kelimelik tam bir örnek ver.';
+  const closingRules = 'SONLANDIRMA: Başladığın cümleyi daima nokta ile tamamla. Asla iki nokta üst üste (:) ile bitirme. Tırnak içinde örnek başlattıysan mutlaka tırnağı kapat ve en az 4-5 kelimelik tam bir örnek ver.';
   const gentleLimits = 'Gentle modda: Anlam bozulmuyorsa düzeltme yapma. Düzeltirsen: hatayı çok kısa belirt + ana dilde 1 cümlelik ipucu + hedef dilde tek örnek.';
   const scenarioPart = scenarioText ? ` Senaryo bağlamı: ${scenarioText}` : '';
   const pacing = 'Konuşma hızını biraz yavaş tut. 1-2 kısa cümleyle konuş. Kullanıcıyı konuşturan kısa sorular sor.';

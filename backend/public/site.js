@@ -516,20 +516,22 @@ function openAccount(){
 }
 // Account button click handler - moved to DOMContentLoaded
 document.addEventListener('DOMContentLoaded', function() {
-  const accountBtn = document.getElementById('btnAccount');
-  if (accountBtn) {
-    accountBtn.addEventListener('click', function(ev) {
-      ev.preventDefault();
-      const token = getToken();
-      if (!token) { 
-        setPostLoginRedirect('/account.html'); 
-        openAuth(); 
-        showLogin(); 
-        return; 
-      }
-      window.location.href = '/account.html';
-    });
-  }
+  try{
+    const accountBtnEl = document.getElementById('btnAccount');
+    if (accountBtnEl) {
+      accountBtnEl.addEventListener('click', function(ev) {
+        ev.preventDefault();
+        const token = getToken();
+        if (!token) { 
+          setPostLoginRedirect('/account.html'); 
+          openAuth(); 
+          showLogin(); 
+          return; 
+        }
+        window.location.href = '/account.html';
+      });
+    }
+  }catch{}
 });
 
 if (formLogin){

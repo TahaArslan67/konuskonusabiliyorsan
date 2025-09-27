@@ -11,6 +11,18 @@
       body.insertBefore(mm, hdr.nextSibling);
       // Re-bind site controls (site.js expects these IDs)
       try{ if (window.updateHeader) window.updateHeader(); }catch{}
+      // Wire login button even if site.js hasn't loaded yet
+      try{
+        const btnLogin = document.getElementById('btnLogin');
+        if (btnLogin){
+          btnLogin.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            try{ if (window.openAuth){ openAuth(); return; } }catch{}
+            const redirect = encodeURIComponent(window.location.pathname + window.location.search);
+            window.location.href = `/?auth=1&redirect=${redirect}`;
+          });
+        }
+      }catch{}
     }catch{}
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', inject);

@@ -452,8 +452,8 @@ function sendPrefsToWs(){
   try{
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     const voice = voiceSelect && voiceSelect.value ? voiceSelect.value : 'alloy';
-    const learnLang = learnLangSelect && learnLangSelect.value ? learnLangSelect.value : 'tr';
-    const nativeLang = nativeLangSelect && nativeLangSelect.value ? nativeLangSelect.value : 'tr';
+    const learnLang = learnLangSelect && learnLangSelect.value ? learnLangSelect.value : (new URLSearchParams(window.location.search).get('learnLang') || 'tr');
+    const nativeLang = nativeLangSelect && nativeLangSelect.value ? nativeLangSelect.value : (new URLSearchParams(window.location.search).get('nativeLang') || 'tr');
     const correction = corrSelect && corrSelect.value ? corrSelect.value : 'gentle';
     const scenarioId = scenarioSelect && scenarioSelect.value ? scenarioSelect.value : (window.__hk_scenario || '');
     const payload = { type: 'set_prefs', prefs: { voice, learnLang, nativeLang, correction, scenarioId } };
@@ -581,6 +581,15 @@ try{
       }
       scenarioSelect.value = sc;
     }
+    // Preselect language preferences from URL if provided
+    try{
+      const learnParam = usp.get('learnLang');
+      const nativeParam = usp.get('nativeLang');
+      const learnSel = document.getElementById('learnLangSelect');
+      const nativeSel = document.getElementById('nativeLangSelect');
+      if (learnParam && learnSel){ learnSel.value = learnParam; }
+      if (nativeParam && nativeSel){ nativeSel.value = nativeParam; }
+    }catch{}
     // Immediately send to WS prefs if connection opens later
     try { sendPrefsToWs(); } catch {}
   }

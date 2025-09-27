@@ -294,7 +294,13 @@ const formRegister = $('#formRegister');
 const formForgot = $('#formForgot');
 const authMsg = $('#authMsg');
 
-function openAuth(){ if (authModal) authModal.style.display = 'block'; }
+function openAuth(){
+  try{
+    if (authModal){ authModal.style.display = 'block'; return; }
+    const redirect = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.href = `/?auth=1&redirect=${redirect}`;
+  } catch {}
+}
 function closeAuth(){ if (authModal) authModal.style.display = 'none'; }
 function positionTabIndicator(){
   try{
@@ -627,11 +633,18 @@ async function setupDailyChallenge(){
     const desc = document.getElementById('dailyDesc');
 
     let userLevel = null;
+    let prefLearnLang = null;
+    let prefNativeLang = null;
     try{
       const token = getToken();
       if (token){
         const r = await fetch(`${backendBase}/me`, { headers:{ Authorization: `Bearer ${token}` } });
-        if (r.ok){ const me = await r.json(); userLevel = me?.user?.placementLevel || me?.placementLevel || null; }
+        if (r.ok){
+          const me = await r.json();
+          userLevel = me?.user?.placementLevel || me?.placementLevel || null;
+          prefLearnLang = me?.user?.preferredLearningLanguage || null;
+          prefNativeLang = me?.user?.preferredNativeLanguage || null;
+        }
       }
     }catch{}
     if (lvl) lvl.textContent = `Seviye: ${userLevel || '-'}`;
@@ -648,7 +661,11 @@ async function setupDailyChallenge(){
       if (!s) return;
       if (tag) tag.textContent = s.title || 'Görev';
       if (desc) desc.textContent = s.level ? `Önerilen seviye: ${s.level}` : 'Hazır mısınız?';
-      const href = `/realtime.html?scenario=${encodeURIComponent(s.id || '')}`;
+      const params = new URLSearchParams();
+      if (s.id) params.set('scenario', s.id);
+      if (prefLearnLang) params.set('learnLang', prefLearnLang);
+      if (prefNativeLang) params.set('nativeLang', prefNativeLang);
+      const href = `/realtime.html?${params.toString()}`;
       if (btn) btn.setAttribute('href', href);
     }
 

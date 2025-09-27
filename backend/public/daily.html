@@ -76,14 +76,14 @@
     <div class="grid" style="grid-template-columns: 1fr 1fr; gap:16px; margin-top:12px;">
       <div class="card" id="shadowing" style="padding:16px;">
         <h3 style="margin:0 0 6px;">Shadowing</h3>
-        <div class="row" style="gap:8px;">
+        <div class="row" style="gap:12px; align-items:flex-start;">
           <select id="dqShSentence" style="flex:1; min-width:200px; padding:10px 12px; border-radius:10px; background:#0b1022; border:1px solid #1b2442; color:var(--text);">
             <option>Merhaba, bugün nasılsın?</option>
             <option>Kendimi geliştirmek için her gün pratik yapıyorum.</option>
             <option>Randevum saat üçte, geç kalmak istemiyorum.</option>
           </select>
           <button id="dqShPlay" class="btn btn-secondary" type="button">Dinle</button>
-          <button id="dqShRecord" class="btn btn-primary" type="button">Tekrar Et</button>
+          <button id="dqShRecord" class="btn btn-primary" type="button" style="margin-top:2px;">Tekrar Et</button>
         </div>
         <div id="dqShResult" class="alert alert-info" style="margin-top:10px; display:none;"></div>
       </div>
@@ -268,11 +268,29 @@
           if (token){ const mr = await fetch(`${window.__BACKEND_BASE__ || 'https://api.konuskonusabilirsen.com'}/me`, { headers:{ Authorization: `Bearer ${token}` } }); if (mr.ok){ const me = await mr.json(); learnLang = me?.user?.preferredLearningLanguage || 'tr'; } }
         }catch{}
 
-        // Shadowing mini
+        // Dil bazlı gövde içerikleri
+        const sentencesTR = [
+          'Merhaba, bugün nasılsın?',
+          'Kendimi geliştirmek için her gün pratik yapıyorum.',
+          'Randevum saat üçte, geç kalmak istemiyorum.'
+        ];
+        const sentencesEN = [
+          'Hi, how are you today?',
+          'I practice every day to improve myself.',
+          "My appointment is at three o’clock; I don’t want to be late."
+        ];
+        const sentencesMap = { tr: sentencesTR, 'tr-TR': sentencesTR, en: sentencesEN, 'en-US': sentencesEN, 'en-GB': sentencesEN };
+
+        // Shadowing
         const qPlay = document.getElementById('dqShPlay');
         const qRec = document.getElementById('dqShRecord');
         const qSel = document.getElementById('dqShSentence');
         const qRes = document.getElementById('dqShResult');
+        // Seçenekleri öğrenilen dile göre doldur
+        try{
+          const list = sentencesMap[learnLang] || sentencesEN;
+          if (qSel){ qSel.innerHTML = ''; list.forEach(s => { const opt=document.createElement('option'); opt.textContent=s; qSel.appendChild(opt); }); }
+        }catch{}
         function speak(t){ try{ const u=new SpeechSynthesisUtterance(t); u.lang=(learnLang||'tr'); speechSynthesis.cancel(); speechSynthesis.speak(u);}catch{} }
         async function recognize(ms=3500){ return new Promise((resolve)=>{ try{ const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR){resolve(null);return;} const r=new SR(); r.lang=(learnLang||'tr'); r.interimResults=false; r.maxAlternatives=1; r.onresult=e=>resolve(e.results[0][0].transcript||''); r.onerror=()=>resolve(null); r.start(); setTimeout(()=>{ try{ r.stop(); }catch{} }, ms); }catch{ resolve(null); } }); }
         function norm(s){ return (s||'').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu,'').replace(/\s+/g,' ').trim(); }

@@ -201,7 +201,7 @@ a{ color:var(--text); text-decoration:none; }
 .footer-main .brand .social .ic:hover{ color:#fff; border-color:#3a4a7a; }
 
 /* Footer grid columns */
-.footer .links{ display:grid; grid-template-columns: repeat(3, minmax(160px, 1fr)); gap:24px; }
+.footer .links{ display:grid; grid-template-columns: repeat(3, minmax(160px, 1fr)); gap:24px; align-items:start; }
 .footer .links .col{ display:flex; flex-direction:column; gap:6px; }
 .footer .links .col h4{ margin:0 0 6px; font-size:13px; color:#c7d2fe; letter-spacing:.2px; text-transform:uppercase; }
 .footer .links .col a{ color:var(--muted); text-decoration:none; }

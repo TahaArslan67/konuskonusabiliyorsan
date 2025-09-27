@@ -23,6 +23,13 @@ function updateHeader(){
   const btnLogin = $('#btnLogin');
   const btnLogout = $('#btnLogout');
   const verifyDot = $('#verifyDot');
+  // Nav items
+  const navFeatures = document.getElementById('navFeatures');
+  const navPricing = document.getElementById('navPricing');
+  const navDaily = document.getElementById('navDaily');
+  const mmFeatures = document.getElementById('mmFeatures');
+  const mmPricing = document.getElementById('mmPricing');
+  const mmDaily = document.getElementById('mmDaily');
   if (token){
     // /me ile temel bilgileri doldur
     fetch(`${backendBase}/me`, {  // /me olarak değiştirildi
@@ -60,6 +67,14 @@ function updateHeader(){
     if (btnLogout) btnLogout.style.display = 'inline-flex';
     const accountBtn = document.getElementById('btnAccount');
     if (accountBtn) accountBtn.style.display = 'inline-flex';
+    // Hide marketing links when logged in
+    if (navFeatures) navFeatures.style.display = 'none';
+    if (navPricing) navPricing.style.display = 'none';
+    if (mmFeatures) mmFeatures.style.display = 'none';
+    if (mmPricing) mmPricing.style.display = 'none';
+    // Show Daily when logged in
+    if (navDaily) navDaily.style.display = '';
+    if (mmDaily) mmDaily.style.display = '';
   } else {
     if (userEmailEl){ userEmailEl.style.display = 'none'; userEmailEl.textContent = ''; }
     if (userPlanEl){ userPlanEl.style.display = 'none'; userPlanEl.textContent = 'Plan: free'; }
@@ -68,6 +83,13 @@ function updateHeader(){
     const accountBtn = document.getElementById('btnAccount');
     if (accountBtn) accountBtn.style.display = 'none';
     if (verifyDot) verifyDot.style.display = 'none';
+    // Show marketing links, hide Daily when logged-out
+    if (navFeatures) navFeatures.style.display = '';
+    if (navPricing) navPricing.style.display = '';
+    if (mmFeatures) mmFeatures.style.display = '';
+    if (mmPricing) mmPricing.style.display = '';
+    if (navDaily) navDaily.style.display = 'none';
+    if (mmDaily) mmDaily.style.display = 'none';
   }
 }
 

@@ -143,6 +143,16 @@ function vizStop(){
 
 function log(msg){ /* silent in production */ }
 
+// Minimal client-side debug relay (silent unless opened manually)
+function clientDebug(event, extra){
+  try{
+    if (ws && ws.readyState === WebSocket.OPEN){
+      // Tag client-originated debug so server can correlate if needed
+      ws.send(JSON.stringify({ type:'client_debug', event, ...(extra||{}) }));
+    }
+  }catch{}
+}
+
 // Global error surface to Logs panel
 try {
   window.addEventListener('error', (ev) => {
@@ -947,6 +957,12 @@ async function wsConnect(){
         try {
           const obj = JSON.parse(ev.data);
           if (obj && obj.type) {
+            if (obj.type === 'debug'){
+              // Surface proxy debug for diagnosing early cuts and source of audio
+              // Example: {type:'debug', src:'openai', event:'buffer.append', bytes: 9600}
+              // Keep silent in UI; optionally attach to a hidden console.
+              // No-op since log() is silenced; leave for future toggling.
+            }
             if (obj.type === 'usage_update' && obj.usage){
               log('🔄 USAGE_UPDATE MESAJI GELDİ!');
               log('📊 usage_update payload:', JSON.stringify(obj.usage, null, 2));
@@ -1324,7 +1340,7 @@ async function wsStartMic(){
         // Do not start mic until barge-in confirmed
       } else {
         // Either bot not speaking or already confirmed barge-in -> start mic
-        try { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'audio_start', format: 'pcm16', sampleRate: 24000, channels: 1 })); } catch {}
+        try { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'audio_start', format: 'pcm16', sampleRate: 24000, channels: 1 })); clientDebug('audio_start'); } catch {}
         wsMicStreaming = true;
         wsVadSpeaking = true;
         wsVadSilenceMs = 0;
@@ -1339,7 +1355,7 @@ async function wsStartMic(){
     // If streaming, send PCM
     const pcm = floatTo16BitPCM(input);
     if (ws && ws.readyState === WebSocket.OPEN && wsMicStreaming && (!wsBotSpeaking || wsAllowBargeIn)) {
-      ws.send(pcm);
+      ws.send(pcm); clientDebug('audio_append', { bytes: pcm.byteLength });
       wsBytesSinceStart += pcm.byteLength;
       wsSpeechMs += chunkMs;
     }
@@ -1350,7 +1366,7 @@ async function wsStartMic(){
       const MIN_SPEECH_MS = 900; // avoid cutting after few syllables
       const SILENCE_HANG_MS = 1400; // require longer pause
       if (wsMicStreaming && wsVadSilenceMs >= SILENCE_HANG_MS && wsBytesSinceStart >= MIN_BYTES_TO_COMMIT && wsSpeechMs >= MIN_SPEECH_MS) {
-        try { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'audio_stop' })); } catch {}
+        try { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'audio_stop' })); clientDebug('audio_stop'); } catch {}
         wsMicStreaming = false;
         wsVadSpeaking = false;
         wsVadSilenceMs = 0;

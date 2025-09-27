@@ -2765,6 +2765,9 @@ wss.on('connection', (clientWs, request) => {
   let isResponding = false; // prevent overlapping bot responses
   let pendingResponseTimer = null; // delay timer for response.create after audio_stop
   let suppressUntilTs = 0; // time until which we shouldn't send a response (e.g., 1s after user starts)
+  let lastResponseId = null;
+  let lastAudioBytes = 0;
+  let streamMode = null; // 'buffer' | 'delta'
   const scheduleAutoCommit = () => {
     if (STRICT_REALTIME) return; // disabled in strict mode
     if (!USE_AZURE) return; // only needed for Azure path
@@ -2855,6 +2858,11 @@ wss.on('connection', (clientWs, request) => {
             }
           }, 1000);
         }
+        return;
+      }
+      if (t === 'client_debug') {
+        // Surface client debug to logs (optional: could forward to admin channel)
+        try { console.log('[client_debug]', obj.event, JSON.stringify(obj)); } catch {}
         return;
       }
       if (t === 'session.update' && obj?.session && typeof obj.session === 'object') {
@@ -3050,6 +3058,7 @@ wss.on('connection', (clientWs, request) => {
           if (typeof b64 === 'string' && b64.length > 0) {
             const pcm = Buffer.from(b64, 'base64');
             console.log(`[proxy] OpenAI buffer.append ${pcm.byteLength}B`);
+            try { clientWs.send(JSON.stringify({ type: 'debug', src: 'openai', event: 'buffer.append', bytes: pcm.byteLength })); } catch {}
             clientWs.send(pcm, { binary: true });
           }
           break;
@@ -3058,6 +3067,7 @@ wss.on('connection', (clientWs, request) => {
           // OpenAI may commit multiple times per response; do NOT end playback yet to avoid mid-word cuts.
           // We'll signal audio_end on 'response.output_audio.done' instead.
           console.log('[proxy] OpenAI buffer.commit');
+          try { clientWs.send(JSON.stringify({ type: 'debug', src: 'openai', event: 'buffer.commit' })); } catch {}
           break;
         }
         case 'response.output_audio.delta':
@@ -3071,6 +3081,7 @@ wss.on('connection', (clientWs, request) => {
           if (typeof b64 === 'string' && b64.length > 0) {
             const pcm = Buffer.from(b64, 'base64');
             console.log(`[proxy] OpenAI audio.delta ${pcm.byteLength}B`);
+            try { clientWs.send(JSON.stringify({ type: 'debug', src: 'openai', event: 'audio.delta', bytes: pcm.byteLength })); } catch {}
             clientWs.send(pcm, { binary: true });
           }
           break;
@@ -3079,6 +3090,7 @@ wss.on('connection', (clientWs, request) => {
         case 'response.audio.done': {
           // Signal end of current response audio
           clientWs.send(JSON.stringify({ type: 'audio_end' }));
+          try { clientWs.send(JSON.stringify({ type: 'debug', src: 'openai', event: 'audio.done' })); } catch {}
           // Reset stream mode for next response
           openaiWs._audioStreamMode = null;
           break;

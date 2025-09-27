@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shadowing Modu · KonusKonusabilirsen</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <script>
+    try{
+      const token = localStorage.getItem('hk_token');
+      if (!token){
+        const redirect = encodeURIComponent('/shadowing.html');
+        window.location.replace(`/?auth=1&redirect=${redirect}`);
+      }
+    }catch{}
+  </script>
+</head>
+<body>
+  <header class="container header">
+    <a class="brand" href="/">KonusKonusabilirsen</a>
+    <nav class="nav"><a href="/account.html" class="btn btn-text">Hesabım</a></nav>
+  </header>
+  <main class="container" style="padding:24px 0 40px; max-width:900px;">
+    <div class="card" style="padding:16px;">
+      <h2 style="margin:0 0 10px;">Gölgeleme (Shadowing) Çalışması</h2>
+      <p class="subtle" style="margin:0 0 12px;">Cümleyi dinle, aynı akışta tekrar et. Eşleşme skorunu al.</p>
+      <div class="row" style="gap:8px; flex-wrap:wrap;">
+        <select id="shSentence" style="flex:1; min-width:220px; padding:10px 12px; border-radius:10px; background:#0b1022; border:1px solid #1b2442; color:var(--text);">
+          <option>Merhaba, bugün nasılsın?</option>
+          <option>Hava bugün gerçekten güzel.</option>
+          <option>En yakın metro istasyonu nerede?</option>
+          <option>Bir kahve alabilir miyim lütfen?</option>
+        </select>
+        <button id="shPlay" class="btn btn-secondary" type="button">Cümleyi Dinle</button>
+        <button id="shRecord" class="btn btn-primary" type="button">Tekrar Et ve Kaydet</button>
+      </div>
+      <div id="shResult" class="alert alert-info" style="margin-top:12px; display:none;"></div>
+      <audio id="shAudio" hidden></audio>
+    </div>
+  </main>
+  <script>
+    const ttsVoice = 'tr-TR';
+    const shPlay = document.getElementById('shPlay');
+    const shRecord = document.getElementById('shRecord');
+    const shSentence = document.getElementById('shSentence');
+    const shAudio = document.getElementById('shAudio');
+    const shResult = document.getElementById('shResult');
+
+    function speak(text){
+      try{
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = ttsVoice;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(u);
+      }catch{}
+    }
+
+    if (shPlay){ shPlay.addEventListener('click', () => speak(shSentence.value)); }
+
+    async function recordOnce(ms=3500){
+      const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+      const rec = new MediaRecorder(stream);
+      const chunks = [];
+      return new Promise((resolve) => {
+        rec.ondataavailable = e => chunks.push(e.data);
+        rec.onstop = async () => {
+          const blob = new Blob(chunks, { type: 'audio/webm' });
+          shAudio.src = URL.createObjectURL(blob);
+          resolve(blob);
+          stream.getTracks().forEach(t => t.stop());
+        };
+        rec.start(); setTimeout(()=>rec.stop(), ms);
+      });
+    }
+
+    function normalize(s){
+      return s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu,'').replace(/\s+/g,' ').trim();
+    }
+
+    async function simpleTranscribe(blob){
+      // Basit yaklaşım: Web Speech API varsa kullan; yoksa skorlamada ses yerine süre/boşluk cezaları uygula
+      return new Promise((resolve) => {
+        try{
+          const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+          if (!SR){ resolve(null); return; }
+          const r = new SR(); r.lang='tr-TR'; r.interimResults=false; r.maxAlternatives=1;
+          r.onresult = (e)=>{ resolve(e.results[0][0].transcript||''); };
+          r.onerror = ()=> resolve(null);
+          r.onend = ()=>{};
+          // SR mikrofondan çalışır; kaydedilen blobu doğrudan veremiyoruz.
+          // Yine de kullanıcı konuşurken SR paralel dinler: pratik bir çözüm.
+          r.start();
+          setTimeout(()=>{ try{ r.stop(); }catch{} }, 3800);
+        }catch{ resolve(null); }
+      });
+    }
+
+    if (shRecord){
+      shRecord.addEventListener('click', async () => {
+        shResult.style.display='block'; shResult.className='alert alert-info'; shResult.textContent='Kaydediliyor... Lütfen cümleyi tekrarlayın.';
+        speak(shSentence.value);
+        const [blob, hypo] = await Promise.all([
+          recordOnce(3500),
+          simpleTranscribe()
+        ]);
+        const ref = normalize(shSentence.value);
+        const got = normalize(hypo || '');
+        // basit benzerlik: jaccard kelime kesişimi
+        const refSet = new Set(ref.split(' '));
+        const gotSet = new Set(got.split(' '));
+        let inter = 0; refSet.forEach(w => { if (gotSet.has(w)) inter++; });
+        const union = new Set([...refSet, ...gotSet]).size || 1;
+        const jacc = inter/union;
+        const score = Math.round(jacc*100);
+        shResult.className = score>70 ? 'alert alert-success' : (score>40 ? 'alert alert-info' : 'alert alert-error');
+        shResult.textContent = `Eşleşme skoru: %${score} — Tanıma: “${got||'—'}”`;
+      });
+    }
+  </script>
+</body>
+</html>
+
+

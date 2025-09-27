@@ -214,6 +214,74 @@ async function init(){
         }
       }
     } catch {}
+
+    // Learning Plan: simple client-side generator based on level + daily goal
+    try{
+      const planEl = document.getElementById('planList');
+      if (planEl){
+        function levelBand(lv){
+          const s = String(lv||'').toUpperCase();
+          if (s.startsWith('A1')) return 'A1';
+          if (s.startsWith('A2')) return 'A2';
+          if (s.startsWith('B1')) return 'B1';
+          if (s.startsWith('B2')) return 'B2';
+          if (s.startsWith('C1')) return 'C1';
+          return 'A2';
+        }
+        const lvl = levelBand(levelValue);
+        const goalDaily = Number(document.getElementById('goalInput')?.value || 10);
+        const tasksByLevel = {
+          A1:[
+            'Temel selamlaşma ve tanışma diyalogu',
+            'Rakamlar ve saat sorma-cevaplama',
+            'Restoranda sipariş verme (kısa)',
+            'Yol tarifi sorma',
+          ],
+          A2:[
+            'Restoranda sipariş + tercih belirtme',
+            'Market/alışveriş konuşması',
+            'Randevu alma (telefon/online)',
+            'Hava durumu, günlük rutin',
+          ],
+          B1:[
+            'İş/okul hakkında kendini ifade etme',
+            'Şikayet ve çözüm önerme (müşteri temsilcisi)',
+            'Hastanede durum anlatma',
+            'Hedef belirleme ve planlama',
+          ],
+          B2:[
+            'Görüş bildirme ve karşılaştırma',
+            'İkna etme ve pazarlık',
+            'Toplantıda söz alma ve özetleme',
+            'Şartlı cümlelerle öneri',
+          ],
+          C1:[
+            'Soyut bir konu üzerine tartışma',
+            'Problem çözme oturumu (örnek vaka)',
+            'Sunum simülasyonu',
+            'Geri bildirim verme/alma',
+          ]
+        };
+        function buildPlan(){
+          const items = tasksByLevel[lvl] || tasksByLevel['A2'];
+          planEl.innerHTML = '';
+          for (let i=0;i<7;i++){
+            const box = document.createElement('div');
+            box.className = 'card';
+            box.style.padding = '12px';
+            const day = ['Pzt','Sal','Çar','Per','Cum','Cmt','Paz'][i];
+            const task = items[i % items.length];
+            box.innerHTML = `<strong>${day}</strong><div class="subtle" style="margin-top:6px;">${task}</div><div class="row" style="margin-top:8px; gap:8px;"><a class="btn btn-primary btn-sm" href="/realtime.html">${goalDaily} dk Konuş</a><a class="btn btn-secondary btn-sm" href="/shadowing.html">Shadowing</a></div>`;
+            planEl.appendChild(box);
+          }
+          const subtitle = document.getElementById('planSubtitle');
+          if (subtitle) subtitle.textContent = `Seviye: ${lvl} · Günlük hedef: ${goalDaily} dk`;
+        }
+        buildPlan();
+        const regen = document.getElementById('planRegen');
+        if (regen){ regen.addEventListener('click', buildPlan); }
+      }
+    }catch{}
   } catch (e) {
     console.error('[account] load error:', e?.message || e);
     // Oturum yok veya token geçersiz ise login akışına yönlendir

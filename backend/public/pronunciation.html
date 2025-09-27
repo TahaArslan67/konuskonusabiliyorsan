@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Telaffuz Koçu · KonusKonusabilirsen</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <script>
+    try{
+      const token = localStorage.getItem('hk_token');
+      if (!token){
+        const redirect = encodeURIComponent('/pronunciation.html');
+        window.location.replace(`/?auth=1&redirect=${redirect}`);
+      }
+    }catch{}
+  </script>
+</head>
+<body>
+  <header class="container header">
+    <a class="brand" href="/">KonusKonusabilirsen</a>
+    <nav class="nav"><a href="/account.html" class="btn btn-text">Hesabım</a></nav>
+  </header>
+  <main class="container" style="padding:24px 0 40px; max-width:900px;">
+    <div class="card" style="padding:16px;">
+      <h2 style="margin:0 0 10px;">Telaffuz Koçu</h2>
+      <p class="subtle" style="margin:0 0 12px;">Zor ses çiftleriyle (minimal pairs) pratik yapın. Dinle, tekrar et, anında geri bildirim al.</p>
+      <div class="row" style="gap:8px; flex-wrap:wrap;">
+        <select id="pairSelect" style="flex:1; min-width:220px; padding:10px 12px; border-radius:10px; background:#0b1022; border:1px solid #1b2442; color:var(--text);">
+          <option value="p-b">p vs b (patlama/sesli)</option>
+          <option value="k-g">k vs g</option>
+          <option value="s-z">s vs z</option>
+          <option value="t-d">t vs d</option>
+          <option value="ş-s">ş vs s</option>
+        </select>
+        <button id="pcPlay" class="btn btn-secondary" type="button">Örnek Dinle</button>
+        <button id="pcRecord" class="btn btn-primary" type="button">Tekrar Et</button>
+      </div>
+      <div class="row" style="gap:8px; flex-wrap:wrap; margin-top:8px;">
+        <span class="pill" id="pcTarget">Hedef: /p/</span>
+        <span class="pill" id="pcTip">İpucu: Dudakları kapat, havayı kısa patlat.</span>
+      </div>
+      <div id="pcResult" class="alert alert-info" style="margin-top:12px; display:none;"></div>
+      <audio id="pcAudio" hidden></audio>
+    </div>
+  </main>
+  <script>
+    const tips = {
+      'p-b': { a:['par','bal'], tip:'Dudak kapalı başla; hava patlaması yap.' },
+      'k-g': { a:['kapı','gabı'], tip:'Arka damak kapanışı; k sert, g yumuşak.' },
+      's-z': { a:['sarı','zarı'], tip:'S sessiz sürtünme, Z sesli titreşim.' },
+      't-d': { a:['tane','dane'], tip:'Dilde uç-alın; T sert, D sesli.' },
+      'ş-s': { a:['şapka','sapka'], tip:'Ş daha yuvarlak/dar; S düz.' }
+    };
+    const pairSelect = document.getElementById('pairSelect');
+    const pcPlay = document.getElementById('pcPlay');
+    const pcRecord = document.getElementById('pcRecord');
+    const pcResult = document.getElementById('pcResult');
+    const pcAudio = document.getElementById('pcAudio');
+    const pcTarget = document.getElementById('pcTarget');
+    const pcTip = document.getElementById('pcTip');
+
+    function current(){ return tips[pairSelect.value] || tips['p-b']; }
+    function setUi(){ pcTarget.textContent = `Hedef: ${current().a[0]} / ${current().a[1]}`; pcTip.textContent = `İpucu: ${current().tip}`; }
+    setUi();
+    pairSelect.addEventListener('change', setUi);
+
+    function speak(text){
+      try{ const u = new SpeechSynthesisUtterance(text); u.lang='tr-TR'; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch{}
+    }
+    pcPlay.addEventListener('click', () => speak(`${current().a[0]} — ${current().a[1]}`));
+
+    function normalize(s){ return (s||'').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu,'').replace(/\s+/g,' ').trim(); }
+    function wordScore(ref, got){
+      const r = normalize(ref), g = normalize(got);
+      if (!g) return 0;
+      const rSet = new Set(r.split(' '));
+      const gSet = new Set(g.split(' '));
+      let inter=0; rSet.forEach(w=>{ if(gSet.has(w)) inter++; });
+      return Math.round((inter/ (new Set([...rSet,...gSet]).size||1))*100);
+    }
+
+    async function recognize(){
+      return new Promise((resolve)=>{
+        try{
+          const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+          if (!SR){ resolve(null); return; }
+          const r = new SR(); r.lang='tr-TR'; r.interimResults=false; r.maxAlternatives=1;
+          r.onresult = e => resolve(e.results[0][0].transcript||'');
+          r.onerror = () => resolve(null);
+          r.start(); setTimeout(()=>{ try{ r.stop(); }catch{} }, 3500);
+        }catch{ resolve(null); }
+      });
+    }
+
+    async function record(){
+      try{
+        pcResult.style.display='block'; pcResult.className='alert alert-info'; pcResult.textContent='Tekrar edin...';
+        const hyp = await recognize();
+        const pair = current();
+        const score1 = wordScore(pair.a[0], hyp);
+        const score2 = wordScore(pair.a[1], hyp);
+        const best = Math.max(score1, score2);
+        pcResult.className = best>70 ? 'alert alert-success' : (best>40 ? 'alert alert-info' : 'alert alert-error');
+        pcResult.textContent = `Algılanan: “${hyp||'—'}” · Skor: %${best}`;
+      }catch{}
+    }
+    pcRecord.addEventListener('click', record);
+  </script>
+</body>
+</html>
+
+

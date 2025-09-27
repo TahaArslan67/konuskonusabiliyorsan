@@ -451,7 +451,7 @@ function sendPrefsToWs(){
     const learnLang = learnLangSelect && learnLangSelect.value ? learnLangSelect.value : 'tr';
     const nativeLang = nativeLangSelect && nativeLangSelect.value ? nativeLangSelect.value : 'tr';
     const correction = corrSelect && corrSelect.value ? corrSelect.value : 'gentle';
-    const scenarioId = scenarioSelect && scenarioSelect.value ? scenarioSelect.value : '';
+    const scenarioId = scenarioSelect && scenarioSelect.value ? scenarioSelect.value : (window.__hk_scenario || '');
     const payload = { type: 'set_prefs', prefs: { voice, learnLang, nativeLang, correction, scenarioId } };
     ws.send(JSON.stringify(payload));
     log(`Tercihler güncellendi: voice=${voice}, learn=${learnLang}, native=${nativeLang}, corr=${correction}, scenario=${scenarioId||'-'}`);
@@ -559,6 +559,24 @@ if (scenarioSelect){
     sendPrefsToWs();
   });
 }
+
+// Read scenario from query parameter and preselect
+try{
+  const usp = new URLSearchParams(window.location.search);
+  const sc = usp.get('scenario');
+  if (sc){
+    window.__hk_scenario = sc;
+    if (scenarioSelect){
+      // ensure option exists visually if list not loaded yet
+      if (!Array.from(scenarioSelect.options).some(o => o.value === sc)){
+        const opt = document.createElement('option');
+        opt.value = sc; opt.textContent = sc;
+        scenarioSelect.appendChild(opt);
+      }
+      scenarioSelect.value = sc;
+    }
+  }
+} catch {}
 
 function updateStatus(){
   if (statusConnEl){

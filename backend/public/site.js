@@ -603,6 +603,72 @@ try{
   });
 } catch {}
 
+// ===== Daily Speaking Challenge (homepage) =====
+function pickScenarioForLevel(items, userLevel){
+  try{
+    if (!Array.isArray(items) || items.length === 0) return null;
+    if (!userLevel){
+      return items[Math.floor(Math.random()*items.length)];
+    }
+    const has = items.filter(s => typeof s.level === 'string' && s.level.toUpperCase().includes(String(userLevel).toUpperCase()));
+    if (has.length > 0) return has[Math.floor(Math.random()*has.length)];
+    return items[Math.floor(Math.random()*items.length)];
+  }catch{ return null; }
+}
+
+async function setupDailyChallenge(){
+  try{
+    const dailyEl = document.getElementById('daily');
+    if (!dailyEl) return; // not on homepage
+    const btn = document.getElementById('dailyStart');
+    const shuffle = document.getElementById('dailyShuffle');
+    const tag = document.getElementById('dailyTag');
+    const lvl = document.getElementById('dailyLevel');
+    const desc = document.getElementById('dailyDesc');
+
+    let userLevel = null;
+    try{
+      const token = getToken();
+      if (token){
+        const r = await fetch(`${backendBase}/me`, { headers:{ Authorization: `Bearer ${token}` } });
+        if (r.ok){ const me = await r.json(); userLevel = me?.user?.placementLevel || me?.placementLevel || null; }
+      }
+    }catch{}
+    if (lvl) lvl.textContent = `Seviye: ${userLevel || '-'}`;
+
+    // Load scenarios
+    let scenarios = [];
+    try{
+      const r = await fetch(`${backendBase}/scenarios`);
+      if (r.ok){ const j = await r.json(); scenarios = Array.isArray(j.items)? j.items : []; }
+    }catch{}
+    if (!scenarios || scenarios.length === 0){ desc.textContent = 'Şu an görev yüklenemedi.'; return; }
+
+    function renderScenario(s){
+      if (!s) return;
+      if (tag) tag.textContent = s.title || 'Görev';
+      if (desc) desc.textContent = s.level ? `Önerilen seviye: ${s.level}` : 'Hazır mısınız?';
+      const href = `/realtime.html?scenario=${encodeURIComponent(s.id || '')}`;
+      if (btn) btn.setAttribute('href', href);
+    }
+
+    let current = pickScenarioForLevel(scenarios, userLevel) || scenarios[0];
+    renderScenario(current);
+
+    if (shuffle){
+      shuffle.addEventListener('click', () => {
+        try{
+          const pool = scenarios.filter(s => s.id !== current.id);
+          current = pickScenarioForLevel(pool.length? pool : scenarios, userLevel) || current;
+          renderScenario(current);
+        }catch{}
+      });
+    }
+  }catch{}
+}
+
+try{ if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setupDailyChallenge); else setupDailyChallenge(); }catch{}
+
 // Mobile menu controls
 try{
   const btnMenu = document.getElementById('btnMenu');

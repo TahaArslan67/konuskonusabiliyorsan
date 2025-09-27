@@ -412,6 +412,10 @@ a{ color:var(--text); text-decoration:none; }
 #mobileMenu{ animation: mmFade .18s ease-out; }
 @keyframes mmFade{ from{ opacity:0; transform: translateY(-6px); } to{ opacity:1; transform: translateY(0); } }
 
+/* Daily challenge card */
+.challenge-card{ background:linear-gradient(180deg, rgba(14,20,48,.92), rgba(14,20,48,.84)); border:1px solid rgba(124,58,237,.28); }
+.challenge-card h2{ letter-spacing:.2px; }
+
 /* Reduce motion for users who prefer less animation */
 @media (prefers-reduced-motion: reduce){
   *, *::before, *::after{ animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior:auto !important; }

@@ -3096,6 +3096,27 @@ wss.on('connection', (clientWs, request) => {
           openaiWs._audioStreamMode = null;
           break;
         }
+        case 'response.audio_transcript.done': {
+          const tr = String(obj?.transcript || '');
+          try { clientWs.send(JSON.stringify({ type: 'transcript', text: tr, final: true })); } catch {}
+          // If model bitirdi ama örnek cümleyi vermeden ':' ile bıraktıysa, hemen tamamlat
+          const needsExample = /:\s*$/.test(tr) || /Şöyle bir cümle/i.test(tr);
+          if (needsExample) {
+            try {
+              const followup = {
+                type: 'response.create',
+                response: {
+                  modalities: ['audio','text'],
+                  max_output_tokens: 60,
+                  instructions: 'Sadece tek bir örnek ver ve bitir. Kalıp: Şöyle de diyebilirsin: "...". En az 5 kelime. Başka hiçbir şey ekleme.'
+                }
+              };
+              openaiWs.send(JSON.stringify(followup));
+              console.log('[proxy] follow-up example requested');
+            } catch {}
+          }
+          break;
+        }
         case 'response.delta':
         case 'response.transcript.delta':
         case 'response.text.delta':

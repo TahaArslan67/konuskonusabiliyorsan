@@ -642,7 +642,7 @@ async function setupDailyChallenge(){
       const r = await fetch(`${backendBase}/scenarios`);
       if (r.ok){ const j = await r.json(); scenarios = Array.isArray(j.items)? j.items : []; }
     }catch{}
-    if (!scenarios || scenarios.length === 0){ desc.textContent = 'Şu an görev yüklenemedi.'; return; }
+    if (!scenarios || scenarios.length === 0){ if (desc) desc.textContent = 'Şu an görev yüklenemedi.'; return; }
 
     function renderScenario(s){
       if (!s) return;

@@ -1,0 +1,16 @@
+{
+  "pairs": [
+    { "a": "hus", "b": "hjus", "hint": "h–hj" },
+    { "a": "tak", "b": "tag", "hint": "k–g (final)" },
+    { "a": "brød", "b": "brud", "hint": "ø–u" },
+    { "a": "øl", "b": "el", "hint": "ø–e" },
+    { "a": "god", "b": "kod", "hint": "g–k" },
+    { "a": "bil", "b": "pil", "hint": "b–p" },
+    { "a": "ven", "b": "fen", "hint": "v–f" },
+    { "a": "kød", "b": "tød", "hint": "k–t" },
+    { "a": "syv", "b": "sju", "hint": "y–ju" },
+    { "a": "bog", "b": "bok", "hint": "g–k (final)" }
+  ]
+}
+
+

@@ -1,0 +1,16 @@
+{
+  "pairs": [
+    { "a": "la", "b": "na", "hint": "l–n" },
+    { "a": "rượu", "b": "lượu", "hint": "r–l" },
+    { "a": "trà", "b": "cha", "hint": "tr–ch" },
+    { "a": "sinh", "b": "xinh", "hint": "s–x" },
+    { "a": "dê", "b": "giê", "hint": "d–gi" },
+    { "a": "ăn", "b": "ăng", "hint": "n–ng" },
+    { "a": "bác", "b": "vác", "hint": "b–v" },
+    { "a": "chín", "b": "sín", "hint": "ch–s" },
+    { "a": "học", "b": "ọc", "hint": "h drop" },
+    { "a": "ngà", "b": "nga", "hint": "tone" }
+  ]
+}
+
+

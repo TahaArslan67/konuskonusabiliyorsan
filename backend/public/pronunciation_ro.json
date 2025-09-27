@@ -1,0 +1,16 @@
+{
+  "pairs": [
+    { "a": "vaca", "b": "faca", "hint": "v–f" },
+    { "a": "cer", "b": "zer", "hint": "c–z / ce–ze" },
+    { "a": "roată", "b": "loată", "hint": "r–l" },
+    { "a": "dulce", "b": "dulze", "hint": "c–z" },
+    { "a": "pace", "b": "face", "hint": "p–f / c–c" },
+    { "a": "bun", "b": "pun", "hint": "b–p" },
+    { "a": "zbor", "b": "sbor", "hint": "z–s" },
+    { "a": "gheață", "b": "deață", "hint": "g–d / ghe–de" },
+    { "a": "şase", "b": "sase", "hint": "ş–s" },
+    { "a": "uşă", "b": "usa", "hint": "ş–s / diacritice" }
+  ]
+}
+
+

@@ -1,0 +1,16 @@
+{
+  "pairs": [
+    { "a": "szum", "b": "sum", "hint": "sz–s" },
+    { "a": "czar", "b": "car", "hint": "cz–c" },
+    { "a": "żuk", "b": "zuch", "hint": "ż–z / k–ch" },
+    { "a": "rzeka", "b": "rzęka", "hint": "e–ę" },
+    { "a": "lód", "b": "lut", "hint": "ó–u" },
+    { "a": "bóg", "b": "buk", "hint": "ó–u / g–k" },
+    { "a": "wilk", "b": "wirk", "hint": "l–r" },
+    { "a": "żółw", "b": "zółw", "hint": "ż–z" },
+    { "a": "książka", "b": "ksiąszka", "hint": "ż–sz" },
+    { "a": "życie", "b": "zyczie", "hint": "ć–cz" }
+  ]
+}
+
+

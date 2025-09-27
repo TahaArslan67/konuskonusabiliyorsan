@@ -1,0 +1,16 @@
+{
+  "pairs": [
+    { "a": "beau", "b": "bo", "hint": "o–ɔ / orthographe" },
+    { "a": "peu", "b": "peut", "hint": "ø–ə / homophones" },
+    { "a": "sain", "b": "sein", "hint": "ɛ̃ / homophones" },
+    { "a": "mer", "b": "mère", "hint": "ɛ–ɛː / accent" },
+    { "a": "dessert", "b": "désert", "hint": "e–e / ss–s" },
+    { "a": "cou", "b": "coût", "hint": "u–uː / accent" },
+    { "a": "ver", "b": "vert", "hint": "ɛ–ɛʁ / homophones" },
+    { "a": "brun", "b": "brin", "hint": "œ̃–ɛ̃" },
+    { "a": "poisson", "b": "poison", "hint": "ss–s / ɔ̃" },
+    { "a": "plus", "b": "plu", "hint": "s muet" }
+  ]
+}
+
+

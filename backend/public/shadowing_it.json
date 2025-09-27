@@ -1,0 +1,64 @@
+{
+  "A1": [
+    "Ciao, come stai?",
+    "Mi chiamo ____, piacere.",
+    "Che ore sono?",
+    "Puoi parlare più lentamente, per favore?",
+    "Di dove sei?",
+    "Studio italiano ogni giorno.",
+    "Puoi aiutarmi con questo?",
+    "Vorrei un bicchiere d’acqua, per favore.",
+    "Ci vediamo domani!",
+    "Buona giornata!"
+  ],
+  "A2": [
+    "Oggi ho fatto una breve passeggiata dopo il lavoro.",
+    "Che programmi hai per il fine settimana?",
+    "La riunione inizierà alle tre.",
+    "Di solito studio la mattina prima di colazione.",
+    "Potresti ripeterlo un’altra volta?",
+    "Sto cercando di migliorare la mia pronuncia.",
+    "È arrivata in ritardo a causa del traffico intenso.",
+    "Possiamo incontrarci davanti alla stazione.",
+    "Preferisco il tè, ma anche il caffè va bene.",
+    "Facciamo pratica per altri dieci minuti."
+  ],
+  "B1": [
+    "Ho iniziato a vedere i benefici della pratica regolare.",
+    "Per me è importante essere puntuale agli appuntamenti.",
+    "Cerco di parlare più chiaramente e con sicurezza.",
+    "Quando sono nervoso/a, respiro a fondo e continuo.",
+    "Preferirei parlarne dopo la presentazione.",
+    "Dobbiamo confermare il programma entro stasera.",
+    "Dopo pochi minuti di conversazione mi sono sentito/a più a mio agio.",
+    "Ha suggerito di dividere i compiti in modo equo.",
+    "Ti invierò il riassunto appena lo finisco.",
+    "Fammi sapere se hai suggerimenti."
+  ],
+  "B2": [
+    "Ho creato una routine di studio coerente per raggiungere il mio obiettivo.",
+    "Durante le discussioni difendo la mia opinione con cortesia.",
+    "Ho preparato degli appunti per rendere la riunione più efficiente.",
+    "Dovremmo valutare pro e contro prima di decidere.",
+    "L’istruttore ha fornito un feedback molto costruttivo.",
+    "Forse è meglio rinviare la scadenza di un giorno.",
+    "Sono sicuro/a che la pratica costante darà i suoi frutti.",
+    "I risultati sono stati migliori del previsto.",
+    "Rivedrò il materiale e condividerò i miei commenti domani.",
+    "La costanza è più importante della perfezione."
+  ],
+  "C1": [
+    "Per progredire nel lungo periodo, adeguo gradualmente i miei obiettivi a breve termine.",
+    "Credo che il feedback acceleri l’apprendimento.",
+    "Uso la tecnica dello shadowing per migliorare l’accento.",
+    "Nonostante le difficoltà, abbiamo mantenuto un ritmo costante.",
+    "Apprezzo spiegazioni concise supportate da esempi.",
+    "La discussione ha evidenziato sottili differenze di significato.",
+    "Amplio il mio vocabolario con letture approfondite.",
+    "Collaborare con gli altri mi ha dato nuove prospettive.",
+    "Dopo aver analizzato i primi risultati, abbiamo raffinato il nostro approccio.",
+    "Voglio comunicare in modo naturale senza pensare troppo a ogni parola."
+  ]
+}
+
+

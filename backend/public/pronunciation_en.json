@@ -1,0 +1,16 @@
+{
+  "pairs": [
+    { "a": "ship", "b": "sheep", "hint": "ɪ–iː" },
+    { "a": "full", "b": "fool", "hint": "ʊ–uː" },
+    { "a": "pat", "b": "bat", "hint": "p–b" },
+    { "a": "light", "b": "right", "hint": "l–r" },
+    { "a": "thin", "b": "then", "hint": "θ–ð" },
+    { "a": "cot", "b": "caught", "hint": "ɒ–ɔː (dialect)" },
+    { "a": "seat", "b": "sit", "hint": "iː–ɪ" },
+    { "a": "cat", "b": "cut", "hint": "æ–ʌ" },
+    { "a": "cheap", "b": "jeep", "hint": "tʃ–dʒ" },
+    { "a": "fine", "b": "vine", "hint": "f–v" }
+  ]
+}
+
+

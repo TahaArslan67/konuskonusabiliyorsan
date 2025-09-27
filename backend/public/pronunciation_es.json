@@ -1,0 +1,16 @@
+{
+  "pairs": [
+    { "a": "pero", "b": "perro", "hint": "r–rr" },
+    { "a": "casa", "b": "caza", "hint": "s–z (ceceo)" },
+    { "a": "tú", "b": "tu", "hint": "acento" },
+    { "a": "si", "b": "sí", "hint": "acento" },
+    { "a": "hola", "b": "ola", "hint": "h muda" },
+    { "a": "votar", "b": "botar", "hint": "v–b" },
+    { "a": "pollo", "b": "poyo", "hint": "ll–y" },
+    { "a": "cocer", "b": "coser", "hint": "c–s" },
+    { "a": "echo", "b": "hecho", "hint": "h" },
+    { "a": "halla", "b": "haya", "hint": "ll–y / acento" }
+  ]
+}
+
+

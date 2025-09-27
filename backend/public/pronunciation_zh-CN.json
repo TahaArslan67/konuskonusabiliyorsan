@@ -1,0 +1,16 @@
+{
+  "pairs": [
+    { "a": "shì", "b": "sì", "hint": "sh–s" },
+    { "a": "zhōng", "b": "jōng", "hint": "zh–j" },
+    { "a": "chī", "b": "qī", "hint": "ch–q" },
+    { "a": "rì", "b": "lì", "hint": "r–l" },
+    { "a": "fàn", "b": "huàn", "hint": "f–h / tone" },
+    { "a": "mā", "b": "má", "hint": "tone 1–2" },
+    { "a": "mǎ", "b": "mà", "hint": "tone 3–4" },
+    { "a": "shuō", "b": "suō", "hint": "sh–s" },
+    { "a": "lǜ", "b": "lù", "hint": "ü–u" },
+    { "a": "xīn", "b": "sīn", "hint": "x–s" }
+  ]
+}
+
+

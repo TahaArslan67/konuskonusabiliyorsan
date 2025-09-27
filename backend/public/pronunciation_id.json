@@ -1,0 +1,16 @@
+{
+  "pairs": [
+    { "a": "bisa", "b": "visa", "hint": "b–v" },
+    { "a": "sakit", "b": "sakid", "hint": "t–d" },
+    { "a": "enak", "b": "enag", "hint": "k–g (final)" },
+    { "a": "rasa", "b": "lasa", "hint": "r–l" },
+    { "a": "kaca", "b": "kaya", "hint": "c–y" },
+    { "a": "baca", "b": "baja", "hint": "c–j" },
+    { "a": "singa", "b": "hinga", "hint": "s–h" },
+    { "a": "pikir", "b": "pigil", "hint": "r–l" },
+    { "a": "bunga", "b": "punga", "hint": "b–p" },
+    { "a": "jalan", "b": "salan", "hint": "j–s" }
+  ]
+}
+
+

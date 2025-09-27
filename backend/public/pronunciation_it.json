@@ -1,0 +1,16 @@
+{
+  "pairs": [
+    { "a": "pasta", "b": "basta", "hint": "p–b" },
+    { "a": "tetto", "b": "detto", "hint": "t–d" },
+    { "a": "faro", "b": "varo", "hint": "f–v" },
+    { "a": "casa", "b": "cassa", "hint": "s geminata" },
+    { "a": "cara", "b": "carra", "hint": "r–rr" },
+    { "a": "paga", "b": "baga", "hint": "p–b" },
+    { "a": "seno", "b": "scena", "hint": "s–sc / e–e" },
+    { "a": "giro", "b": "cero", "hint": "g–c (soft)" },
+    { "a": "fila", "b": "villa", "hint": "f–v" },
+    { "a": "coro", "b": "caro", "hint": "o–a" }
+  ]
+}
+
+

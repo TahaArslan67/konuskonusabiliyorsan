@@ -1,0 +1,16 @@
+{
+  "pairs": [
+    { "a": "göl", "b": "gol", "hint": "ö–o" },
+    { "a": "köy", "b": "koy", "hint": "ö–o" },
+    { "a": "kör", "b": "kor", "hint": "ö–o" },
+    { "a": "kul", "b": "kül", "hint": "u–ü" },
+    { "a": "kıl", "b": "kil", "hint": "ı–i" },
+    { "a": "cam", "b": "çam", "hint": "c–ç" },
+    { "a": "şal", "b": "sal", "hint": "ş–s" },
+    { "a": "şok", "b": "sok", "hint": "ş–s" },
+    { "a": "şu", "b": "su", "hint": "ş–s" },
+    { "a": "çay", "b": "cay", "hint": "ç–c" }
+  ]
+}
+
+

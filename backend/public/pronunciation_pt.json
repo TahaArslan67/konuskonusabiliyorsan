@@ -1,0 +1,16 @@
+{
+  "pairs": [
+    { "a": "coro", "b": "caro", "hint": "o–a" },
+    { "a": "vaca", "b": "faca", "hint": "v–f" },
+    { "a": "gelo", "b": "zelo", "hint": "ʒ–z" },
+    { "a": "tio", "b": "dio", "hint": "tʃ–dʒ (PT-BR)" },
+    { "a": "casa", "b": "casas", "hint": "plural / s final" },
+    { "a": "mato", "b": "muito", "hint": "t–jt (PT-BR)" },
+    { "a": "papa", "b": "pava", "hint": "p–v" },
+    { "a": "vivo", "b": "fivo", "hint": "v–f" },
+    { "a": "vaca", "b": "vaga", "hint": "c–g" },
+    { "a": "mala", "b": "mara", "hint": "l–r (tap)" }
+  ]
+}
+
+

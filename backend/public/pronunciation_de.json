@@ -1,0 +1,16 @@
+{
+  "pairs": [
+    { "a": "Wasser", "b": "Vasser", "hint": "w–v" },
+    { "a": "Bett", "b": "Bad", "hint": "ɛ–a / t–d" },
+    { "a": "schön", "b": "schon", "hint": "øː–oː" },
+    { "a": "füllen", "b": "fällen", "hint": "ʏ–ɛ / ü–ä" },
+    { "a": "Tasche", "b": "Tages", "hint": "ʃ–g / e–s" },
+    { "a": "ich", "b": "ig", "hint": "ç–g" },
+    { "a": "Rose", "b": "Rosa", "hint": "z–s / e–a" },
+    { "a": "Karte", "b": "Garde", "hint": "k–g / t–d" },
+    { "a": "Hut", "b": "Hüte", "hint": "uː–yː" },
+    { "a": "Bus", "b": "Kuss", "hint": "b–k" }
+  ]
+}
+
+

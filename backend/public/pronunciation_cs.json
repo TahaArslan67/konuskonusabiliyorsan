@@ -1,0 +1,16 @@
+{
+  "pairs": [
+    { "a": "čaj", "b": "caj", "hint": "č–c" },
+    { "a": "žít", "b": "žid", "hint": "t–d" },
+    { "a": "řeka", "b": "zheka", "hint": "ř–zh" },
+    { "a": "dům", "b": "tům", "hint": "d–t" },
+    { "a": "kůň", "b": "kun", "hint": "ů–u / ň–n" },
+    { "a": "les", "b": "lez", "hint": "s–z" },
+    { "a": "rok", "b": "rog", "hint": "k–g" },
+    { "a": "vlak", "b": "flak", "hint": "v–f" },
+    { "a": "břeh", "b": "bžeh", "hint": "ř–ž" },
+    { "a": "žlutý", "b": "zlutý", "hint": "ž–z" }
+  ]
+}
+
+

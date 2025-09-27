@@ -1,0 +1,16 @@
+{
+  "pairs": [
+    { "a": "goed", "b": "hoed", "hint": "g–h" },
+    { "a": "ui", "b": "u", "hint": "œy–y" },
+    { "a": "kut", "b": "gut", "hint": "k–g" },
+    { "a": "bed", "b": "bet", "hint": "d–t (final)" },
+    { "a": "lek", "b": "leg", "hint": "k–g (final)" },
+    { "a": "fijn", "b": "vijn", "hint": "f–v" },
+    { "a": "zee", "b": "see", "hint": "z–s" },
+    { "a": "rij", "b": "lij", "hint": "r–l" },
+    { "a": "schip", "b": "skip", "hint": "sch–sk" },
+    { "a": "huis", "b": "huisz", "hint": "s–z" }
+  ]
+}
+
+

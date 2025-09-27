@@ -2382,7 +2382,7 @@ app.post('/realtime/ephemeral', async (req, res) => {
         modalities: ['audio','text'],
         voice: 'alloy',
         instructions: persona,
-        max_response_output_tokens: 160,
+        max_response_output_tokens: 200,
         turn_detection: {
           type: 'server_vad',
           // conservative defaults; can be tuned later
@@ -2697,12 +2697,12 @@ wss.on('connection', (clientWs, request) => {
           voice: voicePref,
           temperature: 0.8,
           // Let Realtime model handle audio directly; no separate ASR model
-          max_response_output_tokens: 160,
+          max_response_output_tokens: 200,
           turn_detection: {
             type: 'server_vad',
             threshold: 0.25,
-            prefix_padding_ms: 450,
-            silence_duration_ms: 1400,
+            prefix_padding_ms: 550,
+            silence_duration_ms: 1900,
             create_response: false,
             interrupt_response: false,
           },

@@ -185,6 +185,8 @@ a{ color:var(--text); text-decoration:none; }
 .footer .nav.small a:hover{ color: var(--text); }
 /* Slightly soften footer divider illusion by adding subtle top border */
 .footer{ border-top:1px solid rgba(124,58,237,.12); }
+/* Footer polish */
+.footer{ background: linear-gradient(180deg, rgba(14,20,48,.35), rgba(14,20,48,.18)); backdrop-filter: blur(2px); border-top:1px solid rgba(124,58,237,.18); }
 
 /* Responsive */
 @media (max-width: 900px){

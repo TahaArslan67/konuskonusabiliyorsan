@@ -168,69 +168,7 @@
   </style>
 </head>
 <body>
-  <header class="container header">
-    <a class="brand" href="/" aria-label="KonusKonusabilirsen anasayfa">
-      <picture>
-        <source media="(max-width: 640px)" srcset="/logo-icon.png, /logo-icon.svg" />
-        <img src="/logo.png" alt="KonusKonusabilirsen" style="height:36px; display:block;" loading="lazy" decoding="async" />
-      </picture>
-      <span style="font-weight:700;">KonusKonusabilirsen</span>
-    </a>
-    <nav class="nav">
-      <a href="/#features">Özellikler</a>
-      <a href="/#pricing">Fiyatlandırma</a>
-      <a href="/contact" class="active">İletişim</a>
-      
-      <button class="btn btn-text" id="btnAccount" type="button" style="display:none;">Hesabım <span id="verifyDot" class="dot" style="display:none;"></span></button>
-      <button class="btn btn-secondary" id="btnLogin" type="button">Giriş Yap</button>
-      <a href="#" class="btn btn-primary" id="btnStart">Hemen Başla</a>
-      <button id="btnMenu" class="btn btn-secondary btn-sm" type="button" aria-label="Menüyü Aç" style="display:none;">
-        <span aria-hidden="true">☰</span>
-      </button>
-    </nav>
-    <script>
-      // Sayfa yüklendiğinde header'ı güncelle
-      document.addEventListener('DOMContentLoaded', function() {
-        // Yıl bilgisini güncelle
-        const yearElement = document.getElementById('year');
-        if (yearElement) {
-          yearElement.textContent = new Date().getFullYear();
-        }
-        
-        // Header'ı güncelle
-        updateHeader();
-        
-        // Mobil menü butonunu yönet
-        const btnMenu = document.getElementById('btnMenu');
-        const nav = document.querySelector('.nav');
-        
-        if (btnMenu && window.innerWidth <= 640) {
-          btnMenu.style.display = 'inline-flex';
-          
-          btnMenu.addEventListener('click', function() {
-            const isExpanded = nav.style.display === 'flex';
-            nav.style.display = isExpanded ? 'none' : 'flex';
-          });
-          
-          // Ekran boyutu değiştiğinde kontrol et
-          window.addEventListener('resize', function() {
-            if (window.innerWidth > 640) {
-              nav.style.display = '';
-              btnMenu.style.display = 'none';
-            } else {
-              btnMenu.style.display = 'inline-flex';
-              nav.style.display = 'none';
-            }
-          });
-          
-          // Mobilde menüyü başlangıçta gizle
-          if (window.innerWidth <= 640) {
-            nav.style.display = 'none';
-          }
-        }
-      });
-    </script>
-  </header>
+  <script src="/header.js"></script>
 
   <main>
     <div class="card" style="text-align: center; background: var(--card); border: 1px solid rgba(255,255,255,0.08); max-width: 600px; margin: 2rem auto; padding: 2rem;">
@@ -298,14 +236,7 @@
     }
   </style>
 
-  <footer class="container footer" style="margin-top: 0;">
-    <div> KonusKonusabilirsen. Tüm hakları saklıdır.</div>
-    <nav class="nav small">
-      <a href="/gizlilik">Gizlilik Politikası</a>
-      <a href="/kullanim">Kullanım Koşulları</a>
-      <a href="/sss">SSS</a>
-    </nav>
-  </footer>
+  <script src="/footer.js"></script>
 
   <script>
     // E-posta adresini kopyalama işlevi

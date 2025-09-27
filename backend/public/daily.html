@@ -16,16 +16,40 @@
   </script>
 </head>
 <body>
-  <header class="container header">
-    <a class="brand" href="/" aria-label="KonusKonusabilirsen anasayfa">KonusKonusabilirsen</a>
-    <nav class="nav">
-      <a href="/account.html">Hesabım</a>
-      <a href="/realtime.html" class="btn btn-text">Canlı Demo</a>
-    </nav>
-  </header>
+  <script src="/header.js"></script>
 
   <main class="container" style="padding:24px 0 40px; max-width:900px;">
     <div id="toast" class="toast">Seri +1! Tebrikler 🎉</div>
+    <!-- Top summary -->
+    <div class="card" style="padding:16px; margin-bottom:12px;">
+      <div class="row" style="justify-content:space-between; align-items:center; gap:8px;">
+        <div class="row" style="gap:8px; align-items:center;">
+          <span class="pill" id="sumStreak">Seri: 0</span>
+          <span class="pill" id="sumReset">Yenilenmeye: --</span>
+        </div>
+        <div class="row" style="gap:10px; align-items:center;">
+          <div style="position:relative; width:74px; height:74px;">
+            <svg viewBox="0 0 36 36" style="transform:rotate(-90deg); width:74px; height:74px;">
+              <path d="M18 2 a 16 16 0 1 1 0 32 a 16 16 0 1 1 0 -32" fill="none" stroke="#1b2442" stroke-width="4"/>
+              <path id="goalArc" d="M18 2 a 16 16 0 1 1 0 32 a 16 16 0 1 1 0 -32" fill="none" stroke="url(#g)" stroke-width="4" stroke-dasharray="0,100"/>
+              <defs>
+                <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+                  <stop offset="0%" stop-color="var(--brand)"/>
+                  <stop offset="100%" stop-color="var(--neon)"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <div id="goalPct" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:700;">0%</div>
+          </div>
+          <div>
+            <div class="subtle">Günlük hedef</div>
+            <div id="goalText" style="font-weight:700;">0/10 dk</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Today's challenge -->
     <div id="daily" class="card challenge-card" style="padding:16px;">
       <div class="row" style="justify-content:space-between; align-items:center;">
         <h2 style="margin:0;">Günlük Konuşma Görevi</h2>
@@ -41,12 +65,36 @@
       </div>
       <p class="subtle" id="dailyDesc" style="margin:8px 0 0;">Bugün için öneri yükleniyor...</p>
     </div>
+
+    <!-- Tip of the day -->
+    <div class="card" style="padding:16px; margin-top:12px;">
+      <h3 style="margin:0 0 6px;">Bugünün İpucu</h3>
+      <p id="tipText" class="subtle" style="margin:0;">Yükleniyor...</p>
+    </div>
+
+    <!-- Mini streak calendar -->
+    <div class="card" style="padding:16px; margin-top:12px;">
+      <h3 style="margin:0 0 6px;">Son 7 Gün</h3>
+      <div id="miniCal" class="row" style="gap:8px;">
+      </div>
+    </div>
+
+    <!-- Journal -->
+    <div class="card" style="padding:16px; margin-top:12px;">
+      <h3 style="margin:0 0 6px;">Bugün Öğrendiklerim</h3>
+      <textarea id="journalInput" placeholder="Kısa notlar..." style="width:100%; min-height:100px; padding:10px 12px; border-radius:10px; background:#0b1022; border:1px solid #1b2442; color:var(--text);"></textarea>
+      <div class="row" style="margin-top:8px; gap:8px; align-items:center;">
+        <button id="journalSave" class="btn btn-secondary" type="button">Kaydet</button>
+        <small id="journalMsg" class="subtle"></small>
+      </div>
+    </div>
   </main>
 
   <script src="/config.js"></script>
   <script src="/site.js" type="module"></script>
+  <script src="/footer.js"></script>
   <script>
-    // After site.js populates scenario & level, check completion and wire complete button
+    // After site.js populates scenario & level, check completion and wire complete button + fill summary/tip/calendar/journal
     (async () => {
       try{
         const token = localStorage.getItem('hk_token');
@@ -83,6 +131,104 @@
           }
         }
       }catch{}
+      // Summary band
+      try{
+        const token = localStorage.getItem('hk_token');
+        if (token){
+          const r = await fetch(`${window.__BACKEND_BASE__ || 'https://api.konuskonusabilirsen.com'}/daily/status`, { headers:{ Authorization: `Bearer ${token}` } });
+          const j = await r.json();
+          const sumStreak = document.getElementById('sumStreak');
+          const sumReset = document.getElementById('sumReset');
+          const goalText = document.getElementById('goalText');
+          const goalArc = document.getElementById('goalArc');
+          const goalPct = document.getElementById('goalPct');
+          const goal = Number(j.goal || 10);
+          // usage for today from /usage
+          try{
+            const ur = await fetch(`${window.__BACKEND_BASE__ || 'https://api.konuskonusabilirsen.com'}/usage`, { headers:{ Authorization: `Bearer ${token}` } });
+            const uj = await ur.json();
+            const used = Number(uj.usedDaily || uj.daily?.used || 0);
+            const pct = Math.max(0, Math.min(100, Math.round((used/Math.max(1,goal))*100)));
+            if (goalText) goalText.textContent = `${used.toFixed(1)}/${goal} dk`;
+            if (goalPct) goalPct.textContent = `${pct}%`;
+            if (goalArc) goalArc.setAttribute('stroke-dasharray', `${pct},100`);
+          }catch{}
+          if (sumStreak) sumStreak.textContent = `Seri: ${j.streak || 0}`;
+          try{
+            const resetAt = j.resetAt ? new Date(j.resetAt) : null;
+            function upd(){
+              if (!resetAt) return;
+              const diff = Math.max(0, resetAt - new Date());
+              const h = String(Math.floor(diff/3600000)).padStart(2,'0');
+              const m = String(Math.floor((diff%3600000)/60000)).padStart(2,'0');
+              if (sumReset) sumReset.textContent = `Yenilenmeye: ${h}:${m}`;
+            }
+            upd(); setInterval(upd, 60000);
+          }catch{}
+        }
+      }catch{}
+
+      // Tip of the day
+      try{
+        const tips = [
+          'Cümle sonunda düşen tonlama yerine son kelimeyi net vurgula.',
+          'Dolgu sözcükleri (şey, yani) yerine kısa duraksama tercih et.',
+          'Uzun cümleyi ikiye böl: netlik ve ritim artar.',
+          'Telaffuz: /r/leri belirgin ama abartısız yap.',
+          'Vurgu: bilgi veren kelimeye hafif vurgu ekle.'
+        ];
+        const tip = tips[Math.floor(Math.random()*tips.length)];
+        const tipEl = document.getElementById('tipText'); if (tipEl) tipEl.textContent = tip;
+      }catch{}
+
+      // Mini calendar using journal keys
+      try{
+        const mini = document.getElementById('miniCal');
+        if (mini){
+          const token = localStorage.getItem('hk_token');
+          let completedSet = new Set();
+          if (token){
+            try{
+              const r = await fetch(`${window.__BACKEND_BASE__ || 'https://api.konuskonusabilirsen.com'}/journal`, { headers:{ Authorization: `Bearer ${token}` } });
+              const j = await r.json();
+              const items = j.items || {};
+              completedSet = new Set(Object.keys(items));
+            }catch{}
+          }
+          mini.innerHTML = '';
+          for (let i=6;i>=0;i--){
+            const d = new Date(); d.setDate(d.getDate()-i);
+            const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,'0'); const dd = String(d.getDate()).padStart(2,'0');
+            const key = `${y}-${m}-${dd}`;
+            const on = completedSet.has(key);
+            const dot = document.createElement('div');
+            dot.style.width = '14px'; dot.style.height = '14px'; dot.style.borderRadius = '999px';
+            dot.style.border = '1px solid #243055';
+            dot.style.background = on ? 'linear-gradient(135deg, var(--brand), var(--neon))' : '#0e1430';
+            dot.title = key + (on ? ' ✓' : '');
+            mini.appendChild(dot);
+          }
+        }
+      }catch{}
+
+      // Journal save
+      try{
+        const btn = document.getElementById('journalSave');
+        if (btn){
+          btn.addEventListener('click', async () => {
+            const token = localStorage.getItem('hk_token');
+            const note = document.getElementById('journalInput')?.value || '';
+            const msg = document.getElementById('journalMsg'); if (msg) msg.textContent = 'Kaydediliyor...';
+            try{
+              const r = await fetch(`${window.__BACKEND_BASE__ || 'https://api.konuskonusabilirsen.com'}/journal`, { method:'POST', headers:{ 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ note }) });
+              const j = await r.json();
+              if (r.ok){ if (msg) msg.textContent='Kaydedildi.'; }
+              else { if (msg) msg.textContent = j?.error || 'Hata'; }
+            }catch(e){ if (msg) msg.textContent = 'Bağlantı hatası'; }
+          });
+        }
+      }catch{}
+
     })();
   </script>
 </body>

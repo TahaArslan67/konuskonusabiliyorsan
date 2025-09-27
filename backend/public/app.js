@@ -247,6 +247,8 @@ function populateLanguageSelects(){
   fill(nativeLangSelect, 'tr');
 }
 try { populateLanguageSelects(); } catch {}
+// Ensure preferences are preloaded asap for controls
+try { preloadPills(); } catch {}
 
 // Preload header pills (plan / usage / placement level) before any WS connection
 async function preloadPills(){
@@ -268,9 +270,11 @@ async function preloadPills(){
           const learnSel = document.getElementById('learnLangSelect');
           const nativeSel = document.getElementById('nativeLangSelect');
           const voiceSel = document.getElementById('voiceSelect');
+          const corrSel = document.getElementById('corrSelect');
           if (learnSel && me.user?.preferredLearningLanguage){ learnSel.value = me.user?.preferredLearningLanguage; }
           if (nativeSel && me.user?.preferredNativeLanguage){ nativeSel.value = me.user?.preferredNativeLanguage; }
           if (voiceSel && me.user?.preferredVoice){ voiceSel.value = me.user?.preferredVoice; }
+          if (corrSel && me.user?.preferredCorrectionMode){ corrSel.value = me.user?.preferredCorrectionMode; }
         } catch {}
         // Update usage from me.user.usage
         const usage = me.user?.usage;
@@ -502,8 +506,6 @@ if (corrSelect){
 async function populateScenarios(){
   try{
     if (!scenarioSelect) return;
-    // If already populated beyond placeholder, skip
-    if (scenarioSelect.options && scenarioSelect.options.length > 1) return;
     // Try cache first
     const CACHE_KEY = 'hk_scenarios_cache_v1';
     const TTL = 6 * 60 * 60 * 1000; // 6 saat
@@ -519,6 +521,8 @@ async function populateScenarios(){
             opt.value = s.id; opt.textContent = `${s.title} ${s.level ? '('+s.level+')' : ''}`;
             scenarioSelect.appendChild(opt);
           });
+          // ensure selection if query param provided
+          if (window.__hk_scenario){ scenarioSelect.value = window.__hk_scenario; }
           return;
         }
       }
@@ -535,6 +539,8 @@ async function populateScenarios(){
       opt.value = s.id; opt.textContent = `${s.title} ${s.level ? '('+s.level+')' : ''}`;
       scenarioSelect.appendChild(opt);
     });
+    // Select scenario from URL if present
+    if (window.__hk_scenario){ scenarioSelect.value = window.__hk_scenario; }
     // Save cache
     try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), items })); } catch {}
   } catch {}
@@ -575,6 +581,8 @@ try{
       }
       scenarioSelect.value = sc;
     }
+    // Immediately send to WS prefs if connection opens later
+    try { sendPrefsToWs(); } catch {}
   }
 } catch {}
 

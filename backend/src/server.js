@@ -2218,8 +2218,13 @@ app.get('/daily/status', authRequired, async (req, res) => {
     const m = String(now.getMonth()+1).padStart(2,'0');
     const d = String(now.getDate()).padStart(2,'0');
     const dateBucket = `${y}-${m}-${d}`;
-    const doc = await DailyChallenge.findOne({ userId: req.auth.uid, dateBucket }).lean();
-    return res.json({ completed: !!doc, scenarioId: doc?.scenarioId || null, minutes: doc?.minutes || 0, completedAt: doc?.completedAt || null });
+    const [doc, goal, streak] = await Promise.all([
+      DailyChallenge.findOne({ userId: req.auth.uid, dateBucket }).lean(),
+      Goal.findOne({ userId: req.auth.uid }).lean(),
+      Streak.findOne({ userId: req.auth.uid }).lean(),
+    ]);
+    const resetAt = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0, 0, 0, 0);
+    return res.json({ completed: !!doc, scenarioId: doc?.scenarioId || null, minutes: doc?.minutes || 0, completedAt: doc?.completedAt || null, goal: goal?.dailyMinutes ?? 10, streak: streak?.count || 0, resetAt: resetAt.toISOString() });
   }catch(e){
     return res.status(500).json({ error: 'server_error' });
   }
@@ -2298,6 +2303,28 @@ app.post('/daily/complete', authRequired, async (req, res) => {
   }catch(e){
     return res.status(500).json({ error: 'server_error' });
   }
+});
+
+// Journal: save today's note
+app.post('/journal', authRequired, async (req, res) => {
+  try{
+    const { note } = req.body || {};
+    if (typeof note !== 'string' || note.length > 2000){ return res.status(400).json({ error: 'invalid_note' }); }
+    const now = new Date();
+    const y = now.getFullYear(); const m = String(now.getMonth()+1).padStart(2,'0'); const d = String(now.getDate()).padStart(2,'0');
+    const dateBucket = `${y}-${m}-${d}`;
+    await User.updateOne({ _id: req.auth.uid }, { $set: { [`journal.${dateBucket}`]: note } });
+    return res.json({ ok: true });
+  }catch(e){ return res.status(500).json({ error: 'server_error' }); }
+});
+
+// Journal: get last 7 days
+app.get('/journal', authRequired, async (req, res) => {
+  try{
+    const user = await User.findById(req.auth.uid).lean();
+    const j = user?.journal || {};
+    return res.json({ items: j });
+  }catch(e){ return res.status(500).json({ error: 'server_error' }); }
 });
 
 // Set/Update daily goal

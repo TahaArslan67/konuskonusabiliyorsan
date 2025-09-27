@@ -932,17 +932,11 @@ async function wsConnect(){
           }
         }
       }catch{}
-      // Sync session prefs on open and, if Start is requested, auto-start mic
+      // Sync session prefs on open; mic'i ancak session.updated alındıktan sonra başlatacağız
       try{
         // Send full preferences first (voice, learnLang, nativeLang, correction, scenario)
         try { sendPrefsToWs(); } catch {}
-        if (wsStartRequested){
-          await wsStartMic();
-          const btnStopTalk = document.getElementById('btnStopTalk');
-          if (btnStopTalk){ btnStopTalk.disabled = false; btnStopTalk.style.pointerEvents = 'auto'; }
-          updateStatus();
-          log('WS open -> mic başlatıldı (auto)');
-        }
+        // mic başlatma session.updated onayına taşındı
       } catch (e){ log('Auto mic hata: '+(e.message||e)); }
     };
     ws.onclose = () => {
@@ -970,6 +964,15 @@ async function wsConnect(){
               const e = obj.event || 'evt';
               const b = obj.bytes != null ? ` bytes=${obj.bytes}` : '';
               console.debug(`[PROXY] ${obj.src||'srv'} ${e}${b}`);
+            }
+            if (obj.type === 'session.updated' && wsStartRequested){
+              try{
+                await wsStartMic();
+                const btnStopTalk = document.getElementById('btnStopTalk');
+                if (btnStopTalk){ btnStopTalk.disabled = false; btnStopTalk.style.pointerEvents = 'auto'; }
+                updateStatus();
+                log('session.updated -> mic başlatıldı');
+              }catch{}
             }
             if (obj.type === 'usage_update' && obj.usage){
               // Update usage from me.user.usage (silent)

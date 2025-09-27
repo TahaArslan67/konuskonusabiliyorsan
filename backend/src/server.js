@@ -3011,7 +3011,7 @@ wss.on('connection', (clientWs, request) => {
           response: {
             modalities: RESPONSE_TEXT_ENABLED ? ['audio','text'] : ['audio'],
             instructions: `Target language: ${lang}. Native: ${nlang}. Asla başka dile kayma. Kullanıcı: ${String(obj.text)}\n1-2 kısaltma öneri ver (hedef dilde), yeni satırda ${nlang} tek cümle 'Tip:' ekle.`,
-            max_output_tokens: 30,
+            max_output_tokens: 60,
           }
         };
         if (STRICT_REALTIME || !isResponding) {

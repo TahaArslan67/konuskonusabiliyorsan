@@ -79,7 +79,7 @@
       return Math.round((inter/ (new Set([...rSet,...gSet]).size||1))*100);
     }
 
-    async function recognize(){
+    async function recognize(ms=3500){
       return new Promise((resolve)=>{
         try{
           const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -87,7 +87,7 @@
           const r = new SR(); r.lang='tr-TR'; r.interimResults=false; r.maxAlternatives=1;
           r.onresult = e => resolve(e.results[0][0].transcript||'');
           r.onerror = () => resolve(null);
-          r.start(); setTimeout(()=>{ try{ r.stop(); }catch{} }, 3500);
+          r.start(); setTimeout(()=>{ try{ r.stop(); }catch{} }, ms);
         }catch{ resolve(null); }
       });
     }
@@ -95,7 +95,7 @@
     async function record(){
       try{
         pcResult.style.display='block'; pcResult.className='alert alert-info'; pcResult.textContent='Tekrar edin...';
-        const hyp = await recognize();
+        const hyp = await recognize(3500);
         const pair = current();
         const score1 = wordScore(pair.a[0], hyp);
         const score2 = wordScore(pair.a[1], hyp);

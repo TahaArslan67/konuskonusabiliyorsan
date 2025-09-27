@@ -72,10 +72,10 @@
       <p id="tipText" class="subtle" style="margin:0;">Yükleniyor...</p>
     </div>
 
-    <!-- Quick Warmup: Shadowing & Pronunciation -->
+    <!-- Practice: Shadowing & Pronunciation -->
     <div class="grid" style="grid-template-columns: 1fr 1fr; gap:16px; margin-top:12px;">
-      <div class="card" style="padding:16px;">
-        <h3 style="margin:0 0 6px;">Hızlı Shadowing</h3>
+      <div class="card" id="shadowing" style="padding:16px;">
+        <h3 style="margin:0 0 6px;">Shadowing</h3>
         <div class="row" style="gap:8px;">
           <select id="dqShSentence" style="flex:1; min-width:200px; padding:10px 12px; border-radius:10px; background:#0b1022; border:1px solid #1b2442; color:var(--text);">
             <option>Merhaba, bugün nasılsın?</option>
@@ -87,8 +87,8 @@
         </div>
         <div id="dqShResult" class="alert alert-info" style="margin-top:10px; display:none;"></div>
       </div>
-      <div class="card" style="padding:16px;">
-        <h3 style="margin:0 0 6px;">Telaffuz Koçu (Mini)</h3>
+      <div class="card" id="pronunciation" style="padding:16px;">
+        <h3 style="margin:0 0 6px;">Telaffuz Koçu</h3>
         <div class="row" style="gap:8px;">
           <select id="dqPcPair" style="flex:1; min-width:200px; padding:10px 12px; border-radius:10px; background:#0b1022; border:1px solid #1b2442; color:var(--text);">
             <option value="p-b">p vs b</option>
@@ -259,15 +259,22 @@
         }
       }catch{}
 
-      // Quick warmups
+      // Quick warmups (language-aware)
       try{
+        // Kullanıcının öğrenilen dilini /me'den çek
+        let learnLang = 'tr';
+        try{
+          const token = localStorage.getItem('hk_token');
+          if (token){ const mr = await fetch(`${window.__BACKEND_BASE__ || 'https://api.konuskonusabilirsen.com'}/me`, { headers:{ Authorization: `Bearer ${token}` } }); if (mr.ok){ const me = await mr.json(); learnLang = me?.user?.preferredLearningLanguage || 'tr'; } }
+        }catch{}
+
         // Shadowing mini
         const qPlay = document.getElementById('dqShPlay');
         const qRec = document.getElementById('dqShRecord');
         const qSel = document.getElementById('dqShSentence');
         const qRes = document.getElementById('dqShResult');
-        function speak(t){ try{ const u=new SpeechSynthesisUtterance(t); u.lang='tr-TR'; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch{} }
-        async function recognize(ms=3500){ return new Promise((resolve)=>{ try{ const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR){resolve(null);return;} const r=new SR(); r.lang='tr-TR'; r.interimResults=false; r.maxAlternatives=1; r.onresult=e=>resolve(e.results[0][0].transcript||''); r.onerror=()=>resolve(null); r.start(); setTimeout(()=>{ try{ r.stop(); }catch{} }, ms); }catch{ resolve(null); } }); }
+        function speak(t){ try{ const u=new SpeechSynthesisUtterance(t); u.lang=(learnLang||'tr'); speechSynthesis.cancel(); speechSynthesis.speak(u);}catch{} }
+        async function recognize(ms=3500){ return new Promise((resolve)=>{ try{ const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR){resolve(null);return;} const r=new SR(); r.lang=(learnLang||'tr'); r.interimResults=false; r.maxAlternatives=1; r.onresult=e=>resolve(e.results[0][0].transcript||''); r.onerror=()=>resolve(null); r.start(); setTimeout(()=>{ try{ r.stop(); }catch{} }, ms); }catch{ resolve(null); } }); }
         function norm(s){ return (s||'').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu,'').replace(/\s+/g,' ').trim(); }
         if (qPlay){ qPlay.addEventListener('click', ()=> speak(qSel.value)); }
         if (qRec){ qRec.addEventListener('click', async ()=>{ qRes.style.display='block'; qRes.className='alert alert-info'; qRes.textContent='Tekrar edin...'; const hyp=await recognize(3800); const ref=norm(qSel.value); const got=norm(hyp||''); const rset=new Set(ref.split(' ')); const gset=new Set(got.split(' ')); let inter=0; rset.forEach(w=>{ if(gset.has(w)) inter++; }); const score=Math.round((inter/(new Set([...rset,...gset]).size||1))*100); qRes.className= score>70?'alert alert-success':(score>40?'alert alert-info':'alert alert-error'); qRes.textContent=`Eşleşme skoru: %${score} — “${got||'—'}”`; }); }
@@ -277,7 +284,10 @@
         const pRec = document.getElementById('dqPcRecord');
         const pSel = document.getElementById('dqPcPair');
         const pRes = document.getElementById('dqPcResult');
-        const tips = { 'p-b':['par','bal'], 'k-g':['kapı','gabı'], 's-z':['sarı','zarı'] };
+        // Dil duyarlı minimal çiftler (Türkçe ve İngilizce örnek)
+        const pairsTR = { 'p-b':['par','bal'], 'k-g':['kapı','gabı'], 's-z':['sarı','zarı'] };
+        const pairsEN = { 'p-b':['pat','bat'], 'k-g':['cot','got'], 's-z':['sip','zip'] };
+        const tips = (learnLang && learnLang.startsWith('en')) ? pairsEN : pairsTR;
         function current(){ return tips[pSel.value] || tips['p-b']; }
         if (pPlay){ pPlay.addEventListener('click', ()=> speak(current().join(' — '))); }
         function scoreWord(ref, got){ const r=norm(ref), g=norm(got); if(!g) return 0; const rs=new Set(r.split(' ')); const gs=new Set(g.split(' ')); let inter=0; rs.forEach(w=>{ if(gs.has(w)) inter++; }); return Math.round((inter/(new Set([...rs,...gs]).size||1))*100); }

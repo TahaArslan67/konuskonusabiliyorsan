@@ -135,6 +135,8 @@ a{ color:var(--text); text-decoration:none; }
 .pill{ font-size:12px; color:#c7d2fe; padding:4px 8px; border:1px solid #2c3a6a; border-radius:999px; background:#0e1430cc; }
 .price-tier{ color:#c7d2fe; font-weight:700; margin-bottom:8px; }
 .price-value{ font-size:28px; font-weight:700; margin-bottom:8px; }
+.price-was{ display:inline-block; color:#8a93a8; text-decoration: line-through; font-weight:600; margin-right:8px; }
+.price-badge-limited{ display:inline-block; padding:2px 6px; font-size:12px; border-radius:999px; border:1px solid #3a4a7a; color:#c7d2fe; margin-left:8px; }
 .price-features{ list-style:none; padding:0; margin:0 0 12px; color:var(--muted); }
 .price-features li{ margin:6px 0; }
 .price-card.featured{ border-color:rgba(124,58,237,.45); box-shadow: 0 12px 40px rgba(124,58,237,.25); animation: pulse 1.2s ease-out; }

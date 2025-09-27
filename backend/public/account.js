@@ -271,7 +271,7 @@ async function init(){
             box.style.padding = '12px';
             const day = ['Pzt','Sal','Çar','Per','Cum','Cmt','Paz'][i];
             const task = items[i % items.length];
-            box.innerHTML = `<strong>${day}</strong><div class="subtle" style="margin-top:6px;">${task}</div><div class="row" style="margin-top:8px; gap:8px;"><a class="btn btn-primary btn-sm" href="/realtime.html">${goalDaily} dk Konuş</a><a class="btn btn-secondary btn-sm" href="/shadowing.html">Shadowing</a></div>`;
+            box.innerHTML = `<strong>${day}</strong><div class=\"subtle\" style=\"margin-top:6px;\">${task}</div><div class=\"row\" style=\"margin-top:8px; gap:8px;\"><a class=\"btn btn-primary btn-sm\" href=\"/realtime.html\">${goalDaily} dk Konuş</a><a class=\"btn btn-secondary btn-sm\" href=\"/daily.html#shadowing\">Shadowing</a></div>`;
             planEl.appendChild(box);
           }
           const subtitle = document.getElementById('planSubtitle');

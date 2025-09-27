@@ -139,7 +139,7 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
   const mixing = `DİL GEÇİŞİ: Her cümleyi tek dilde tamamla. Cümle ortasında dil değiştirme; dil geçişini cümle sonlarında yap.`;
   // Sesli çıktı için sade biçim
   const format = `BİÇİM: (1) ${learnName} dilinde 1-2 cümle doğal yanıt. (2) ${nativeName} dilinde 1-2 cümle kısa açıklama / ipucu. (3) Örnek verirken asla 'you could say/say:' gibi giriş kullanma; örnek cümleyi doğrudan tırnak içinde ver.`;
-  const lengthPolicy = 'UZUNLUK: Varsayılan 1-2 cümle. Kullanıcı açıkça uzun isterse 3 cümleye çık.';
+  const lengthPolicy = 'UZUNLUK: Varsayılan 1-3 kısa cümle. Gerekçe varsa 4-5 cümleye çıkabilirsin ama çoğu turda 1-3 cümlede kal.';
   const gentleLimits = 'Gentle modda: Anlam bozulmuyorsa düzeltme yapma. Düzeltirsen: hatayı çok kısa belirt + ana dilde 1 cümlelik ipucu + hedef dilde tek örnek.';
   const scenarioPart = scenarioText ? ` Senaryo bağlamı: ${scenarioText}` : '';
   const pacing = 'Konuşma hızını biraz yavaş tut. 1-2 kısa cümleyle konuş. Kullanıcıyı konuşturan kısa sorular sor.';
@@ -3112,6 +3112,16 @@ wss.on('connection', (clientWs, request) => {
             const payload = { type: 'transcript', text: String(text), final: true };
             clientWs.send(JSON.stringify(payload));
           }
+          break;
+        }
+        case 'error': {
+          // Ignore benign empty-commit errors to reduce noise on client
+          const code = obj?.error?.code || obj?.code;
+          if (code === 'input_audio_buffer_commit_empty') {
+            console.warn('[proxy] ignored error:', code);
+            break;
+          }
+          clientWs.send(JSON.stringify({ type: 'error', error: obj?.error || obj }));
           break;
         }
         default: {

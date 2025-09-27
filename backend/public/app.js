@@ -1,5 +1,5 @@
 const $ = (s) => document.querySelector(s);
-const logEl = $('#logs');
+const logEl = null; // logs panel removed
 const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : 'https://api.konuskonusabilirsen.com'; // configurable backend base
 const statusConnEl = $('#statusConn');
 const statusMicEl = $('#statusMic');
@@ -140,25 +140,7 @@ function vizStop(){
   if (vizCtx && vizCanvas){ vizCtx.clearRect(0,0,vizCanvas.width,vizCanvas.height); }
 }
 
-function log(msg){
-  const t = new Date().toISOString().substring(11,19);
-  const logMessage = `${t} | ${msg}`;
-
-  // Console'a da yaz
-  console.log(`[APP] ${logMessage}`);
-
-  // Log panel'e yaz
-  try {
-    if (logEl) {
-      logEl.textContent += `\n${logMessage}`;
-      logEl.scrollTop = logEl.scrollHeight;
-    } else {
-      console.warn('logEl elementi bulunamadı!');
-    }
-  } catch (e) {
-    console.error('Log yazma hatası:', e);
-  }
-}
+function log(msg){ /* silent in production */ }
 
 // Global error surface to Logs panel
 try {
@@ -926,7 +908,7 @@ async function wsConnect(){
             const me = await r.json();
             const badge = document.getElementById('placementBadge');
             if (badge) badge.textContent = `Seviye: ${me.user?.placementLevel || '-'}`;
-            try{ console.log('[app] placement badge güncellendi:', me.user?.placementLevel); }catch{}
+            try{}catch{}
           }
         }
       }catch{}
@@ -1088,7 +1070,7 @@ async function wsConnect(){
 async function wsStop(){
   try {
     log('🔴 WebSocket bağlantısı kapatılıyor...');
-    console.log('[wsStop] WebSocket state:', ws ? ws.readyState : 'null');
+    
 
     // 1) Mikrofonu hemen kapat
     wsMicOff();
@@ -1109,21 +1091,21 @@ async function wsStop(){
           }
         }));
         log('Session kapatma mesajı gönderildi');
-        console.log('[wsStop] Session kapatma mesajı gönderildi');
+        
 
         // Kısa bir gecikme verip sonra bağlantıyı kapat
         await new Promise(resolve => setTimeout(resolve, 500));
-        console.log('[wsStop] 500ms bekleme tamamlandı');
+        
 
         ws.send(JSON.stringify({ type: 'stop' }));
         log('Stop mesajı gönderildi');
-        console.log('[wsStop] Stop mesajı gönderildi');
+        
       } catch (e) {
         log('Session kapatma mesajı gönderilemedi: ' + (e.message || e));
         console.error('[wsStop] Session kapatma mesajı hatası:', e);
       }
     } else {
-      console.log('[wsStop] WebSocket açık değil, state:', ws ? ws.readyState : 'null');
+      
     }
 
     // 3) WebSocket bağlantısını kapat
@@ -1139,18 +1121,18 @@ async function wsStop(){
         if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
           ws.close(1000, 'User initiated stop'); // Normal kapatma kodu
           log('WebSocket close çağrıldı');
-          console.log('[wsStop] WebSocket close çağrıldı');
+          
         } else {
           // Bağlantı zaten kapalı veya kapanıyor durumda
           log(`WebSocket zaten ${ws.readyState === WebSocket.CLOSED ? 'kapalı' : 'kapanıyor'} durumda`);
-          console.log('[wsStop] WebSocket zaten kapalı/kapanıyor durumda:', ws.readyState);
+          
         }
       } catch (e) {
         log('WebSocket kapatma hatası: ' + (e.message || e));
         console.error('[wsStop] WebSocket kapatma hatası:', e);
       }
     } else {
-      console.log('[wsStop] ws değişkeni null');
+      
     }
 
     // 4) Tüm state'leri reset et (eşzamanlı olarak)
@@ -1171,7 +1153,7 @@ async function wsStop(){
         clearInterval(window.__hk_usage_interval);
         window.__hk_usage_interval = null;
       }
-      console.log('[wsStop] Tüm state\'ler reset edildi');
+      
     } catch (e) {
       log('State reset hatası: ' + (e.message || e));
       console.error('[wsStop] State reset hatası:', e);
@@ -1242,7 +1224,7 @@ async function wsStop(){
             if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
             if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
             log(`Bağlantı kapatıldıktan sonra kota güncellendi: Günlük ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk, Aylık ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`);
-            console.log('[wsStop] Kota güncellendi');
+            
           }
         }
       }
@@ -1252,7 +1234,7 @@ async function wsStop(){
     }
 
     log('🔴 WebSocket bağlantısı tamamen kapatıldı');
-    console.log('[wsStop] Tamamen kapatıldı');
+    
   } catch (e) {
     log('wsStop genel hatası: ' + (e.message || e));
     console.error('[wsStop] Genel hata:', e);
@@ -1600,10 +1582,10 @@ if (btnStartTalk){
 }
 
 if (btnStopTalk){
-  console.log('[APP] btnStopTalk event listener ekleniyor...');
+  
   btnStopTalk.addEventListener('click', async () => {
     try {
-      console.log('[APP] Durdur butonuna tıklandı!');
+    
       log('🔴 Durdur butonuna tıklandı - bağlantı kapatılıyor...');
 
       wsStartRequested = false;
@@ -1613,10 +1595,10 @@ if (btnStopTalk){
       wsMicOff();
 
       // WebSocket bağlantısını durdur
-      console.log('[APP] wsStop çağrılıyor...');
+      
       try {
         await wsStop();
-        console.log('[APP] wsStop başarıyla tamamlandı');
+        
       } catch (e) {
         console.error('[APP] wsStop hatası:', e);
         log('wsStop hatası: ' + (e.message || e));
@@ -1640,7 +1622,7 @@ if (btnStopTalk){
       btnStopTalk.disabled = true;
 
       log('🔴 Bağlantı durduruldu - Kota dolu veya manuel durdurma');
-      console.log('[APP] Durdurma işlemi tamamlandı');
+      
     } catch (e){
       console.error('[APP] Durdurma hatası:', e);
       log('Durdurma hatası: '+(e.message||e));

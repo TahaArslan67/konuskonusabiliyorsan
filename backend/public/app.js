@@ -20,6 +20,8 @@ let wsBargeInTimer = null; // timer handle
 let wsBargeInConfirmed = false; // set true after debounce passes
 let wsBargeInAboveMs = 0; // accumulated above-threshold ms while bot speaking
 let wsAudioChunks = [];
+let wsAudioEndPending = false;
+let wsAudioFlushTimer = null;
 let lastResponseBuffer = null;
 let wsMicWasOnBeforeBot = false;
 // Global barge-in toggle: when false, user speech will not interrupt bot audio
@@ -1048,32 +1050,30 @@ async function wsConnect(){
               try{ vizStart(); }catch{}
             }
             if (obj.type === 'audio_end') {
-              // concatenate and play
-            if (!wsForceSilence && wsAudioChunks.length > 0) {
-                const total = wsAudioChunks.reduce((s, a) => s + a.byteLength, 0);
-                const merged = new Uint8Array(total);
-                let off = 0;
-                for (const chunk of wsAudioChunks) {
-                  merged.set(new Uint8Array(chunk), off);
-                  off += chunk.byteLength;
+              // Grace period: beklenmedik geciken son chunk'ları yakalamak için 120ms bekle
+              if (wsAudioFlushTimer) { try { clearTimeout(wsAudioFlushTimer); } catch {} wsAudioFlushTimer = null; }
+              wsAudioEndPending = true;
+              wsAudioFlushTimer = setTimeout(() => {
+                try {
+                  if (!wsForceSilence && wsAudioChunks.length > 0) {
+                    const total = wsAudioChunks.reduce((s, a) => s + a.byteLength, 0);
+                    const merged = new Uint8Array(total);
+                    let off = 0;
+                    for (const chunk of wsAudioChunks) { merged.set(new Uint8Array(chunk), off); off += chunk.byteLength; }
+                    log(`playback: ${wsAudioChunks.length} chunks, total ${total} bytes`);
+                    lastResponseBuffer = merged.buffer;
+                    try{ const btnReplay = document.getElementById('btnReplay'); if (btnReplay) btnReplay.disabled = false; }catch{}
+                    if (wsPlaybackSource) { setTimeout(() => { try { wsPlayPcm(lastResponseBuffer); } catch {} }, 60); }
+                    else { wsPlayPcm(lastResponseBuffer); }
+                  }
+                } finally {
+                  wsAudioChunks = [];
+                  wsAudioEndPending = false;
+                  wsAudioFlushTimer = null;
+                  wsBotSpeaking = false;
+                  try{ vizStop(); }catch{}
                 }
-                log(`playback: ${wsAudioChunks.length} chunks, total ${total} bytes`);
-                lastResponseBuffer = merged.buffer;
-                try{ const btnReplay = document.getElementById('btnReplay'); if (btnReplay) btnReplay.disabled = false; }catch{}
-              // Do not interrupt current playback; if playing, append a short pause and then play
-              if (wsPlaybackSource) {
-                setTimeout(() => { try { wsPlayPcm(lastResponseBuffer); } catch {} }, 60);
-              } else {
-                wsPlayPcm(lastResponseBuffer);
-              }
-                wsAudioChunks = [];
-              } else {
-                // force-silenced: just drop
-                wsAudioChunks = [];
-              }
-              // mark bot finished
-              wsBotSpeaking = false;
-              try{ vizStop(); }catch{}
+              }, 120);
             }
           }
         } catch {}

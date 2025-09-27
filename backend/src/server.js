@@ -2687,7 +2687,7 @@ wss.on('connection', (clientWs, request) => {
         const crit = Array.isArray(sc.successCriteria) ? sc.successCriteria.join('; ') : '';
         scenarioText = `Bağlam: ${sc.title}. Rol: ${sc.personaPrompt}. Başarı ölçütleri: ${crit}`;
       }
-      const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel) + `\n\nKurallar:\n- Cümleyi tamamlamadan asla durma.\n- Kullanıcı susarsa kısa bir beklemeden sonra cümleyi bitir.\n- Gereksiz yere konuyu değiştirme; soruya doğrudan cevap ver.`;
+          const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel) + `\n\nKurallar:\n- Cümleyi tamamlamadan asla durma.\n- Kullanıcı susarsa kısa bir beklemeden sonra cümleyi bitir.\n- Gereksiz yere konuyu değiştirme; soruya doğrudan cevap ver.\n- Soru cümleleri '?' ile bitmeli; cümleler nokta ile tamamlanmalı.`;
       const sessionUpdate = {
         type: 'session.update',
         session: {

@@ -2698,14 +2698,8 @@ wss.on('connection', (clientWs, request) => {
           temperature: 0.8,
           // Let Realtime model handle audio directly; no separate ASR model
           max_response_output_tokens: 200,
-          turn_detection: {
-            type: 'server_vad',
-            threshold: 0.25,
-            prefix_padding_ms: 550,
-            silence_duration_ms: 1900,
-            create_response: false,
-            interrupt_response: false,
-          },
+          // Kesin çözüm: turn detection'ı tamamen devre dışı bırak
+          turn_detection: null,
           instructions: persona
         },
       };
@@ -2899,7 +2893,7 @@ wss.on('connection', (clientWs, request) => {
           }
           const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel);
           // Push updated session settings (voice/language hints) and a fresh system message
-          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, instructions: persona, temperature: 0.8, max_response_output_tokens: 160 } }));
+          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, instructions: persona, temperature: 0.8, max_response_output_tokens: 200 } }));
           // Persona'yı güçlü uygulamak için sistem mesajı olarak ekle (ayrıca tekil langNotice kaldırıldı)
           openaiWs.send(JSON.stringify({
             type: 'conversation.item.create',

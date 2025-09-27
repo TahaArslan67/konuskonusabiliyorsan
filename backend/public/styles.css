@@ -69,7 +69,7 @@ body::after{
 }
 img{ max-width:100%; display:block; }
 a{ color:var(--text); text-decoration:none; }
-.container{ width:100%; max-width:1100px; margin:0 auto; padding:0 20px; }
+.container{ width:100%; max-width:1200px; margin:0 auto; padding:0 20px; }
 
 /* Focus-visible accessibility */
 :focus-visible{ outline: 2px solid rgba(124,58,237,.7); outline-offset: 2px; border-radius: 6px; }
@@ -95,7 +95,8 @@ a{ color:var(--text); text-decoration:none; }
 
 /* Hero */
 .hero{ display:grid; grid-template-columns:1.2fr 1fr; gap:36px; padding:60px 0 32px; }
-.hero__content h1{ font-size:40px; line-height:1.15; margin:0 0 12px; }
+.hero__content{ max-width:660px; }
+.hero__content h1{ font-size:40px; line-height:1.15; margin:0 0 12px; letter-spacing:.2px; }
 .hero__content p{ color:var(--muted); margin:0 0 20px; }
 .hero__cta{ display:flex; gap:10px; margin:16px 0 8px; }
 .hero__trust{ color:#aab4c3; font-size:14px; }
@@ -128,7 +129,8 @@ a{ color:var(--text); text-decoration:none; }
 
 /* Pricing */
 .pricing{ padding:16px 0 36px; }
-.price-card{ position:relative; }
+.price-card{ position:relative; display:flex; flex-direction:column; }
+.price-card .btn{ margin-top:auto; }
 .price-badge{ position:absolute; top:-10px; right:16px; background:linear-gradient(135deg, var(--brand), #22c55e); color:white; font-size:12px; padding:4px 8px; border-radius:999px; }
 .pill{ font-size:12px; color:#c7d2fe; padding:4px 8px; border:1px solid #2c3a6a; border-radius:999px; background:#0e1430cc; }
 .price-tier{ color:#c7d2fe; font-weight:700; margin-bottom:8px; }
@@ -136,6 +138,16 @@ a{ color:var(--text); text-decoration:none; }
 .price-features{ list-style:none; padding:0; margin:0 0 12px; color:var(--muted); }
 .price-features li{ margin:6px 0; }
 .price-card.featured{ border-color:rgba(124,58,237,.45); box-shadow: 0 12px 40px rgba(124,58,237,.25); animation: pulse 1.2s ease-out; }
+/* Subtle lift on hover for all cards */
+.price-card:hover{ transform: translateY(-2px); box-shadow: 0 14px 42px rgba(124,58,237,.22), 0 10px 30px rgba(0,0,0,.30); }
+/* Make featured badge stand out a bit more */
+.price-badge{ box-shadow: 0 6px 18px rgba(34,197,94,.2); }
+
+/* Desktop breathing room */
+@media (min-width: 960px){
+  .features .grid{ gap:20px; }
+  .pricing .grid{ gap:20px !important; }
+}
 
 /* Pricing highlight pulse */
 .pulse{ animation: pulse 1.2s ease-out; }
@@ -150,6 +162,10 @@ a{ color:var(--text); text-decoration:none; }
 /* CTA */
 .cta{ padding:0 0 56px; }
 .cta-card{ text-align:center; }
+/* Slightly increase top spacing before CTA on desktop */
+@media (min-width: 960px){
+  .cta{ padding:10px 0 64px; }
+}
 
 /* Scroll reveal */
 [data-reveal]{ opacity:0; transform: translateY(12px); transition: opacity .5s ease, transform .5s ease; }
@@ -167,6 +183,8 @@ a{ color:var(--text); text-decoration:none; }
 .footer{ display:flex; align-items:center; justify-content:space-between; padding:20px 0 36px; color:var(--muted); }
 .footer .nav.small a{ color:var(--muted); }
 .footer .nav.small a:hover{ color: var(--text); }
+/* Slightly soften footer divider illusion by adding subtle top border */
+.footer{ border-top:1px solid rgba(124,58,237,.12); }
 
 /* Responsive */
 @media (max-width: 900px){

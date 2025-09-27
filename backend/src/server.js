@@ -2686,7 +2686,7 @@ wss.on('connection', (clientWs, request) => {
         const crit = Array.isArray(sc.successCriteria) ? sc.successCriteria.join('; ') : '';
         scenarioText = `Bağlam: ${sc.title}. Rol: ${sc.personaPrompt}. Başarı ölçütleri: ${crit}`;
       }
-      const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel);
+      const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel) + `\n\nKurallar:\n- Cümleyi tamamlamadan asla durma.\n- Kullanıcı susarsa kısa bir beklemeden sonra cümleyi bitir.\n- Gereksiz yere konuyu değiştirme; soruya doğrudan cevap ver.`;
       const sessionUpdate = {
         type: 'session.update',
         session: {
@@ -2695,8 +2695,8 @@ wss.on('connection', (clientWs, request) => {
           output_audio_format: 'pcm16',
           voice: voicePref,
           temperature: 0.8,
-          input_audio_transcription: { model: 'gpt-4o-transcribe', language: lang },
-          max_response_output_tokens: 80,
+          // Let Realtime model handle audio directly; no separate ASR model
+          max_response_output_tokens: 160,
           turn_detection: {
             type: 'server_vad',
             threshold: 0.25,

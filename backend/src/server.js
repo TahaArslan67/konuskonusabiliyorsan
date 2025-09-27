@@ -2699,9 +2699,9 @@ wss.on('connection', (clientWs, request) => {
           max_response_output_tokens: 80,
           turn_detection: {
             type: 'server_vad',
-            threshold: 0.35,
-            prefix_padding_ms: 300,
-            silence_duration_ms: 900,
+            threshold: 0.25,
+            prefix_padding_ms: 450,
+            silence_duration_ms: 1400,
             create_response: false,
             interrupt_response: false,
           },

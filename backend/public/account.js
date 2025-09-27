@@ -229,7 +229,6 @@ async function init(){
           return 'A2';
         }
         const lvl = levelBand(levelValue);
-        const goalDaily = Number(document.getElementById('goalInput')?.value || 10);
         const tasksByLevel = {
           A1:[
             'Temel selamlaşma ve tanışma diyalogu',
@@ -262,8 +261,11 @@ async function init(){
             'Geri bildirim verme/alma',
           ]
         };
+        function shuffle(arr){ const a=[...arr]; for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
         function buildPlan(){
-          const items = tasksByLevel[lvl] || tasksByLevel['A2'];
+          const base = tasksByLevel[lvl] || tasksByLevel['A2'];
+          const items = shuffle(base);
+          const currentGoal = Number(document.getElementById('goalInput')?.value || 10);
           planEl.innerHTML = '';
           for (let i=0;i<7;i++){
             const box = document.createElement('div');
@@ -271,11 +273,11 @@ async function init(){
             box.style.padding = '12px';
             const day = ['Pzt','Sal','Çar','Per','Cum','Cmt','Paz'][i];
             const task = items[i % items.length];
-            box.innerHTML = `<strong>${day}</strong><div class=\"subtle\" style=\"margin-top:6px;\">${task}</div><div class=\"row\" style=\"margin-top:8px; gap:8px;\"><a class=\"btn btn-primary btn-sm\" href=\"/realtime.html\">${goalDaily} dk Konuş</a><a class=\"btn btn-secondary btn-sm\" href=\"/daily.html#shadowing\">Shadowing</a></div>`;
+            box.innerHTML = `<strong>${day}</strong><div class="subtle" style="margin-top:6px;">${task}</div><div class="row" style="margin-top:8px; gap:8px;"><a class="btn btn-primary btn-sm" href="/realtime.html">${currentGoal} dk Konuş</a><a class="btn btn-secondary btn-sm" href="/daily.html#shadowing">Shadowing</a></div>`;
             planEl.appendChild(box);
           }
           const subtitle = document.getElementById('planSubtitle');
-          if (subtitle) subtitle.textContent = `Seviye: ${lvl} · Günlük hedef: ${goalDaily} dk`;
+          if (subtitle) subtitle.textContent = `Seviye: ${lvl} · Günlük hedef: ${currentGoal} dk`;
         }
         buildPlan();
         const regen = document.getElementById('planRegen');

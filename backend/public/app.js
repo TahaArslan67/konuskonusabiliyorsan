@@ -1438,11 +1438,13 @@ function wsPlayPcm(arrayBuffer){
     const pcm16 = new Int16Array(arrayBuffer);
     const len = pcm16.length;
     if (len === 0) return;
-    const audioBuffer = wsPlaybackCtx.createBuffer(1, len, 24000);
+    // 300ms tail padding to avoid perceived cut-off on some devices
+    const padSamples = Math.floor(24000 * 0.30);
+    const totalLen = len + padSamples;
+    const audioBuffer = wsPlaybackCtx.createBuffer(1, totalLen, 24000);
     const ch0 = audioBuffer.getChannelData(0);
-    for (let i = 0; i < len; i++) {
-      ch0[i] = Math.max(-1, Math.min(1, pcm16[i] / 32768));
-    }
+    for (let i = 0; i < len; i++) { ch0[i] = Math.max(-1, Math.min(1, pcm16[i] / 32768)); }
+    for (let i = len; i < totalLen; i++) { ch0[i] = 0; }
     // stop previous playback if any
     if (wsPlaybackSource) { try { wsPlaybackSource.stop(); } catch {} }
     const src = wsPlaybackCtx.createBufferSource();

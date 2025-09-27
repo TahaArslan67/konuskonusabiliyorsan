@@ -3090,7 +3090,7 @@ wss.on('connection', (clientWs, request) => {
           // Arm pending audio_end
           openaiWs._waitingAudioEnd = true;
           if (openaiWs._audioEndTimer) { try { clearTimeout(openaiWs._audioEndTimer); } catch {} }
-          // Fallback: if transcript.done never arrives, flush after 3000ms
+          // Fallback: if transcript.done never arrives, flush after 3500ms
           openaiWs._audioEndTimer = setTimeout(() => {
             try {
               if (openaiWs._waitingAudioEnd && clientWs.readyState === WebSocket.OPEN) {
@@ -3099,7 +3099,7 @@ wss.on('connection', (clientWs, request) => {
             } catch {}
             openaiWs._waitingAudioEnd = false;
             openaiWs._audioEndTimer = null;
-          }, 3000);
+          }, 3500);
           break;
         }
         case 'response.audio_transcript.done': {
@@ -3110,7 +3110,7 @@ wss.on('connection', (clientWs, request) => {
           const openQuote = (quoteCount % 2) === 1;
           const badPunct = /[:;,]\s*$/.test(tr);
           const trailingConnectorTR = /(diye|ve|ama|fakat|çünkü|yani|ki|gibi|de|da)\s*$/i.test(tr);
-          const missingTerminal = !/[.!?]["'””]?[\s]*$/.test(tr);
+          const missingTerminal = !/[.!?]["'””]?\s*$/.test(tr);
           const unfinished = /(What do you|How do you|Can you|Could you|Would you|Let’s|Let's|Şöyle de diyebilirsin)[:\s]*$/i.test(tr);
           const needsExample = badPunct || openQuote || unfinished || trailingConnectorTR || (/Şöyle bir cümle/i.test(tr)) || (missingTerminal);
           if (needsExample) {

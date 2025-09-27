@@ -1,6 +1,9 @@
 const $ = (s) => document.querySelector(s);
 const logEl = null; // logs panel removed
 const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : 'https://api.konuskonusabilirsen.com'; // configurable backend base
+
+// Debug toggle: enable by adding ?debug=1 or localStorage.setItem('hk_debug','1')
+function isDebug(){ return true; }
 const statusConnEl = $('#statusConn');
 const statusMicEl = $('#statusMic');
 $('#backend') && ($('#backend').textContent = backendBase);
@@ -141,7 +144,13 @@ function vizStop(){
   if (vizCtx && vizCanvas){ vizCtx.clearRect(0,0,vizCanvas.width,vizCanvas.height); }
 }
 
-function log(msg){ /* silent in production */ }
+function log(msg){
+  try{
+    if (!isDebug()) return;
+    const t = new Date().toISOString().substring(11,19);
+    console.log(`[APP] ${t} | ${msg}`);
+  }catch{}
+}
 
 // Minimal client-side debug relay (silent unless opened manually)
 function clientDebug(event, extra){
@@ -957,11 +966,10 @@ async function wsConnect(){
         try {
           const obj = JSON.parse(ev.data);
           if (obj && obj.type) {
-            if (obj.type === 'debug'){
-              // Surface proxy debug for diagnosing early cuts and source of audio
-              // Example: {type:'debug', src:'openai', event:'buffer.append', bytes: 9600}
-              // Keep silent in UI; optionally attach to a hidden console.
-              // No-op since log() is silenced; leave for future toggling.
+            if (obj.type === 'debug' && isDebug()){
+              const e = obj.event || 'evt';
+              const b = obj.bytes != null ? ` bytes=${obj.bytes}` : '';
+              console.debug(`[PROXY] ${obj.src||'srv'} ${e}${b}`);
             }
             if (obj.type === 'usage_update' && obj.usage){
               log('🔄 USAGE_UPDATE MESAJI GELDİ!');

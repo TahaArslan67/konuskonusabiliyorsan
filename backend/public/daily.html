@@ -261,25 +261,37 @@
 
       // Quick warmups (language-aware)
       try{
-        // Kullanıcının öğrenilen dilini /me'den çek
+        // Kullanıcının öğrenilen dilini ve seviyesini /me'den çek
         let learnLang = 'tr';
+        let level = 'A2';
         try{
           const token = localStorage.getItem('hk_token');
-          if (token){ const mr = await fetch(`${window.__BACKEND_BASE__ || 'https://api.konuskonusabilirsen.com'}/me`, { headers:{ Authorization: `Bearer ${token}` } }); if (mr.ok){ const me = await mr.json(); learnLang = me?.user?.preferredLearningLanguage || 'tr'; } }
+          if (token){ const mr = await fetch(`${window.__BACKEND_BASE__ || 'https://api.konuskonusabilirsen.com'}/me`, { headers:{ Authorization: `Bearer ${token}` } }); if (mr.ok){ const me = await mr.json(); learnLang = me?.user?.preferredLearningLanguage || 'tr'; level = me?.user?.placementLevel || level; } }
         }catch{}
 
         // Dil bazlı gövde içerikleri
-        const sentencesTR = [
-          'Merhaba, bugün nasılsın?',
-          'Kendimi geliştirmek için her gün pratik yapıyorum.',
-          'Randevum saat üçte, geç kalmak istemiyorum.'
-        ];
-        const sentencesEN = [
-          'Hi, how are you today?',
-          'I practice every day to improve myself.',
-          "My appointment is at three o’clock; I don’t want to be late."
-        ];
-        const sentencesMap = { tr: sentencesTR, 'tr-TR': sentencesTR, en: sentencesEN, 'en-US': sentencesEN, 'en-GB': sentencesEN };
+        function canonLang(l){ const s=String(l||'en').toLowerCase(); if (s.startsWith('tr')) return 'tr'; if (s.startsWith('en')) return 'en'; return s.split('-')[0]||'en'; }
+        async function loadShadowingPool(lang, lvl){
+          const code = canonLang(lang);
+          async function fetchFirst(urls){
+            for (const u of urls){
+              try{ const r = await fetch(u, { cache:'no-cache' }); if (r.ok) return r.json(); }catch{}
+            }
+            return null;
+          }
+          let data = await fetchFirst([`/shadowing_${code}.json`, `/shadowing-pools/${code}.json`]);
+          if (!data && code !== 'en'){
+            data = await fetchFirst([`/shadowing_en.json`, `/shadowing-pools/en.json`]);
+          }
+          const key = ['A1','A2','B1','B2','C1'].includes(lvl)?lvl:'A2';
+          const arr = (data && Array.isArray(data[key])) ? data[key] : [];
+          return arr;
+        }
+        async function fillShadowingOptions(){
+          const list = await loadShadowingPool(learnLang, level);
+          const sample = [...list].sort(()=>Math.random()-0.5).slice(0, Math.min(10, list.length||10));
+          if (qSel){ qSel.innerHTML = ''; sample.forEach(s => { const opt=document.createElement('option'); opt.textContent=s; qSel.appendChild(opt); }); }
+        }
 
         // Shadowing
         const qPlay = document.getElementById('dqShPlay');
@@ -287,15 +299,12 @@
         const qSel = document.getElementById('dqShSentence');
         const qRes = document.getElementById('dqShResult');
         // Seçenekleri öğrenilen dile göre doldur
-        try{
-          const list = sentencesMap[learnLang] || sentencesEN;
-          if (qSel){ qSel.innerHTML = ''; list.forEach(s => { const opt=document.createElement('option'); opt.textContent=s; qSel.appendChild(opt); }); }
-        }catch{}
+        try{ await fillShadowingOptions(); }catch{}
         function speak(t){ try{ const u=new SpeechSynthesisUtterance(t); u.lang=(learnLang||'tr'); speechSynthesis.cancel(); speechSynthesis.speak(u);}catch{} }
-        async function recognize(ms=3500){ return new Promise((resolve)=>{ try{ const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR){resolve(null);return;} const r=new SR(); r.lang=(learnLang||'tr'); r.interimResults=false; r.maxAlternatives=1; r.onresult=e=>resolve(e.results[0][0].transcript||''); r.onerror=()=>resolve(null); r.start(); setTimeout(()=>{ try{ r.stop(); }catch{} }, ms); }catch{ resolve(null); } }); }
+        async function recognize(ms=3500){ return new Promise((resolve)=>{ try{ const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR){ resolve(null); return; } const r=new SR(); r.lang=(learnLang||'tr'); r.interimResults=false; r.maxAlternatives=1; r.onresult=e=>resolve(e.results[0][0].transcript||''); r.onerror=()=>resolve(null); r.start(); setTimeout(()=>{ try{ r.stop(); }catch{} }, ms); }catch{ resolve(null); } }); }
         function norm(s){ return (s||'').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu,'').replace(/\s+/g,' ').trim(); }
         if (qPlay){ qPlay.addEventListener('click', ()=> speak(qSel.value)); }
-        if (qRec){ qRec.addEventListener('click', async ()=>{ qRes.style.display='block'; qRes.className='alert alert-info'; qRes.textContent='Tekrar edin...'; const hyp=await recognize(3800); const ref=norm(qSel.value); const got=norm(hyp||''); const rset=new Set(ref.split(' ')); const gset=new Set(got.split(' ')); let inter=0; rset.forEach(w=>{ if(gset.has(w)) inter++; }); const score=Math.round((inter/(new Set([...rset,...gset]).size||1))*100); qRes.className= score>70?'alert alert-success':(score>40?'alert alert-info':'alert alert-error'); qRes.textContent=`Eşleşme skoru: %${score} — “${got||'—'}”`; }); }
+        if (qRec){ qRec.addEventListener('click', async ()=>{ qRes.style.display='block'; qRes.className='alert alert-info'; qRes.textContent='Tekrar edin...'; const hyp=await recognize(3800); if (hyp===null){ qRes.className='alert alert-error'; qRes.textContent='Tarayıcınız konuşma tanımayı desteklemiyor veya izin verilmedi.'; return; } const ref=norm(qSel.value); const got=norm(hyp||''); const rset=new Set(ref.split(' ')); const gset=new Set(got.split(' ')); let inter=0; rset.forEach(w=>{ if(gset.has(w)) inter++; }); const score=Math.round((inter/(new Set([...rset,...gset]).size||1))*100); qRes.className= score>70?'alert alert-success':(score>40?'alert alert-info':'alert alert-error'); qRes.textContent=`Eşleşme skoru: %${score} — “${got||'—'}”`; }); }
 
         // Pronunciation mini
         const pPlay = document.getElementById('dqPcPlay');
@@ -309,7 +318,7 @@
         function current(){ return tips[pSel.value] || tips['p-b']; }
         if (pPlay){ pPlay.addEventListener('click', ()=> speak(current().join(' — '))); }
         function scoreWord(ref, got){ const r=norm(ref), g=norm(got); if(!g) return 0; const rs=new Set(r.split(' ')); const gs=new Set(g.split(' ')); let inter=0; rs.forEach(w=>{ if(gs.has(w)) inter++; }); return Math.round((inter/(new Set([...rs,...gs]).size||1))*100); }
-        if (pRec){ pRec.addEventListener('click', async ()=>{ pRes.style.display='block'; pRes.className='alert alert-info'; pRes.textContent='Tekrar edin...'; const hyp=await recognize(3500); const pair=current(); const s1=scoreWord(pair[0], hyp); const s2=scoreWord(pair[1], hyp); const best=Math.max(s1,s2); pRes.className= best>70?'alert alert-success':(best>40?'alert alert-info':'alert alert-error'); pRes.textContent=`Skor: %${best} — “${hyp||'—'}”`; }); }
+        if (pRec){ pRec.addEventListener('click', async ()=>{ pRes.style.display='block'; pRes.className='alert alert-info'; pRes.textContent='Tekrar edin...'; const hyp=await recognize(3500); if (hyp===null){ pRes.className='alert alert-error'; pRes.textContent='Tarayıcınız konuşma tanımayı desteklemiyor veya izin verilmedi.'; return; } const pair=current(); const s1=scoreWord(pair[0], hyp); const s2=scoreWord(pair[1], hyp); const best=Math.max(s1,s2); pRes.className= best>70?'alert alert-success':(best>40?'alert alert-info':'alert alert-error'); pRes.textContent=`Skor: %${best} — “${hyp||'—'}”`; }); }
       }catch{}
 
     })();

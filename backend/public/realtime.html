@@ -39,10 +39,12 @@
           console.error('[realtime] /me çağrısı hatası:', error);
         }
       })();
-      // Update the URL to show /konus instead of hiding the path
+      // Update the URL to show /konus but PRESERVE query/hash (scenario, langs)
       try { 
         if (window.location.pathname !== '/konus') {
-          history.replaceState(null, '', '/konus'); 
+          const search = window.location.search || '';
+          const hash = window.location.hash || '';
+          history.replaceState(null, '', `/konus${search}${hash}`);
         }
       } catch {}
     } catch {}

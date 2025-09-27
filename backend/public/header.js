@@ -30,6 +30,24 @@
       window.addEventListener('load', () => { try{ if (window.updateHeader) window.updateHeader(); else applyHeaderState(); }catch{ applyHeaderState(); } });
       // Update when token changes in another tab
       window.addEventListener('storage', (e) => { if (e.key === 'hk_token') applyHeaderState(); });
+      // Mobile menu controls (works even if site.js not loaded)
+      try{
+        const btnMenu = document.getElementById('btnMenu');
+        const mm = document.getElementById('mobileMenu');
+        const mmLogin = document.getElementById('mmLogin');
+        const mmAccount = document.getElementById('mmAccount');
+        const mmStart = document.getElementById('mmStart');
+        if (btnMenu && mm){
+          const open = () => { mm.style.display = 'block'; document.body.style.overflow = 'hidden'; };
+          const close = () => { mm.style.display = 'none'; document.body.style.overflow = ''; };
+          btnMenu.addEventListener('click', () => { mm.style.display === 'block' ? close() : open(); });
+          try{ mm.querySelectorAll('[data-mm-close]').forEach(el => el.addEventListener('click', close)); }catch{}
+          window.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+          if (mmLogin){ mmLogin.addEventListener('click', () => { close(); try{ window.openAuth && window.openAuth(); window.showLogin && window.showLogin(); }catch{} }); }
+          if (mmAccount){ mmAccount.addEventListener('click', () => { close(); window.location.href = '/account.html'; }); }
+          if (mmStart){ mmStart.addEventListener('click', (ev) => { ev.preventDefault(); close(); const t = localStorage.getItem('hk_token'); if (!t){ try{ window.setPostLoginRedirect && window.setPostLoginRedirect('/realtime.html'); window.openAuth && window.openAuth(); window.showLogin && window.showLogin(); }catch{} } else { window.location.href = '/realtime.html'; } }); }
+        }
+      }catch{}
       // Wire login button even if site.js hasn't loaded yet
       try{
         const btnLogin = document.getElementById('btnLogin');

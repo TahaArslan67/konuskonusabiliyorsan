@@ -592,6 +592,8 @@ try{
     }catch{}
     // Immediately send to WS prefs if connection opens later
     try { sendPrefsToWs(); } catch {}
+    // Proactively load scenarios so the dropdown shows human titles when opened
+    try { populateScenarios(); } catch {}
   }
 } catch {}
 

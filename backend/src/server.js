@@ -2697,7 +2697,7 @@ wss.on('connection', (clientWs, request) => {
           voice: voicePref,
           temperature: 0.8,
           // Let Realtime model handle audio directly; no separate ASR model
-          max_response_output_tokens: 200,
+          max_response_output_tokens: 320,
           // Kesin çözüm: turn detection'ı tamamen devre dışı bırak
           turn_detection: null,
           instructions: persona
@@ -3083,11 +3083,23 @@ wss.on('connection', (clientWs, request) => {
         }
         case 'response.output_audio.done':
         case 'response.audio.done': {
-          // Signal end of current response audio
-          clientWs.send(JSON.stringify({ type: 'audio_end' }));
+          // Do NOT immediately signal end to client. Wait until transcript.done passes finish checks.
           try { clientWs.send(JSON.stringify({ type: 'debug', src: 'openai', event: 'audio.done' })); } catch {}
           // Reset stream mode for next response
           openaiWs._audioStreamMode = null;
+          // Arm pending audio_end
+          openaiWs._waitingAudioEnd = true;
+          if (openaiWs._audioEndTimer) { try { clearTimeout(openaiWs._audioEndTimer); } catch {} }
+          // Fallback: if transcript.done never arrives, flush after 1200ms
+          openaiWs._audioEndTimer = setTimeout(() => {
+            try {
+              if (openaiWs._waitingAudioEnd && clientWs.readyState === WebSocket.OPEN) {
+                clientWs.send(JSON.stringify({ type: 'audio_end' }));
+              }
+            } catch {}
+            openaiWs._waitingAudioEnd = false;
+            openaiWs._audioEndTimer = null;
+          }, 1200);
           break;
         }
         case 'response.audio_transcript.done': {
@@ -3097,20 +3109,28 @@ wss.on('connection', (clientWs, request) => {
           const quoteCount = (tr.match(/"/g) || []).length;
           const openQuote = (quoteCount % 2) === 1;
           const badPunct = /[:;,]\s*$/.test(tr);
-          const needsExample = badPunct || openQuote || /Şöyle bir cümle/i.test(tr);
+          const unfinished = /(What do you|How do you|Can you|Could you|Would you|Let’s|Let's|Şöyle de diyebilirsin)[:\s]*$/i.test(tr);
+          const needsExample = badPunct || openQuote || unfinished || /Şöyle bir cümle/i.test(tr);
           if (needsExample) {
             try {
               const followup = {
                 type: 'response.create',
                 response: {
                   modalities: ['audio','text'],
-                  max_output_tokens: 80,
-                  instructions: 'Sadece tek bir tamamlayıcı örnek ver ve bitir. Kalıp: Şöyle de diyebilirsin: "...". En az 5 kelime ve nokta ile bitir. Başka hiçbir şey ekleme.'
+                  max_output_tokens: 120,
+                  instructions: 'Yanıtı TAMAMLA ve bitir: Eğer iki nokta üst üste veya açık tırnakla bitmişse, sadece tek bir örnek ekleyip noktala. Kalıp zorunlu: Şöyle de diyebilirsin: "…". Örnek en az 5 kelime olsun ve nokta ile bitsin. Başka hiçbir şey söyleme.'
                 }
               };
               openaiWs.send(JSON.stringify(followup));
               console.log('[proxy] follow-up example requested');
             } catch {}
+          } else {
+            // Safe to end this turn for the client
+            if (openaiWs._audioEndTimer) { try { clearTimeout(openaiWs._audioEndTimer); } catch {} openaiWs._audioEndTimer = null; }
+            if (openaiWs._waitingAudioEnd) {
+              try { clientWs.send(JSON.stringify({ type: 'audio_end' })); } catch {}
+            }
+            openaiWs._waitingAudioEnd = false;
           }
           break;
         }

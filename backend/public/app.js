@@ -906,16 +906,7 @@ async function wsConnect(){
         const badge = document.getElementById('proBadge');
         if (badge && (window.__hk_current_plan || 'free') === 'pro') badge.style.display = 'inline-block';
       } catch {}
-      if (wsStartRequested){
-        try {
-          await wsStartMic();
-          micToggleOn = true;
-          const btnToggleMicAuto = document.getElementById('btnToggleMic');
-          if (btnToggleMicAuto){ btnToggleMicAuto.textContent = 'Mikrofon Kapat'; }
-          updateStatus();
-          $('#btnStopTalk') && ($('#btnStopTalk').disabled = false);
-        } catch{}
-      }
+      // Mic artık yalnızca session.updated geldikten sonra başlatılacak
       // Allow toggling mic after connection
       const btnToggleMic = document.getElementById('btnToggleMic');
       if (btnToggleMic){ btnToggleMic.disabled = false; }
@@ -967,11 +958,15 @@ async function wsConnect(){
             }
             if (obj.type === 'session.updated' && wsStartRequested){
               try{
-                await wsStartMic();
-                const btnStopTalk = document.getElementById('btnStopTalk');
-                if (btnStopTalk){ btnStopTalk.disabled = false; btnStopTalk.style.pointerEvents = 'auto'; }
-                updateStatus();
-                log('session.updated -> mic başlatıldı');
+                if (!wsMicStream && !wsAudioCtx){
+                  await wsStartMic();
+                  const btnStopTalk = document.getElementById('btnStopTalk');
+                  if (btnStopTalk){ btnStopTalk.disabled = false; btnStopTalk.style.pointerEvents = 'auto'; }
+                  updateStatus();
+                  log('session.updated -> mic başlatıldı');
+                } else {
+                  log('session.updated -> mic zaten hazır, atlandı');
+                }
               }catch{}
             }
             if (obj.type === 'usage_update' && obj.usage){
@@ -1520,8 +1515,7 @@ if (btnStartTalk){
         const preferredCorrectionMode = (document.getElementById('corrSelect')?.value) || 'gentle';
         await persistPrefs({ preferredVoice: voice, preferredLearningLanguage, preferredNativeLanguage, preferredCorrectionMode });
       } catch {}
-      // 2) Mikrofonu hemen başlat (kullanıcı jesti sırasında izin diyaloğu için en iyisi)
-      await wsStartMic();
+      // 2) Mikrofonu HEMEN başlatma. Mic, yalnızca session.updated olunca açılacak.
       // 3) WS bağlantısını başlat ve açık değilse bekle
       if (!ws || ws.readyState !== WebSocket.OPEN){
         await wsConnect();

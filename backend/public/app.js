@@ -972,10 +972,7 @@ async function wsConnect(){
               console.debug(`[PROXY] ${obj.src||'srv'} ${e}${b}`);
             }
             if (obj.type === 'usage_update' && obj.usage){
-              log('🔄 USAGE_UPDATE MESAJI GELDİ!');
-              log('📊 usage_update payload:', JSON.stringify(obj.usage, null, 2));
-
-              // Update usage from me.user.usage
+              // Update usage from me.user.usage (silent)
               try {
                 const token = localStorage.getItem('hk_token');
                 if (token){
@@ -984,19 +981,17 @@ async function wsConnect(){
                   .then(me => {
                     const usage = me.user?.usage;
                     if (usage){
-                      log('📈 Backend usage verisi:', JSON.stringify(usage, null, 2));
                       const d = document.getElementById('limitDaily');
                       const m = document.getElementById('limitMonthly');
                       if (d) d.textContent = `Günlük: ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk`;
                       if (m) m.textContent = `Aylık: ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`;
-                      log(`✅ Kota güncellendi (usage_update): Günlük ${(usage.dailyUsed||0).toFixed(1)}/${usage.dailyLimit ?? '-'} dk, Aylık ${(usage.monthlyUsed||0).toFixed(1)}/${usage.monthlyLimit ?? '-'} dk`);
                     } else {
-                      log('❌ Backend usage verisi bulunamadı!');
+                      
                     }
                   }).catch(() => {});
                 }
               } catch (e) {
-                log('💥 usage_update işleme hatası:', e.message || e);
+                
               }
             }
             if (obj.type === 'limit_reached'){

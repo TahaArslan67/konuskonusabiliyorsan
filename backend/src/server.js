@@ -2898,7 +2898,7 @@ wss.on('connection', (clientWs, request) => {
           }
           const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel);
           // Push updated session settings (voice/language hints) and a fresh system message
-          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, input_audio_transcription: { model: 'gpt-4o-transcribe', language: lang }, instructions: persona, temperature: 0.8 } }));
+          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, instructions: persona, temperature: 0.8, max_response_output_tokens: 160 } }));
           // Persona'yı güçlü uygulamak için sistem mesajı olarak ekle (ayrıca tekil langNotice kaldırıldı)
           openaiWs.send(JSON.stringify({
             type: 'conversation.item.create',

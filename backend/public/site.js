@@ -599,6 +599,13 @@ if (btnStart){
 // Init UI
 updateHeader();
 
+// Expose critical functions for non-module scripts (header/footer injectors)
+try{
+  window.updateHeader = updateHeader;
+  window.openAuth = openAuth;
+  window.showLogin = showLogin;
+}catch{}
+
 // Intercept realtime demo links if not logged in
 try{
   document.querySelectorAll('a[href="/realtime.html"]').forEach(a => {

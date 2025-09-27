@@ -1070,10 +1070,8 @@ async function wsConnect(){
                   wsAudioChunks = [];
                   wsAudioEndPending = false;
                   wsAudioFlushTimer = null;
-                  wsBotSpeaking = false;
-                  try{ vizStop(); }catch{}
                 }
-              }, 120);
+              }, 240);
             }
           }
         } catch {}

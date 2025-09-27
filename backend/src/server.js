@@ -2687,7 +2687,7 @@ wss.on('connection', (clientWs, request) => {
         const crit = Array.isArray(sc.successCriteria) ? sc.successCriteria.join('; ') : '';
         scenarioText = `Bağlam: ${sc.title}. Rol: ${sc.personaPrompt}. Başarı ölçütleri: ${crit}`;
       }
-          const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel) + `\n\nKurallar:\n- Cümleyi tamamlamadan asla durma.\n- Kullanıcı susarsa kısa bir beklemeden sonra cümleyi bitir.\n- Gereksiz yere konuyu değiştirme; soruya doğrudan cevap ver.\n- Soru cümleleri '?' ile bitmeli; cümleler nokta ile tamamlanmalı.`;
+          const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel) + `\n\nKurallar:\n- Cümleyi tamamlamadan asla durma.\n- Kullanıcı susarsa kısa bir beklemeden sonra cümleyi bitir.\n- Gereksiz yere konuyu değiştirme; soruya doğrudan cevap ver.\n- Soru cümleleri '?' ile bitmeli; cümleler nokta ile tamamlanmalı.\n- Uzun yanıt verirken tek nefeste bitiremediysen kısa bir nefes payı bırakıp cümleyi tamamla.`;
       const sessionUpdate = {
         type: 'session.update',
         session: {
@@ -3090,7 +3090,7 @@ wss.on('connection', (clientWs, request) => {
           // Arm pending audio_end
           openaiWs._waitingAudioEnd = true;
           if (openaiWs._audioEndTimer) { try { clearTimeout(openaiWs._audioEndTimer); } catch {} }
-          // Fallback: if transcript.done never arrives, flush after 3500ms
+          // Fallback: if transcript.done never arrives, flush after 4500ms (uzun yanıtlarda son paketleri kaçırmamak için)
           openaiWs._audioEndTimer = setTimeout(() => {
             try {
               if (openaiWs._waitingAudioEnd && clientWs.readyState === WebSocket.OPEN) {
@@ -3099,7 +3099,7 @@ wss.on('connection', (clientWs, request) => {
             } catch {}
             openaiWs._waitingAudioEnd = false;
             openaiWs._audioEndTimer = null;
-          }, 3500);
+          }, 4500);
           break;
         }
         case 'response.audio_transcript.done': {

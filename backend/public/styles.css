@@ -185,6 +185,27 @@ a{ color:var(--text); text-decoration:none; }
 .footer .nav.small a:hover{ color: var(--text); }
 /* Slightly soften footer divider illusion by adding subtle top border */
 .footer{ border-top:1px solid rgba(124,58,237,.12); background: transparent; backdrop-filter: none; }
+/* Footer top bar */
+.footer-topbar{ display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; width:100%; padding:12px 0; border-bottom:1px solid rgba(124,58,237,.08); }
+.footer-topbar .item{ display:flex; align-items:center; gap:10px; color:#c7d2fe; }
+.footer-topbar .item .title{ font-weight:700; line-height:1; }
+.footer-topbar .item .sub{ font-size:12px; color:var(--muted); }
+
+/* Footer main block */
+.footer-main{ display:flex; justify-content:space-between; gap:20px; width:100%; padding-top:12px; }
+.footer-main .brand{ min-width:220px; display:flex; flex-direction:column; gap:8px; }
+.footer-main .brand img{ height:28px; width:auto; }
+.footer-main .brand .year{ color:var(--muted); }
+.footer-main .brand .social{ display:flex; gap:8px; }
+.footer-main .brand .social .ic{ display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border:1px solid #243055; border-radius:999px; color:#c7d2fe; }
+.footer-main .brand .social .ic:hover{ color:#fff; border-color:#3a4a7a; }
+
+/* Footer grid columns */
+.footer .links{ display:grid; grid-template-columns: repeat(3, minmax(160px, 1fr)); gap:16px; }
+.footer .links .col{ display:flex; flex-direction:column; gap:6px; }
+.footer .links .col h4{ margin:0 0 6px; font-size:13px; color:#c7d2fe; letter-spacing:.2px; text-transform:uppercase; }
+.footer .links .col a{ color:var(--muted); text-decoration:none; }
+.footer .links .col a:hover{ color:var(--text); }
 /* Footer grid columns */
 .footer .links{ display:grid; grid-template-columns: repeat(3, minmax(140px, 1fr)); gap:16px; }
 .footer .links .col{ display:flex; flex-direction:column; gap:6px; }
@@ -285,6 +306,9 @@ a{ color:var(--text); text-decoration:none; }
 
   /* Footer to column */
   .footer{ flex-direction:column; gap:8px; align-items:flex-start; }
+  .footer-topbar{ grid-template-columns: 1fr; gap:8px; }
+  .footer-main{ flex-direction:column; }
+  .footer .links{ grid-template-columns: 1fr 1fr; }
   /* Disable animations/transitions on mobile to prevent jank */
   body::before,
   body::after,

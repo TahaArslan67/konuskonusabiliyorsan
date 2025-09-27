@@ -954,7 +954,7 @@ async function wsConnect(){
       }
     };
     ws.onerror = (e) => log('WS error');
-    ws.onmessage = (ev) => {
+    ws.onmessage = async (ev) => {
       if (typeof ev.data === 'string') {
         log('WS msg: '+ev.data);
         try {

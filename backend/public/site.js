@@ -603,7 +603,7 @@ try{
   });
 } catch {}
 
-// ===== Daily Speaking Challenge (homepage) =====
+// ===== Daily Speaking Challenge (standalone page) =====
 function pickScenarioForLevel(items, userLevel){
   try{
     if (!Array.isArray(items) || items.length === 0) return null;
@@ -619,7 +619,7 @@ function pickScenarioForLevel(items, userLevel){
 async function setupDailyChallenge(){
   try{
     const dailyEl = document.getElementById('daily');
-    if (!dailyEl) return; // not on homepage
+    if (!dailyEl) return; // only run on dedicated page
     const btn = document.getElementById('dailyStart');
     const shuffle = document.getElementById('dailyShuffle');
     const tag = document.getElementById('dailyTag');

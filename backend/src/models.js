@@ -107,6 +107,21 @@ export const Streak = model('Streak', streakSchema);
 export const Achievement = model('Achievement', achievementSchema);
 export const Goal = model('Goal', goalSchema);
 
+// Daily Challenge completion per day
+const dailyChallengeSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    dateBucket: { type: String, required: true, index: true }, // YYYY-MM-DD
+    scenarioId: { type: String, default: null },
+    minutes: { type: Number, default: 0 },
+    completedAt: { type: Date, default: () => new Date() },
+  },
+  { timestamps: true }
+);
+dailyChallengeSchema.index({ userId: 1, dateBucket: 1 }, { unique: true });
+
+export const DailyChallenge = model('DailyChallenge', dailyChallengeSchema);
+
 // Analytics: minimal request logs
 const analyticsSchema = new Schema(
   {

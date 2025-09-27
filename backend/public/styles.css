@@ -370,6 +370,10 @@ a{ color:var(--text); text-decoration:none; }
 .alert-error{ background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.35); color:#fecaca; }
 .alert-info{ background: rgba(59,130,246,.12); border-color: rgba(59,130,246,.35); color:#c7d2fe; }
 
+/* Streak toast */
+.toast{ position: fixed; top: 20px; left:50%; transform: translateX(-50%); background: linear-gradient(135deg, rgba(14,20,48,.95), rgba(14,20,48,.90)); border:1px solid rgba(124,58,237,.35); color:#e5e7eb; padding:12px 14px; border-radius:12px; box-shadow: 0 10px 30px rgba(0,0,0,.35); z-index:60; display:none; }
+.toast.show{ display:block; animation: fadeIn .2s ease-out; }
+
 /* ===== Homepage Enhancements ===== */
 /* Marquee */
 .marquee{ overflow:hidden; border-top:1px solid rgba(124,58,237,.15); border-bottom:1px solid rgba(124,58,237,.15); padding:10px 0; background: linear-gradient(180deg, rgba(14,20,48,.35), rgba(14,20,48,.25)); }

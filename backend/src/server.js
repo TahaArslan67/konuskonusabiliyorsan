@@ -10,7 +10,7 @@ import { body, validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { User, Subscription, Usage, Streak, Achievement, Goal, Payment } from './models.js';
+import { User, Subscription, Usage, Streak, Achievement, Goal, Payment, DailyChallenge } from './models.js';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
@@ -2206,6 +2206,96 @@ app.get('/gamification/summary', authRequired, async (req, res) => {
       achievements: (achs || []).map(a => ({ key: a.key, unlockedAt: a.unlockedAt }))
     });
   } catch (e) {
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// Daily challenge: get completion status for today
+app.get('/daily/status', authRequired, async (req, res) => {
+  try{
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth()+1).padStart(2,'0');
+    const d = String(now.getDate()).padStart(2,'0');
+    const dateBucket = `${y}-${m}-${d}`;
+    const doc = await DailyChallenge.findOne({ userId: req.auth.uid, dateBucket }).lean();
+    return res.json({ completed: !!doc, scenarioId: doc?.scenarioId || null, minutes: doc?.minutes || 0, completedAt: doc?.completedAt || null });
+  }catch(e){
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// Daily challenge: mark as completed (idempotent per day)
+app.post('/daily/complete', authRequired, async (req, res) => {
+  try{
+    const { scenarioId, minutes } = req.body || {};
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth()+1).padStart(2,'0');
+    const d = String(now.getDate()).padStart(2,'0');
+    const dateBucket = `${y}-${m}-${d}`;
+    const existing = await DailyChallenge.findOne({ userId: req.auth.uid, dateBucket }).lean();
+    let doc;
+    let streakIncremented = false;
+    let streakCount = 0;
+    if (!existing){
+      doc = await DailyChallenge.findOneAndUpdate(
+        { userId: req.auth.uid, dateBucket },
+        { $setOnInsert: { completedAt: new Date() }, $set: { scenarioId: scenarioId || null, minutes: Number(minutes)||0 } },
+        { new: true, upsert: true }
+      );
+      // Update streak
+      const today = dateBucket;
+      const yest = (() => {
+        const t = new Date(now.getTime() - 24*60*60*1000);
+        const yy = t.getFullYear(); const mm = String(t.getMonth()+1).padStart(2,'0'); const dd = String(t.getDate()).padStart(2,'0');
+        return `${yy}-${mm}-${dd}`;
+      })();
+      const s = await Streak.findOne({ userId: req.auth.uid }).lean();
+      if (!s){
+        const ns = await Streak.findOneAndUpdate(
+          { userId: req.auth.uid },
+          { $set: { lastDay: today }, $setOnInsert: { count: 1 } },
+          { new: true, upsert: true }
+        );
+        streakIncremented = true; streakCount = 1;
+      } else if (s.lastDay === today){
+        streakCount = s.count;
+      } else if (s.lastDay === yest){
+        const ns = await Streak.findOneAndUpdate(
+          { userId: req.auth.uid },
+          { $set: { lastDay: today }, $inc: { count: 1 } },
+          { new: true }
+        );
+        streakIncremented = true; streakCount = ns?.count || (s.count+1);
+      } else {
+        const ns = await Streak.findOneAndUpdate(
+          { userId: req.auth.uid },
+          { $set: { lastDay: today, count: 1 } },
+          { new: true, upsert: true }
+        );
+        streakIncremented = true; streakCount = 1;
+      }
+      // Simple achievements for streak milestones (best effort)
+      try{
+        const milestones = [3,7,30];
+        for (const k of milestones){
+          if (streakCount >= k){
+            await Achievement.updateOne(
+              { userId: req.auth.uid, key: `streak_${k}` },
+              { $setOnInsert: { unlockedAt: new Date() } },
+              { upsert: true }
+            );
+          }
+        }
+      }catch{}
+    } else {
+      doc = existing;
+      const s = await Streak.findOne({ userId: req.auth.uid }).lean();
+      streakCount = s?.count || 0;
+    }
+    return res.json({ ok: true, completed: true, dateBucket, scenarioId: doc.scenarioId, minutes: doc.minutes, streakIncremented, streakCount });
+  }catch(e){
     return res.status(500).json({ error: 'server_error' });
   }
 });

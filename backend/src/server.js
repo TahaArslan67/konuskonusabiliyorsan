@@ -3090,7 +3090,7 @@ wss.on('connection', (clientWs, request) => {
           // Arm pending audio_end
           openaiWs._waitingAudioEnd = true;
           if (openaiWs._audioEndTimer) { try { clearTimeout(openaiWs._audioEndTimer); } catch {} }
-          // Fallback: if transcript.done never arrives, flush after 1200ms
+          // Fallback: if transcript.done never arrives, flush after 3000ms
           openaiWs._audioEndTimer = setTimeout(() => {
             try {
               if (openaiWs._waitingAudioEnd && clientWs.readyState === WebSocket.OPEN) {
@@ -3099,7 +3099,7 @@ wss.on('connection', (clientWs, request) => {
             } catch {}
             openaiWs._waitingAudioEnd = false;
             openaiWs._audioEndTimer = null;
-          }, 1200);
+          }, 3000);
           break;
         }
         case 'response.audio_transcript.done': {
@@ -3109,16 +3109,21 @@ wss.on('connection', (clientWs, request) => {
           const quoteCount = (tr.match(/"/g) || []).length;
           const openQuote = (quoteCount % 2) === 1;
           const badPunct = /[:;,]\s*$/.test(tr);
+          const trailingConnectorTR = /(diye|ve|ama|fakat|çünkü|yani|ki|gibi|de|da)\s*$/i.test(tr);
+          const missingTerminal = !/[.!?]["'””]?[\s]*$/.test(tr);
           const unfinished = /(What do you|How do you|Can you|Could you|Would you|Let’s|Let's|Şöyle de diyebilirsin)[:\s]*$/i.test(tr);
-          const needsExample = badPunct || openQuote || unfinished || /Şöyle bir cümle/i.test(tr);
+          const needsExample = badPunct || openQuote || unfinished || trailingConnectorTR || (/Şöyle bir cümle/i.test(tr)) || (missingTerminal);
           if (needsExample) {
             try {
+              // This turn is not fully finished; cancel any pending audio_end from previous segment
+              if (openaiWs._audioEndTimer) { try { clearTimeout(openaiWs._audioEndTimer); } catch {} openaiWs._audioEndTimer = null; }
+              openaiWs._waitingAudioEnd = true;
               const followup = {
                 type: 'response.create',
                 response: {
                   modalities: ['audio','text'],
-                  max_output_tokens: 120,
-                  instructions: 'Yanıtı TAMAMLA ve bitir: Eğer iki nokta üst üste veya açık tırnakla bitmişse, sadece tek bir örnek ekleyip noktala. Kalıp zorunlu: Şöyle de diyebilirsin: "…". Örnek en az 5 kelime olsun ve nokta ile bitsin. Başka hiçbir şey söyleme.'
+                  max_output_tokens: 140,
+                  instructions: 'Yanıtı TAMAMLA ve BİTİR. Son cümleyi tam ve doğal biçimde bitir; gerekiyorsa soru işareti veya nokta koy. Eğer örnek gerekiyorsa sadece tek bir örnek ekle ve şu kalıpla ver: Şöyle de diyebilirsin: "…". Örnek en az 5 kelime olsun ve nokta ile bitsin. Başka hiçbir şey söyleme.'
                 }
               };
               openaiWs.send(JSON.stringify(followup));

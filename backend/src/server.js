@@ -2964,8 +2964,8 @@ wss.on('connection', (clientWs, request) => {
           type: 'response.create',
           response: {
             modalities: ['audio','text'],
-            // Per-turn extra instructions kaldırıldı; persona zaten session.instructions içinde
-            max_output_tokens: 80,
+            // Daha uzun ve tamamlanmış yanıtlar için token limiti yükseltildi
+            max_output_tokens: 200,
           }
         };
         if (usage.over) {

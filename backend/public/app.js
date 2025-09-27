@@ -29,6 +29,7 @@ let wsNoStartUntil = 0; // cooldown timestamp (ms since epoch) preventing immedi
 let wsStartRequested = false; // if user pressed big start button
 let micToggleOn = false; // state of mic toggle button
 let wsForceSilence = false; // when true, ignore/stop any bot audio
+let wsSpeechMs = 0; // accumulated speech duration in ms for current utterance
 
 // ---- Bot visualization (canvas + analyser) ----
 let vizCanvas = null, vizCtx = null, vizAnalyser = null, vizTimeData = null, vizAnimId = null;
@@ -1288,9 +1289,10 @@ async function wsStartMic(){
     const chunkMs = (input.length / 24000) * 1000;
     // Start of speech: if not streaming, after cooldown, and energy above threshold
     const nowMs = Date.now();
-    // Adaptive threshold: higher while bot is speaking to reduce barge-in cuts
-    const baseThreshold = 0.035;
-    const highThreshold = 0.1; // stricter while bot is speaking
+    // Adaptive thresholds
+    const baseThreshold = 0.025;
+    const highThreshold = 0.12; // stricter while bot is speaking
+    const silenceThreshold = 0.0035;
     const speakThreshold = (wsBotSpeaking ? highThreshold : baseThreshold);
     // Completely disable starting mic while bot is speaking if barge-in is not allowed
     if (wsBotSpeaking && !wsAllowBargeIn) {
@@ -1307,14 +1309,13 @@ async function wsStartMic(){
               // Require strong above-threshold evidence to cancel bot speech
               if (wsBargeInAboveMs >= 250) {
                 if (wsPlaybackSource) { try { wsPlaybackSource.stop(); } catch {} wsPlaybackSource = null; }
-                if (ws && ws.readyState === WebSocket.OPEN) {
+                if (ws && ws.readyState === WebSocket.OPEN && wsAllowBargeIn) {
                   ws.send(JSON.stringify({ type: 'response.cancel' }));
-                  log('Barge-in: response.cancel gönderildi (>=250ms above threshold)');
                 }
                 wsBotSpeaking = false;
                 wsBargeInConfirmed = true;
               } else {
-                log('Barge-in: yetersiz sinyal, bot kesilmedi');
+                
               }
             } catch {}
             wsBargeInPending = false; wsBargeInTimer = null;
@@ -1328,7 +1329,7 @@ async function wsStartMic(){
         wsVadSpeaking = true;
         wsVadSilenceMs = 0;
         wsBytesSinceStart = 0;
-        log('VAD: voice start');
+        wsSpeechMs = 0;
       }
     } else if (energy <= speakThreshold && wsBargeInPending) {
       // Cancel pending barge-in if energy drops before confirm
@@ -1340,18 +1341,22 @@ async function wsStartMic(){
     if (ws && ws.readyState === WebSocket.OPEN && wsMicStreaming && (!wsBotSpeaking || wsAllowBargeIn)) {
       ws.send(pcm);
       wsBytesSinceStart += pcm.byteLength;
+      wsSpeechMs += chunkMs;
     }
     // Silence tracking to auto-commit
-    if (energy < 0.005) {
+    if (energy < silenceThreshold) {
       wsVadSilenceMs += chunkMs;
-      if (wsMicStreaming && wsVadSilenceMs >= 800 && wsBytesSinceStart >= 12000) {
+      const MIN_BYTES_TO_COMMIT = 48000; // ~1s audio
+      const MIN_SPEECH_MS = 900; // avoid cutting after few syllables
+      const SILENCE_HANG_MS = 1400; // require longer pause
+      if (wsMicStreaming && wsVadSilenceMs >= SILENCE_HANG_MS && wsBytesSinceStart >= MIN_BYTES_TO_COMMIT && wsSpeechMs >= MIN_SPEECH_MS) {
         try { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'audio_stop' })); } catch {}
-        log('VAD: voice stop (commit)');
         wsMicStreaming = false;
         wsVadSpeaking = false;
         wsVadSilenceMs = 0;
         wsBytesSinceStart = 0;
-        wsNoStartUntil = Date.now() + 700; // small cooldown to avoid immediate re-start & empty commits
+        wsSpeechMs = 0;
+        wsNoStartUntil = Date.now() + 500; // small cooldown
       }
     } else {
       wsVadSilenceMs = 0;

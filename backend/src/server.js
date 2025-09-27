@@ -3093,16 +3093,19 @@ wss.on('connection', (clientWs, request) => {
         case 'response.audio_transcript.done': {
           const tr = String(obj?.transcript || '');
           try { clientWs.send(JSON.stringify({ type: 'transcript', text: tr, final: true })); } catch {}
-          // If model bitirdi ama örnek cümleyi vermeden ':' ile bıraktıysa, hemen tamamlat
-          const needsExample = /:\s*$/.test(tr) || /Şöyle bir cümle/i.test(tr);
+          // Eğer yanıt ':' veya ',' ile bitiyorsa ya da tırnaklar eşleşmiyorsa örnek/bitir follow-up iste
+          const quoteCount = (tr.match(/"/g) || []).length;
+          const openQuote = (quoteCount % 2) === 1;
+          const badPunct = /[:;,]\s*$/.test(tr);
+          const needsExample = badPunct || openQuote || /Şöyle bir cümle/i.test(tr);
           if (needsExample) {
             try {
               const followup = {
                 type: 'response.create',
                 response: {
                   modalities: ['audio','text'],
-                  max_output_tokens: 60,
-                  instructions: 'Sadece tek bir örnek ver ve bitir. Kalıp: Şöyle de diyebilirsin: "...". En az 5 kelime. Başka hiçbir şey ekleme.'
+                  max_output_tokens: 80,
+                  instructions: 'Sadece tek bir tamamlayıcı örnek ver ve bitir. Kalıp: Şöyle de diyebilirsin: "...". En az 5 kelime ve nokta ile bitir. Başka hiçbir şey ekleme.'
                 }
               };
               openaiWs.send(JSON.stringify(followup));

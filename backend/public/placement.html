@@ -26,7 +26,7 @@
 
   <main class="container" style="padding:28px 0 40px; max-width:900px;">
     <h1 style="margin:0 0 8px;">Hızlı Seviye Belirleme</h1>
-    <p class="muted" style="margin:0 0 18px;">8 soruluk kısa test. Yaklaşık 2 dakika sürer. Sonuç: CEFR (A1–C2). Test zorunludur ve sohbet öncesi tamamlanmalıdır.</p>
+    <p class="muted" style="margin:0 0 18px;">8 soruluk kısa test (yaklaşık 2 dk). İsterseniz testi atlayıp seviyenizi hızlıca kendiniz de seçebilirsiniz.</p>
 
     <div class="card" style="padding:16px; margin-bottom:14px;">
       <h3 class="section-title" style="margin:0 0 10px;">Öğrenmek İstediğiniz Dil</h3>
@@ -36,6 +36,25 @@
         </select>
         <small class="muted">Bu dil seviye testinde kullanılacak ve öğrenilen dil olarak kaydedilecek. Test zorunludur. <span id="suggestLang" style="color:#aab4c3"></span></small>
       </div>
+    </div>
+
+    <!-- Quick placement (testsiz) -->
+    <div class="card" style="padding:16px; margin-bottom:14px;">
+      <h3 class="section-title" style="margin:0 0 10px;">Testsiz Hızlı Seviye Seçimi</h3>
+      <div class="row" style="gap:8px; align-items:center; flex-wrap:wrap;">
+        <label for="quickLevelSelect" class="muted">Seviye</label>
+        <select id="quickLevelSelect" style="min-width:140px; padding:10px 12px; border-radius:10px; background:#0b1022; border:1px solid #1b2442; color:var(--text);">
+          <option value="A1">A1</option>
+          <option value="A2">A2</option>
+          <option value="B1" selected>B1</option>
+          <option value="B2">B2</option>
+          <option value="C1">C1</option>
+          <option value="C2">C2</option>
+        </select>
+        <button id="quickLevelSave" class="btn btn-secondary" type="button">Seviyeyi Kaydet</button>
+        <small class="muted">İsterseniz testi yapmadan bu seviyeyi kullanabilirsiniz.</small>
+      </div>
+      <div id="quickLevelMsg" class="muted" style="margin-top:6px;"></div>
     </div>
 
     <div id="quiz" style="display:none"></div>

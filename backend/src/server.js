@@ -291,9 +291,17 @@ app.get('/admin/analytics/recent', authRequired, async (req, res) => {
     if (!ADMIN_EMAILS.has(caller)){
       return res.status(403).json({ error: 'forbidden' });
     }
-    const { limit = 50 } = req.query || {};
+    const { limit = 50, excludeIp = '', onlyNonTR } = req.query || {};
     const lmt = Math.max(1, Math.min(500, Number(limit) || 50));
-    const docs = await Analytics.find({}).sort({ ts: -1 }).limit(lmt).lean();
+    const match = {};
+    const excluded = String(excludeIp || '')
+      .split(',')
+      .map(s => String(s).trim())
+      .filter(Boolean);
+    if (excluded.length) match.ipRaw = { $nin: excluded };
+    const nonTR = String(onlyNonTR || '').toLowerCase();
+    if (nonTR === '1' || nonTR === 'true') match.country = { $ne: 'TR' };
+    const docs = await Analytics.find(match).sort({ ts: -1 }).limit(lmt).lean();
     // Return selected fields only
     const items = docs.map(d => ({
       ts: d.ts,
@@ -340,7 +348,7 @@ app.get('/admin/analytics/summary', authRequired, async (req, res) => {
     if (!ADMIN_EMAILS.has(caller)){
       return res.status(403).json({ error: 'forbidden' });
     }
-    const { from, to, limit = 10 } = req.query || {};
+    const { from, to, limit = 10, excludeIp = '', onlyNonTR } = req.query || {};
     const lmt = Math.max(1, Math.min(100, Number(limit) || 10));
     const match = {};
     if (from || to){
@@ -348,6 +356,13 @@ app.get('/admin/analytics/summary', authRequired, async (req, res) => {
       if (from) match.ts.$gte = new Date(from + 'T00:00:00Z');
       if (to) match.ts.$lte = new Date(to + 'T23:59:59Z');
     }
+    const excluded = String(excludeIp || '')
+      .split(',')
+      .map(s => String(s).trim())
+      .filter(Boolean);
+    if (excluded.length) match.ipRaw = { $nin: excluded };
+    const nonTR = String(onlyNonTR || '').toLowerCase();
+    if (nonTR === '1' || nonTR === 'true') match.country = { $ne: 'TR' };
     // Totals
     const total = await Analytics.countDocuments(match);
     // By day
@@ -377,10 +392,64 @@ app.get('/admin/analytics/summary', authRequired, async (req, res) => {
       { $sort: { count: -1 } },
       { $limit: lmt }
     ]);
-    return res.json({ total, byDay, countries, paths, referrers });
+    // IP counts with unique user estimation (uid+anonId)
+    const ipCounts = await Analytics.aggregate([
+      { $match: match },
+      { $group: { _id: '$ipRaw', count: { $sum: 1 }, users: { $addToSet: '$uid' }, anon: { $addToSet: '$anonId' } } },
+      { $project: { _id: 0, ip: '$_id', count: 1, uniqueUsers: { $size: { $setDifference: [ { $setUnion: ['$users', '$anon'] }, [null] ] } } } },
+      { $sort: { count: -1 } },
+      { $limit: lmt }
+    ]);
+    return res.json({ total, byDay, countries, paths, referrers, ipCounts });
   } catch (e) {
     return res.status(500).json({ error: 'server_error' });
   }
+});
+
+// --- Admin: IP counts endpoint (same filters as summary) ---
+app.get('/admin/analytics/ip-counts', authRequired, async (req, res) => {
+  try {
+    const caller = String(req.auth?.email || '').toLowerCase();
+    if (!ADMIN_EMAILS.has(caller)){
+      return res.status(403).json({ error: 'forbidden' });
+    }
+    const { from, to, limit = 50, excludeIp = '', onlyNonTR } = req.query || {};
+    const lmt = Math.max(1, Math.min(500, Number(limit) || 50));
+    const match = {};
+    if (from || to){
+      match.ts = {};
+      if (from) match.ts.$gte = new Date(from + 'T00:00:00Z');
+      if (to) match.ts.$lte = new Date(to + 'T23:59:59Z');
+    }
+    const excluded = String(excludeIp || '')
+      .split(',')
+      .map(s => String(s).trim())
+      .filter(Boolean);
+    if (excluded.length) match.ipRaw = { $nin: excluded };
+    const nonTR = String(onlyNonTR || '').toLowerCase();
+    if (nonTR === '1' || nonTR === 'true') match.country = { $ne: 'TR' };
+    const rows = await Analytics.aggregate([
+      { $match: match },
+      { $group: { _id: '$ipRaw', count: { $sum: 1 }, users: { $addToSet: '$uid' }, anon: { $addToSet: '$anonId' } } },
+      { $project: { _id: 0, ip: '$_id', count: 1, uniqueUsers: { $size: { $setDifference: [ { $setUnion: ['$users', '$anon'] }, [null] ] } } } },
+      { $sort: { count: -1 } },
+      { $limit: lmt }
+    ]);
+    return res.json({ items: rows });
+  } catch (e) {
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// --- Admin: whoami helper (detect requester IP) ---
+app.get('/admin/whoami', authRequired, async (req, res) => {
+  try{
+    const caller = String(req.auth?.email || '').toLowerCase();
+    if (!ADMIN_EMAILS.has(caller)){
+      return res.status(403).json({ error: 'forbidden' });
+    }
+    return res.json({ ip: req.ip, ips: req.ips || [], xff: req.headers['x-forwarded-for'] || null, ua: req.headers['user-agent'] || null });
+  }catch(e){ return res.status(500).json({ error: 'server_error' }); }
 });
 
 // Pretty URL for realtime (hide .html in address bar)

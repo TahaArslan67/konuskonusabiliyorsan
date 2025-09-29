@@ -105,6 +105,14 @@ async function init(){
       levelText.textContent = levelValue;
       console.log(' [account] Seviye elementi güncellendi:', levelText.textContent);
     }
+    // Placement buttons: show "Seviye Testine Gir" if no level yet
+    try{
+      const btnPlacementNew = document.getElementById('btnPlacementNew');
+      const btnPlacementRenew = document.getElementById('btnPlacementRenew');
+      const hasLevel = !!(levelValue && levelValue !== '-' && levelValue !== 'null' && levelValue !== 'undefined');
+      if (btnPlacementNew) btnPlacementNew.style.display = hasLevel ? 'none' : 'inline-flex';
+      if (btnPlacementRenew) btnPlacementRenew.style.display = hasLevel ? 'inline-flex' : 'none';
+    }catch{}
     
     // Debug: DOM element durumunu kontrol et
     console.log('[account] DOM element durumu:', {
@@ -214,6 +222,30 @@ async function init(){
         }
       }
     } catch {}
+
+    // Daily reset countdown (Yenilenmeye: HH:MM)
+    try{
+      const dr = await fetch(`${backendBase}/daily/status`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (dr.ok){
+        const dj = await dr.json();
+        const resetAtIso = dj?.resetAt;
+        const resetBadge = document.getElementById('resetBadge');
+        if (resetBadge && resetAtIso){
+          function updateCountdown(){
+            try{
+              const diffMs = new Date(resetAtIso).getTime() - Date.now();
+              const total = Math.max(0, Math.floor(diffMs/1000));
+              const h = Math.floor(total/3600);
+              const m = Math.floor((total%3600)/60);
+              resetBadge.textContent = `Yenilenmeye: ${h}:${String(m).padStart(2,'0')}`;
+            }catch{}
+          }
+          updateCountdown();
+          try{ clearInterval(window.__resetCountdownTimer); }catch{}
+          window.__resetCountdownTimer = setInterval(updateCountdown, 30000);
+        }
+      }
+    }catch{}
 
     // Learning Plan: simple client-side generator based on level + daily goal
     try{

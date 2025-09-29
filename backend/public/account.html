@@ -48,7 +48,8 @@
         <h3 style="margin:0 0 8px;">Seviye</h3>
         <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center;">
           <span class="pill">Seviyeniz: <strong id="levelText">-</strong></span>
-          <a class="btn btn-secondary btn-sm" href="/placement.html?redirect=%2Faccount.html">Seviye Testini Yenile</a>
+          <a id="btnPlacementRenew" class="btn btn-secondary btn-sm" href="/placement.html?redirect=%2Faccount.html">Seviye Testini Yenile</a>
+          <a id="btnPlacementNew" class="btn btn-primary btn-sm" href="/placement.html?redirect=%2Faccount.html" style="display:none;">Seviye Testine Gir</a>
         </div>
       </div>
     </div>
@@ -69,9 +70,14 @@
 
     <div class="card" style="padding:16px; margin-top:16px;">
       <h3 style="margin:0 0 8px;">İlerleme ve Hedefler</h3>
-      <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center;">
-        <span class="pill" id="streakBadge">Seri: 0 gün</span>
-        <span class="pill" id="goalBadge">Günlük Hedef: 10 dk</span>
+      <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+        <div class="row" style="gap:8px; align-items:center;">
+          <span class="pill" id="goalBadge">Günlük Hedef: 10 dk</span>
+        </div>
+        <div class="row" style="gap:8px; align-items:center;">
+          <span class="pill" id="streakBadge">Seri: 0 gün</span>
+          <span class="pill" id="resetBadge">Yenilenmeye: --:--</span>
+        </div>
       </div>
       <div style="margin-top:10px;">
         <div style="height:10px; background:#0b1022; border:1px solid #1b2442; border-radius:999px; overflow:hidden;">

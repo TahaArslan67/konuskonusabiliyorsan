@@ -259,19 +259,21 @@ if (learnLangSelect){
     }catch{}
     // Load pool file for selected language; fallback to en
     async function loadPool(lang){
-      try{
-        const r = await fetch(`/placement-pools/${lang}.json`, { 
-      cache: 'no-cache',
-      credentials: 'include' // Include cookies for authentication if needed
-    });
-        if (r.ok){ const j = await r.json(); return Array.isArray(j.questions) ? j.questions : []; }
-      } catch{}
+      // Try current origin first (e.g. www), then fallback to API domain
+      const urls = [
+        `${window.location.origin}/placement-pools/${lang}.json`,
+        `${backendBase}/placement-pools/${lang}.json`,
+      ];
+      for (const u of urls){
+        try{
+          const r = await fetch(u, { cache: 'no-cache', credentials: 'include', mode: 'cors' });
+          if (r.ok){ const j = await r.json(); if (Array.isArray(j.questions)) return j.questions; }
+        } catch {}
+      }
       return [];
     }
     let qs = await loadPool(code);
-    if (!qs || qs.length === 0) {
-      qs = await loadPool('en');
-    }
+    if (!qs || qs.length === 0) { qs = await loadPool('en'); }
     currentQuestions = qs;
     // reset adaptive state
     step = 0; usedIds = new Set(); history = []; currentLevelIdx = 2; started = false;
@@ -282,7 +284,7 @@ if (learnLangSelect){
     statusEl && (statusEl.textContent = '');
     // If pool empty, inform user immediately
     if (!currentQuestions || currentQuestions.length === 0){
-      statusEl && (statusEl.textContent = 'Bu dil için soru havuzu bulunamadı. Lütfen başka bir dil seçin.');
+      statusEl && (statusEl.textContent = 'Bu dil için soru havuzu bulunamadı. İsterseniz seviyenizi testsiz seçebilirsiniz.');
       if (btnNext) btnNext.style.display = 'none';
     }
   });
@@ -326,3 +328,25 @@ if (btnNext){
 }
 
 btnSubmit && btnSubmit.addEventListener('click', submitPlacement);
+
+// Quick placement (testsiz) handler
+try{
+  const quickBtn = document.getElementById('quickLevelSave');
+  const quickSel = document.getElementById('quickLevelSelect');
+  const quickMsg = document.getElementById('quickLevelMsg');
+  if (quickBtn && quickSel){
+    quickBtn.addEventListener('click', async () => {
+      const level = String(quickSel.value || 'B1').toUpperCase();
+      if (!['A1','A2','B1','B2','C1','C2'].includes(level)) { if (quickMsg) quickMsg.textContent = 'Geçersiz seviye'; return; }
+      if (quickMsg) quickMsg.textContent = 'Kaydediliyor...';
+      quickBtn.disabled = true;
+      try{
+        await apiFetch('/me/placement', { method:'PATCH', body: JSON.stringify({ level }) });
+        if (quickMsg) quickMsg.textContent = 'Kaydedildi';
+        const url = new URL(window.location.href);
+        const redirect = url.searchParams.get('redirect') || '/account.html';
+        window.location.replace(redirect);
+      }catch(e){ if (quickMsg) quickMsg.textContent = e?.message || 'Hata'; quickBtn.disabled = false; }
+    });
+  }
+}catch{}

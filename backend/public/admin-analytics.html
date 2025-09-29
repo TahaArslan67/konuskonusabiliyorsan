@@ -22,8 +22,14 @@
       <label>From <input id="from" type="date" /></label>
       <label>To <input id="to" type="date" /></label>
       <label>Top N <input id="limit" type="number" min="1" max="100" value="10" style="width:80px;"/></label>
+      <label>Exclude IP(s) <input id="excludeIp" type="text" placeholder="1.2.3.4, 5.6.7.8" style="width:220px;"/></label>
+      <label class="row" style="gap:6px; align-items:center;"><input id="onlyNonTR" type="checkbox"/> TR dışı</label>
       <button id="btnLoad" class="btn btn-primary">Yükle</button>
       <span id="status" class="pill">Hazır</span>
+    </div>
+    <div class="row" style="margin-top:8px; gap:8px; align-items:center;">
+      <span class="pill">Benim IP: <strong id="myIp">-</strong></span>
+      <button id="btnExcludeMine" class="btn btn-secondary btn-sm" type="button">Kendi IP'mi hariç tut</button>
     </div>
   </div>
 
@@ -67,6 +73,14 @@
   </div>
 
   <div class="card">
+    <h3>IP Başına Ziyaret</h3>
+    <table id="tblIpCounts">
+      <thead><tr><th>IP</th><th>Hit</th><th>Benzersiz Kullanıcı (uid+anon)</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="card">
     <h3>Son Kayıtlar</h3>
     <div class="row">
       <label>Adet <input id="recentLimit" type="number" min="1" max="500" value="50" style="width:80px;"/></label>
@@ -100,11 +114,24 @@
       });
     }
 
+    function fillIpCounts(rows){
+      const tb = document.querySelector('#tblIpCounts tbody');
+      if (!tb) return;
+      tb.innerHTML = '';
+      (rows||[]).forEach(r => {
+        const tr = document.createElement('tr');
+        ['ip','count','uniqueUsers'].forEach(k => { const td=document.createElement('td'); td.textContent = String(r[k] ?? '-'); tr.appendChild(td); });
+        tb.appendChild(tr);
+      });
+    }
+
     async function loadRecent(){
       try{
         setStatus('Son kayıtlar yükleniyor...');
         const l = Number($('#recentLimit')?.value || 50) || 50;
         const qs = new URLSearchParams({ limit: String(l) });
+        const ex = ($('#excludeIp')?.value || '').trim(); if (ex) qs.set('excludeIp', ex);
+        if ($('#onlyNonTR')?.checked) qs.set('onlyNonTR', '1');
         const r = await fetch(`${backendBase}/admin/analytics/recent?${qs.toString()}`, { headers: { Authorization: `Bearer ${token()}` } });
         if (!r.ok){
           let detail='';
@@ -143,6 +170,8 @@
         const l = Number($('#limit')?.value || 10) || 10;
         const qs = new URLSearchParams({ limit: String(l) });
         if (f) qs.set('from', f); if (t) qs.set('to', t);
+        const ex = ($('#excludeIp')?.value || '').trim(); if (ex) qs.set('excludeIp', ex);
+        if ($('#onlyNonTR')?.checked) qs.set('onlyNonTR', '1');
         const r = await fetch(`${backendBase}/admin/analytics/summary?${qs.toString()}`, { headers: { Authorization: `Bearer ${token()}` } });
         if (!r.ok){
           let detail='';
@@ -156,11 +185,12 @@
         fillTable($('#tblCountries tbody'), j.countries, { key: (r)=>r._id||'-', count: (r)=>r.count||0 });
         fillTable($('#tblPaths tbody'), j.paths, { key: (r)=>r._id||'-', count: (r)=>r.count||0 });
         fillTable($('#tblReferrers tbody'), j.referrers, { key: (r)=>r._id||'-', count: (r)=>r.count||0 });
+        fillIpCounts(j.ipCounts || []);
         setStatus('Hazır');
       } catch(e){ setStatus('Hata'); }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       $('#btnLoad')?.addEventListener('click', load);
       // Varsayılan: son 7 gün
       try{
@@ -169,6 +199,17 @@
         $('#to').value = to.toISOString().slice(0,10);
         $('#from').value = from.toISOString().slice(0,10);
       } catch{}
+      // whoami to prefill IP
+      try{
+        const wr = await fetch(`${backendBase}/admin/whoami`, { headers: { Authorization: `Bearer ${token()}` } });
+        if (wr.ok){ const w = await wr.json(); const my = w?.ip || (Array.isArray(w?.ips) && w.ips[0]) || null; if (my) document.getElementById('myIp').textContent = my; }
+      }catch{}
+      document.getElementById('btnExcludeMine')?.addEventListener('click', () => {
+        const my = document.getElementById('myIp')?.textContent || '';
+        const cur = document.getElementById('excludeIp')?.value || '';
+        const set = new Set(cur.split(',').map(s=>s.trim()).filter(Boolean)); if (my) set.add(my);
+        document.getElementById('excludeIp').value = Array.from(set).join(', ');
+      });
       load();
       $('#btnLoadRecent')?.addEventListener('click', loadRecent);
       loadRecent();

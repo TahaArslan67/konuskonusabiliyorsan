@@ -1736,7 +1736,7 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
     }
     const { plan = 'starter' } = req.body || {};
     // Prices (TRY) -> PayTR wants kuruş (integer)
-    const priceMap = { starter: 399.00, pro: 999.00, enterprise: 9999.00 };
+    const priceMap = { starter: 10.00, pro: 999.00, enterprise: 9999.00 };
     const price = priceMap[String(plan)] ?? priceMap.starter;
     const payment_amount = Math.round(price * 100); // kuruş
 
@@ -2148,7 +2148,7 @@ app.post('/api/iyzico/checkout', authRequired, async (req, res) => {
     if (!iyz) return res.status(500).json({ error: 'iyzico_not_configured' });
     const { plan = 'pro' } = req.body || {};
     // Minimal pricing for sandbox (starter: 1 TL test)
-    const priceMap = { starter: '399.00', pro: '999.00', enterprise: '9999.00' };
+    const priceMap = { starter: '10.00', pro: '999.00', enterprise: '9999.00' };
     const price = priceMap[String(plan)] || priceMap.pro;
 
     // Callback URL (Iyzico will POST here after payment; we will redirect user to success/cancel pages)

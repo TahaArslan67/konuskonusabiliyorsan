@@ -220,7 +220,7 @@ app.use(helmet({
       "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       "font-src": ["'self'", "https://fonts.gstatic.com"],
       "img-src": ["'self'", "data:"] ,
-      "connect-src": ["'self'", "https://api.openai.com", "wss:", "ws:"]
+      "connect-src": ["'self'", "https://api.konuskonusabilirsen.com", "https://api.openai.com", "wss:", "ws:"]
     }
   },
   crossOriginEmbedderPolicy: false,

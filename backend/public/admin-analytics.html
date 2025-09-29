@@ -24,12 +24,9 @@
       <label>Top N <input id="limit" type="number" min="1" max="100" value="10" style="width:80px;"/></label>
       <label>Exclude IP(s) <input id="excludeIp" type="text" placeholder="1.2.3.4, 5.6.7.8" style="width:220px;"/></label>
       <label class="row" style="gap:6px; align-items:center;"><input id="onlyNonTR" type="checkbox"/> TR dışı</label>
+      <label>Ülke <input id="country" type="text" placeholder="TR" style="width:90px;"/></label>
       <button id="btnLoad" class="btn btn-primary">Yükle</button>
       <span id="status" class="pill">Hazır</span>
-    </div>
-    <div class="row" style="margin-top:8px; gap:8px; align-items:center;">
-      <span class="pill">Benim IP: <strong id="myIp">-</strong></span>
-      <button id="btnExcludeMine" class="btn btn-secondary btn-sm" type="button">Kendi IP'mi hariç tut</button>
     </div>
   </div>
 
@@ -75,7 +72,7 @@
   <div class="card">
     <h3>IP Başına Ziyaret</h3>
     <table id="tblIpCounts">
-      <thead><tr><th>IP</th><th>Hit</th><th>Benzersiz Kullanıcı (uid+anon)</th></tr></thead>
+      <thead><tr><th>IP</th><th>Ülke</th><th>Hit</th><th>Benzersiz Kullanıcı (uid+anon)</th></tr></thead>
       <tbody></tbody>
     </table>
   </div>
@@ -120,7 +117,7 @@
       tb.innerHTML = '';
       (rows||[]).forEach(r => {
         const tr = document.createElement('tr');
-        ['ip','count','uniqueUsers'].forEach(k => { const td=document.createElement('td'); td.textContent = String(r[k] ?? '-'); tr.appendChild(td); });
+        ['ip','country','count','uniqueUsers'].forEach(k => { const td=document.createElement('td'); td.textContent = String(r[k] ?? '-'); tr.appendChild(td); });
         tb.appendChild(tr);
       });
     }
@@ -132,6 +129,7 @@
         const qs = new URLSearchParams({ limit: String(l) });
         const ex = ($('#excludeIp')?.value || '').trim(); if (ex) qs.set('excludeIp', ex);
         if ($('#onlyNonTR')?.checked) qs.set('onlyNonTR', '1');
+        const c = ($('#country')?.value || '').trim(); if (c) qs.set('country', c);
         const r = await fetch(`${backendBase}/admin/analytics/recent?${qs.toString()}`, { headers: { Authorization: `Bearer ${token()}` } });
         if (!r.ok){
           let detail='';
@@ -172,6 +170,7 @@
         if (f) qs.set('from', f); if (t) qs.set('to', t);
         const ex = ($('#excludeIp')?.value || '').trim(); if (ex) qs.set('excludeIp', ex);
         if ($('#onlyNonTR')?.checked) qs.set('onlyNonTR', '1');
+        const c = ($('#country')?.value || '').trim(); if (c) qs.set('country', c);
         const r = await fetch(`${backendBase}/admin/analytics/summary?${qs.toString()}`, { headers: { Authorization: `Bearer ${token()}` } });
         if (!r.ok){
           let detail='';
@@ -199,17 +198,6 @@
         $('#to').value = to.toISOString().slice(0,10);
         $('#from').value = from.toISOString().slice(0,10);
       } catch{}
-      // whoami to prefill IP
-      try{
-        const wr = await fetch(`${backendBase}/admin/whoami`, { headers: { Authorization: `Bearer ${token()}` } });
-        if (wr.ok){ const w = await wr.json(); const my = w?.ip || (Array.isArray(w?.ips) && w.ips[0]) || null; if (my) document.getElementById('myIp').textContent = my; }
-      }catch{}
-      document.getElementById('btnExcludeMine')?.addEventListener('click', () => {
-        const my = document.getElementById('myIp')?.textContent || '';
-        const cur = document.getElementById('excludeIp')?.value || '';
-        const set = new Set(cur.split(',').map(s=>s.trim()).filter(Boolean)); if (my) set.add(my);
-        document.getElementById('excludeIp').value = Array.from(set).join(', ');
-      });
       load();
       $('#btnLoadRecent')?.addEventListener('click', loadRecent);
       loadRecent();

@@ -291,7 +291,7 @@ app.get('/admin/analytics/recent', authRequired, async (req, res) => {
     if (!ADMIN_EMAILS.has(caller)){
       return res.status(403).json({ error: 'forbidden' });
     }
-    const { limit = 50, excludeIp = '', onlyNonTR } = req.query || {};
+    const { limit = 50, excludeIp = '', onlyNonTR, country } = req.query || {};
     const lmt = Math.max(1, Math.min(500, Number(limit) || 50));
     const match = {};
     const excluded = String(excludeIp || '')
@@ -301,6 +301,8 @@ app.get('/admin/analytics/recent', authRequired, async (req, res) => {
     if (excluded.length) match.ipRaw = { $nin: excluded };
     const nonTR = String(onlyNonTR || '').toLowerCase();
     if (nonTR === '1' || nonTR === 'true') match.country = { $ne: 'TR' };
+    if (country) match.country = String(country);
+    if (country) match.country = String(country);
     const docs = await Analytics.find(match).sort({ ts: -1 }).limit(lmt).lean();
     // Return selected fields only
     const items = docs.map(d => ({
@@ -348,7 +350,7 @@ app.get('/admin/analytics/summary', authRequired, async (req, res) => {
     if (!ADMIN_EMAILS.has(caller)){
       return res.status(403).json({ error: 'forbidden' });
     }
-    const { from, to, limit = 10, excludeIp = '', onlyNonTR } = req.query || {};
+    const { from, to, limit = 10, excludeIp = '', onlyNonTR, country } = req.query || {};
     const lmt = Math.max(1, Math.min(100, Number(limit) || 10));
     const match = {};
     if (from || to){
@@ -392,11 +394,12 @@ app.get('/admin/analytics/summary', authRequired, async (req, res) => {
       { $sort: { count: -1 } },
       { $limit: lmt }
     ]);
-    // IP counts with unique user estimation (uid+anonId)
+    // IP counts with unique user estimation (uid+anonId) + country (most recent per IP)
     const ipCounts = await Analytics.aggregate([
       { $match: match },
-      { $group: { _id: '$ipRaw', count: { $sum: 1 }, users: { $addToSet: '$uid' }, anon: { $addToSet: '$anonId' } } },
-      { $project: { _id: 0, ip: '$_id', count: 1, uniqueUsers: { $size: { $setDifference: [ { $setUnion: ['$users', '$anon'] }, [null] ] } } } },
+      { $sort: { ts: -1 } },
+      { $group: { _id: '$ipRaw', count: { $sum: 1 }, country: { $first: '$country' }, users: { $addToSet: '$uid' }, anon: { $addToSet: '$anonId' } } },
+      { $project: { _id: 0, ip: '$_id', country: 1, count: 1, uniqueUsers: { $size: { $setDifference: [ { $setUnion: ['$users', '$anon'] }, [null] ] } } } },
       { $sort: { count: -1 } },
       { $limit: lmt }
     ]);
@@ -413,7 +416,7 @@ app.get('/admin/analytics/ip-counts', authRequired, async (req, res) => {
     if (!ADMIN_EMAILS.has(caller)){
       return res.status(403).json({ error: 'forbidden' });
     }
-    const { from, to, limit = 50, excludeIp = '', onlyNonTR } = req.query || {};
+    const { from, to, limit = 50, excludeIp = '', onlyNonTR, country } = req.query || {};
     const lmt = Math.max(1, Math.min(500, Number(limit) || 50));
     const match = {};
     if (from || to){
@@ -428,10 +431,12 @@ app.get('/admin/analytics/ip-counts', authRequired, async (req, res) => {
     if (excluded.length) match.ipRaw = { $nin: excluded };
     const nonTR = String(onlyNonTR || '').toLowerCase();
     if (nonTR === '1' || nonTR === 'true') match.country = { $ne: 'TR' };
+    if (country) match.country = String(country);
     const rows = await Analytics.aggregate([
       { $match: match },
-      { $group: { _id: '$ipRaw', count: { $sum: 1 }, users: { $addToSet: '$uid' }, anon: { $addToSet: '$anonId' } } },
-      { $project: { _id: 0, ip: '$_id', count: 1, uniqueUsers: { $size: { $setDifference: [ { $setUnion: ['$users', '$anon'] }, [null] ] } } } },
+      { $sort: { ts: -1 } },
+      { $group: { _id: '$ipRaw', count: { $sum: 1 }, country: { $first: '$country' }, users: { $addToSet: '$uid' }, anon: { $addToSet: '$anonId' } } },
+      { $project: { _id: 0, ip: '$_id', country: 1, count: 1, uniqueUsers: { $size: { $setDifference: [ { $setUnion: ['$users', '$anon'] }, [null] ] } } } },
       { $sort: { count: -1 } },
       { $limit: lmt }
     ]);

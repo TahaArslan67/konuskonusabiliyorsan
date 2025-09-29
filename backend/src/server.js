@@ -1355,13 +1355,33 @@ app.post('/auth/register',
     const existing = await User.findOne({ email: lower });
     if (existing) {
       if (existing.emailVerified) return res.status(409).json({ error: 'email_in_use' });
-      // Kullanıcı var ama doğrulanmamış: şifreyi güncelle ve yeniden doğrulama yolla
+      // Kullanıcı var ama doğrulanmamış: şifreyi güncelle; token hâlâ geçerliyse yeniden üretme
       existing.passwordHash = await bcrypt.hash(String(password), 10);
-      existing.verifyToken = crypto.randomBytes(16).toString('hex');
-      existing.verifyExpires = new Date(Date.now() + 24*60*60*1000);
+      const now = new Date();
+      const hasValidToken = existing.verifyToken && existing.verifyExpires && existing.verifyExpires > now;
+      if (!hasValidToken) {
+        existing.verifyToken = crypto.randomBytes(16).toString('hex');
+        existing.verifyExpires = new Date(Date.now() + 24*60*60*1000);
+      }
       await existing.save();
-      const url = `${req.protocol}://${req.get('host')}/verify.html?token=${existing.verifyToken}`;
-      console.log(`[mail] Doğrulama (${lower}): ${url}`);
+      const useToken = existing.verifyToken;
+      const url = `${req.protocol}://${req.get('host')}/verify.html?token=${useToken}`;
+      if (resend) {
+        try {
+          const { data, error } = await resend.emails.send({
+            from: MAIL_FROM,
+            to: lower,
+            subject: 'E-posta Doğrulama - KonusKonusabilirsen',
+            html: `<p>Hesabınızı doğrulamak için tıklayın:</p><p><a href="${url}">${url}</a></p>`
+          });
+          if (error) console.error('[resend] verify email (existing) error:', error);
+          else console.log(`[resend] verify email (existing) sent id=${data?.id || 'n/a'}`);
+        } catch (err) {
+          console.error('[resend] verify email (existing) send error:', err);
+        }
+      } else {
+        console.log(`[mail] Doğrulama (${lower}): ${url}`);
+      }
       return res.json({ ok: true, verifySent: true });
     }
     const passwordHash = await bcrypt.hash(String(password), 10);

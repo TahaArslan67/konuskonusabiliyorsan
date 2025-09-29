@@ -562,16 +562,19 @@ if (formLogin){
     const email = $('#loginEmail').value.trim();
     const password = $('#loginPassword').value;
     authMsg.textContent = 'Giriş yapılıyor...';
+    try{ authMsg.style.display = 'block'; authMsg.className = 'alert alert-info'; }catch{}
     try {
       const r = await fetch(`${backendBase}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
       const j = await r.json();
       if (!r.ok){
         if (r.status === 403 && j?.error === 'email_not_verified'){
           authMsg.innerHTML = `E-posta doğrulanmamış. <button id="resendVerify" class="btn btn-text">Doğrulama e-postasını tekrar gönder</button>`;
+          try{ authMsg.style.display = 'block'; authMsg.className = 'alert alert-info'; }catch{}
           const btn = document.getElementById('resendVerify');
           if (btn){
             btn.addEventListener('click', async () => {
               authMsg.textContent = 'Gönderiliyor...';
+              try{ authMsg.style.display = 'block'; authMsg.className = 'alert alert-info'; }catch{}
               try{
                 const rr = await fetch(`${backendBase}/auth/verify/request-by-email`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ email }) });
                 await rr.json();
@@ -582,6 +585,7 @@ if (formLogin){
           return;
         }
         authMsg.textContent = j?.error || 'Hata';
+        try{ authMsg.style.display = 'block'; authMsg.className = 'alert alert-info'; }catch{}
         return;
       }
       setToken(j.token); updateHeader();
@@ -599,13 +603,15 @@ if (formRegister){
     const email = $('#regEmail').value.trim();
     const password = $('#regPassword').value;
     authMsg.textContent = 'Kayıt oluşturuluyor...';
+    try{ authMsg.style.display = 'block'; authMsg.className = 'alert alert-info'; }catch{}
     try {
       const r = await fetch(`${backendBase}/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
       const j = await r.json();
-      if (!r.ok){ authMsg.textContent = j?.error || 'Hata'; return; }
+      if (!r.ok){ authMsg.textContent = j?.error || 'Hata'; try{ authMsg.style.display='block'; }catch{}; return; }
       authMsg.textContent = 'Kayıt alındı. Lütfen e‑posta kutunuzu kontrol edip doğrulama yapın.';
+      try{ authMsg.style.display = 'block'; authMsg.className = 'alert alert-info'; }catch{}
       // Register sonrası giriş yaptırmıyoruz; doğrulama zorunlu
-    } catch (e){ authMsg.textContent = 'Bağlantı hatası'; }
+    } catch (e){ authMsg.textContent = 'Bağlantı hatası'; try{ authMsg.style.display='block'; }catch{} }
   });
 }
 

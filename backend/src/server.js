@@ -1747,7 +1747,7 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
     const user_address = 'İstanbul';
     const user_phone = '+905555555555';
     const currency = 'TL';
-    const test_mode = 1; // sandbox
+    const test_mode = Number(process.env.PAYTR_TEST_MODE ?? (NODE_ENV === 'production' ? 0 : 1)); // 0=live, 1=test
     const non_3d = 0;
     const timeout_limit = 10;
     const no_installment = 1;
@@ -1800,8 +1800,8 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
     });
     const data = await r.json().catch(async () => ({ status: 'error', reason: await r.text() }));
     if (data.status !== 'success'){
-      console.error('[paytr] get-token error:', data);
-      return res.status(500).json({ error: 'paytr_error', detail: data.reason || 'unknown' });
+      console.error('[paytr] get-token error:', { data, test_mode, currency, merchant_oid, email, amount: payment_amount });
+      return res.status(500).json({ error: 'paytr_error', detail: data.reason || 'unknown', test_mode });
     }
     // Persist pending payment in DB for cross-instance reliability
     try {

@@ -138,9 +138,21 @@
           return;
         }
         const j = await r.json();
+        // Extra client-side safety filter (exclude IPs + country)
+        const excludeRaw = ($('#excludeIp')?.value || '').split(',').map(s=>s.trim()).filter(Boolean);
+        const exSet = new Set(excludeRaw);
+        excludeRaw.forEach(ip => { if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(ip)) exSet.add(`::ffff:${ip}`); });
+        const onlyNonTR = !!$('#onlyNonTR')?.checked;
+        const countryFilter = ($('#country')?.value || '').trim();
+        const items = (j.items||[]).filter(it => {
+          if (exSet.size && exSet.has(String(it.ip||''))) return false;
+          if (countryFilter) return String(it.country||'') === countryFilter;
+          if (onlyNonTR) return String(it.country||'') !== 'TR';
+          return true;
+        });
         const tb = $('#tblRecent tbody');
         tb.innerHTML = '';
-        (j.items||[]).forEach(it => {
+        items.forEach(it => {
           const tr = document.createElement('tr');
           const cells = [
             new Date(it.ts).toLocaleString(),
@@ -197,6 +209,9 @@
         const from = new Date(Date.now() - 6*24*60*60*1000);
         $('#to').value = to.toISOString().slice(0,10);
         $('#from').value = from.toISOString().slice(0,10);
+        // Varsayılan: sadece Türkiye
+        const cEl = document.getElementById('country');
+        if (cEl && !cEl.value) cEl.value = 'TR';
       } catch{}
       load();
       $('#btnLoadRecent')?.addEventListener('click', loadRecent);

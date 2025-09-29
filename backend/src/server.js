@@ -298,12 +298,16 @@ app.get('/admin/analytics/recent', authRequired, async (req, res) => {
       .split(',')
       .map(s => String(s).trim())
       .filter(Boolean);
-    if (excluded.length) match.ipRaw = { $nin: excluded };
+    const excludedSet = new Set(excluded);
+    excluded.forEach(ip => { if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(ip)) excludedSet.add(`::ffff:${ip}`); });
+    const exList = Array.from(excludedSet);
+    if (exList.length) match.ipRaw = { $nin: exList };
     const nonTR = String(onlyNonTR || '').toLowerCase();
     if (nonTR === '1' || nonTR === 'true') match.country = { $ne: 'TR' };
     if (country) match.country = String(country);
-    if (country) match.country = String(country);
-    const docs = await Analytics.find(match).sort({ ts: -1 }).limit(lmt).lean();
+    let docs = await Analytics.find(match).sort({ ts: -1 }).limit(lmt).lean();
+    // Extra safety: post-filter excluded IPs
+    if (exList.length) docs = docs.filter(d => !exList.includes(String(d.ipRaw || '')));
     // Return selected fields only
     const items = docs.map(d => ({
       ts: d.ts,
@@ -362,9 +366,13 @@ app.get('/admin/analytics/summary', authRequired, async (req, res) => {
       .split(',')
       .map(s => String(s).trim())
       .filter(Boolean);
-    if (excluded.length) match.ipRaw = { $nin: excluded };
+    const excludedSet = new Set(excluded);
+    excluded.forEach(ip => { if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(ip)) excludedSet.add(`::ffff:${ip}`); });
+    const exList = Array.from(excludedSet);
+    if (exList.length) match.ipRaw = { $nin: exList };
     const nonTR = String(onlyNonTR || '').toLowerCase();
     if (nonTR === '1' || nonTR === 'true') match.country = { $ne: 'TR' };
+    if (country) match.country = String(country);
     // Totals
     const total = await Analytics.countDocuments(match);
     // By day
@@ -428,7 +436,10 @@ app.get('/admin/analytics/ip-counts', authRequired, async (req, res) => {
       .split(',')
       .map(s => String(s).trim())
       .filter(Boolean);
-    if (excluded.length) match.ipRaw = { $nin: excluded };
+    const excludedSet = new Set(excluded);
+    excluded.forEach(ip => { if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(ip)) excludedSet.add(`::ffff:${ip}`); });
+    const exList = Array.from(excludedSet);
+    if (exList.length) match.ipRaw = { $nin: exList };
     const nonTR = String(onlyNonTR || '').toLowerCase();
     if (nonTR === '1' || nonTR === 'true') match.country = { $ne: 'TR' };
     if (country) match.country = String(country);

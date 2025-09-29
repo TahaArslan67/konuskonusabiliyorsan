@@ -241,13 +241,35 @@ for (const o of allowedOriginsRaw) {
   } catch {}
 }
 
-// Allow all origins for now to ensure the contact form works
-app.use(cors({
-  origin: true, // Allow all origins
+// CORS configuration (lock down to allowed origins if provided)
+const corsOptions = {
+  origin: function (origin, callback) {
+    try {
+      if (!origin) return callback(null, true); // non-browser or same-origin
+      const o = String(origin).trim();
+      if (allowedOriginsSet.size === 0) {
+        // Fallback defaults (prod web origins)
+        const defaults = new Set([
+          'https://www.konuskonusabilirsen.com',
+          'https://konuskonusabilirsen.com'
+        ]);
+        if (defaults.has(o)) return callback(null, true);
+        return callback(null, false);
+      }
+      if (allowedOriginsSet.has(o)) return callback(null, true);
+      return callback(null, false);
+    } catch (e) {
+      return callback(e);
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS', 'PATCH', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204
+};
+app.use(cors(corsOptions));
+// Explicitly handle preflight
+app.options('*', cors(corsOptions));
 
 // Rate limit
 const limiter = rateLimit({
@@ -1355,14 +1377,10 @@ app.post('/auth/register',
     const existing = await User.findOne({ email: lower });
     if (existing) {
       if (existing.emailVerified) return res.status(409).json({ error: 'email_in_use' });
-      // Kullanıcı var ama doğrulanmamış: şifreyi güncelle; token hâlâ geçerliyse yeniden üretme
+      // Kullanıcı var ama doğrulanmamış: şifreyi güncelle; her denemede YENİ token üret (eskisini iptal et)
       existing.passwordHash = await bcrypt.hash(String(password), 10);
-      const now = new Date();
-      const hasValidToken = existing.verifyToken && existing.verifyExpires && existing.verifyExpires > now;
-      if (!hasValidToken) {
-        existing.verifyToken = crypto.randomBytes(16).toString('hex');
-        existing.verifyExpires = new Date(Date.now() + 24*60*60*1000);
-      }
+      existing.verifyToken = crypto.randomBytes(16).toString('hex');
+      existing.verifyExpires = new Date(Date.now() + 24*60*60*1000);
       await existing.save();
       const useToken = existing.verifyToken;
       const url = `${req.protocol}://${req.get('host')}/verify.html?token=${useToken}`;

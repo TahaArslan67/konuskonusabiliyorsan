@@ -2522,7 +2522,7 @@ app.post('/realtime/ephemeral', async (req, res) => {
         modalities: ['audio','text'],
         voice: 'alloy',
         instructions: persona,
-        max_response_output_tokens: 200,
+        max_response_output_tokens: 480,
         turn_detection: {
           type: 'server_vad',
           threshold: 0.25,
@@ -2838,7 +2838,7 @@ wss.on('connection', (clientWs, request) => {
           voice: voicePref,
           temperature: 0.8,
           // Let Realtime model handle audio directly; no separate ASR model
-          max_response_output_tokens: 320,
+          max_response_output_tokens: 480,
           turn_detection: {
             type: 'server_vad',
             threshold: 0.25,
@@ -2889,6 +2889,7 @@ wss.on('connection', (clientWs, request) => {
           input_audio_transcription: { language: lang },
           instructions: persona,
           temperature: 0.8,
+          max_response_output_tokens: 480,
         },
       };
       openaiWs.send(JSON.stringify(sessionUpdate));
@@ -2910,6 +2911,9 @@ wss.on('connection', (clientWs, request) => {
   let lastResponseId = null;
   let lastAudioBytes = 0;
   let streamMode = null; // 'buffer' | 'delta'
+  // We configure the model with turn_detection.create_response=true,
+  // so DO NOT send our own response.create after commit to avoid duplicates.
+  const AUTO_CREATE_RESPONSE = true;
   const scheduleAutoCommit = () => {
     if (STRICT_REALTIME) return; // disabled in strict mode
     if (!USE_AZURE) return; // only needed for Azure path
@@ -2919,19 +2923,20 @@ wss.on('connection', (clientWs, request) => {
         if (hasAppendedAudio && appendedBytes >= 4800 && !isResponding && openaiWs.readyState === WebSocket.OPEN) {
           openaiWs.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
           console.log('[proxy] auto-commit after inactivity');
-          const create = {
-            type: 'response.create',
-            response: {
-              modalities: ['audio', 'text'],
-              // Ensure Turkish output during auto-commit as well
-              instructions: 'Lütfen sadece Türkçe, kısaltma ve doğal yanıt ver.',
-            },
-          };
-          openaiWs.send(JSON.stringify(create));
-          console.log('[proxy] sent response.create (auto)');
           hasAppendedAudio = false;
           appendedBytes = 0;
-          isResponding = true;
+          if (!AUTO_CREATE_RESPONSE) {
+            const create = {
+              type: 'response.create',
+              response: {
+                modalities: ['audio', 'text'],
+                instructions: 'Lütfen sadece Türkçe, kısaltma ve doğal yanıt ver.',
+              },
+            };
+            openaiWs.send(JSON.stringify(create));
+            console.log('[proxy] sent response.create (auto)');
+            isResponding = true;
+          }
         }
       } catch (e) {
         console.error('[proxy] auto-commit error:', e);
@@ -3056,7 +3061,7 @@ wss.on('connection', (clientWs, request) => {
           }
           const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel);
           // Push updated session settings (voice/language hints) and a fresh system message
-          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, instructions: persona, temperature: 0.8, max_response_output_tokens: 200 } }));
+          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, instructions: persona, temperature: 0.8, max_response_output_tokens: 480 } }));
           // Persona'yı güçlü uygulamak için sistem mesajı olarak ekle (ayrıca tekil langNotice kaldırıldı)
           openaiWs.send(JSON.stringify({
             type: 'conversation.item.create',
@@ -3116,49 +3121,49 @@ wss.on('connection', (clientWs, request) => {
         }
         // Inform client about updated usage
         clientWs.send(JSON.stringify({ type: 'usage_update', usage: { usedDaily: usage.usedDaily, usedMonthly: usage.usedMonthly, limits: usage.limits } }));
-        // Build response.create payload
-        const lang = (sess?.prefs?.learnLang || 'tr').toLowerCase();
-        const nlang = (sess?.prefs?.nativeLang || 'tr').toLowerCase();
-        const corr = (sess?.prefs?.correction || 'gentle').toLowerCase();
-        const persona = buildPersonaInstruction(lang, nlang, corr, '', sess.userLevel);
-        const create = {
-          type: 'response.create',
-          response: {
-            modalities: ['audio','text'],
-            // Daha uzun ve tamamlanmış yanıtlar için token limiti yükseltildi
-            max_output_tokens: 200,
-          }
-        };
         if (usage.over) {
           // Notify client limit reached and do not generate response
           clientWs.send(JSON.stringify({ type: 'limit_reached', usage: { usedDaily: usage.usedDaily, usedMonthly: usage.usedMonthly, limits: usage.limits } }));
           hasAppendedAudio = false; appendedBytes = 0;
           return;
         }
-        // Delay sending response by 4 seconds to allow user to continue; cancel if new audio arrives
-        if (pendingResponseTimer) { try { clearTimeout(pendingResponseTimer); } catch {} pendingResponseTimer = null; }
-        pendingResponseTimer = setTimeout(() => {
-          try {
-        // If suppressed (user just started speaking), skip
-        if (Date.now() < suppressUntilTs) {
-          console.log('[proxy] response.create skipped due to suppress window');
-          // Reset suppression since user finished speaking
-          suppressUntilTs = 0;
-          return;
-        }
-            if (STRICT_REALTIME || !isResponding) {
-              openaiWs.send(JSON.stringify(create));
-              console.log('[proxy] sent response.create (delayed 1s)');
-              if (!STRICT_REALTIME) isResponding = true;
-            } else {
-              console.log('[proxy] response.create suppressed (already responding)');
+        // Rely on model auto-response creation; do not send our own response.create
+        if (!AUTO_CREATE_RESPONSE) {
+          // Build response.create payload
+          const lang = (sess?.prefs?.learnLang || 'tr').toLowerCase();
+          const nlang = (sess?.prefs?.nativeLang || 'tr').toLowerCase();
+          const corr = (sess?.prefs?.correction || 'gentle').toLowerCase();
+          const persona = buildPersonaInstruction(lang, nlang, corr, '', sess.userLevel);
+          const create = {
+            type: 'response.create',
+            response: {
+              modalities: ['audio','text'],
+              max_output_tokens: 200,
             }
-          } catch (e) {
-            console.error('[proxy] delayed response.create error:', e);
-          } finally {
-            pendingResponseTimer = null;
-          }
-        }, 1000);
+          };
+          // Delay sending response by 1s to allow user to continue; cancel if new audio arrives
+          if (pendingResponseTimer) { try { clearTimeout(pendingResponseTimer); } catch {} pendingResponseTimer = null; }
+          pendingResponseTimer = setTimeout(() => {
+            try {
+              if (Date.now() < suppressUntilTs) {
+                console.log('[proxy] response.create skipped due to suppress window');
+                suppressUntilTs = 0;
+                return;
+              }
+              if (STRICT_REALTIME || !isResponding) {
+                openaiWs.send(JSON.stringify(create));
+                console.log('[proxy] sent response.create (delayed 1s)');
+                if (!STRICT_REALTIME) isResponding = true;
+              } else {
+                console.log('[proxy] response.create suppressed (already responding)');
+              }
+            } catch (e) {
+              console.error('[proxy] delayed response.create error:', e);
+            } finally {
+              pendingResponseTimer = null;
+            }
+          }, 1000);
+        }
         hasAppendedAudio = false; // reset for next turn
         appendedBytes = 0;
         return;
@@ -3433,6 +3438,8 @@ wss.on('connection', (clientWs, request) => {
         if (!STRICT_REALTIME) isResponding = true;
         // Notify client to pause mic immediately to avoid overlap
         clientWs.send(JSON.stringify({ type: 'bot_speaking' }));
+        // Cancel any pending delayed create since model already started
+        if (pendingResponseTimer) { try { clearTimeout(pendingResponseTimer); } catch {} pendingResponseTimer = null; }
         // Reset stream mode at start of response
         openaiWs._audioStreamMode = null;
         break;
@@ -3474,7 +3481,7 @@ wss.on('connection', (clientWs, request) => {
             type: 'session.update',
             session: {
               instructions: persona,
-              max_response_output_tokens: 200,
+              max_response_output_tokens: 480,
               voice: sess?.prefs?.voice || 'alloy',
               temperature: 0.8,
             }
@@ -3484,7 +3491,6 @@ wss.on('connection', (clientWs, request) => {
         } catch (e) {
           console.error('[proxy] Failed to re-apply session instructions:', e);
         }
-        break;
       }
       case 'error': {
         console.error('[proxy] Azure error payload:', JSON.stringify(obj));

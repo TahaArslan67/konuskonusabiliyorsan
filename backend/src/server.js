@@ -3258,6 +3258,8 @@ wss.on('connection', (clientWs, request) => {
           try { clientWs.send(JSON.stringify({ type: 'debug', src: 'openai', event: 'audio.done' })); } catch {}
           // Reset stream mode for next response
           openaiWs._audioStreamMode = null;
+          // Allow next turn on client side; audio is finished
+          if (!STRICT_REALTIME) isResponding = false;
           // Arm pending audio_end
           openaiWs._waitingAudioEnd = true;
           if (openaiWs._audioEndTimer) { try { clearTimeout(openaiWs._audioEndTimer); } catch {} }
@@ -3268,6 +3270,7 @@ wss.on('connection', (clientWs, request) => {
                 clientWs.send(JSON.stringify({ type: 'audio_end' }));
               }
             } catch {}
+            if (!STRICT_REALTIME) isResponding = false;
             openaiWs._waitingAudioEnd = false;
             openaiWs._audioEndTimer = null;
           }, 6000);
@@ -3318,6 +3321,7 @@ wss.on('connection', (clientWs, request) => {
             if (openaiWs._waitingAudioEnd) {
               try { clientWs.send(JSON.stringify({ type: 'audio_end' })); } catch {}
             }
+            if (!STRICT_REALTIME) isResponding = false;
             openaiWs._waitingAudioEnd = false;
           }
           break;
@@ -3339,6 +3343,10 @@ wss.on('connection', (clientWs, request) => {
             const payload = { type: 'transcript', text: String(text), final: true };
             clientWs.send(JSON.stringify(payload));
           }
+          // Ensure client resumes mic even for text-only completions
+          if (!STRICT_REALTIME) isResponding = false;
+          try { clientWs.send(JSON.stringify({ type: 'audio_end' })); } catch {}
+          openaiWs._audioStreamMode = null;
           break;
         }
         case 'error': {

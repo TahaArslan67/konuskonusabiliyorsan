@@ -6,9 +6,6 @@
   <title>KonusKonusabilirsen – Canlı Sesli Koç</title>
   <script>
     try {
-      // Bakım modu kontrolü - realtime sayfası bakımda
-      window.location.replace('/maintenance.html');
-
       const token = localStorage.getItem('hk_token');
       if (!token) {
         const redirect = encodeURIComponent('/realtime.html');

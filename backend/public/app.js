@@ -1065,6 +1065,9 @@ async function wsConnect(){
                     try{ const btnReplay = document.getElementById('btnReplay'); if (btnReplay) btnReplay.disabled = false; }catch{}
                     if (wsPlaybackSource) { setTimeout(() => { try { wsPlayPcm(lastResponseBuffer); } catch {} }, 60); }
                     else { wsPlayPcm(lastResponseBuffer); }
+                  } else {
+                    // Oynatılacak parça yoksa bot konuşması bitti kabul et ve mikrofona izin ver
+                    try { wsBotSpeaking = false; } catch {}
                   }
                 } finally {
                   wsAudioChunks = [];
@@ -1459,6 +1462,8 @@ function wsPlayPcm(arrayBuffer){
     vizAnalyser.connect(wsPlaybackCtx.destination);
     wsPlaybackSource = src;
     src.start();
+    // Oynatma bittiğinde botun konuşması tamamlandı kabul edilir
+    src.onended = () => { try { wsBotSpeaking = false; } catch {} };
   } catch (e){
     log('play error: '+(e.message||e));
   }

@@ -2525,9 +2525,9 @@ app.post('/realtime/ephemeral', async (req, res) => {
         max_response_output_tokens: 200,
         turn_detection: {
           type: 'server_vad',
-          threshold: 0.2,
-          prefix_padding_ms: 200,
-          silence_duration_ms: 350,
+          threshold: 0.15,
+          prefix_padding_ms: 150,
+          silence_duration_ms: 300,
           create_response: true,
           interrupt_response: true
         }
@@ -2841,9 +2841,9 @@ wss.on('connection', (clientWs, request) => {
           max_response_output_tokens: 320,
           turn_detection: {
             type: 'server_vad',
-            threshold: 0.2,
-            prefix_padding_ms: 200,
-            silence_duration_ms: 350,
+            threshold: 0.15,
+            prefix_padding_ms: 150,
+            silence_duration_ms: 300,
             create_response: true,
             interrupt_response: true,
           },
@@ -2880,9 +2880,9 @@ wss.on('connection', (clientWs, request) => {
           output_audio_format: 'pcm16',
           turn_detection: {
             type: 'server_vad',
-            threshold: 0.2,
-            prefix_padding_ms: 200,
-            silence_duration_ms: 350,
+            threshold: 0.15,
+            prefix_padding_ms: 150,
+            silence_duration_ms: 300,
             create_response: true,
             interrupt_response: true,
           },

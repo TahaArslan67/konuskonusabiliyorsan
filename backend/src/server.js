@@ -3237,12 +3237,16 @@ wss.on('connection', (clientWs, request) => {
           const missingTerminal = !/[.!?]["'""]?\s*$/.test(tr);
           const unfinished = /(What do you|How do you|Can you|Could you|Would you|Let's|Let's|Şöyle de diyebilirsin)[:\s]*$/i.test(tr);
           
-          // Kısa yanıtları da geçerli say (3 kelimeden az olan yanıtlar için terminal punctuation zorunlu değil)
+          // Kısa yanıtları da geçerli say (6 kelimeden az olan yanıtlar için terminal punctuation zorunlu değil)
           const wordCount = tr.trim().split(/\s+/).length;
-          const isShortResponse = wordCount <= 3;
-          
+          const isShortResponse = wordCount <= 6;
+
+          // Soru cümleleri için daha toleranslı ol (soru işaretiyle bitiyorsa veya soru kelimeleriyle başlıyorsa)
+          const isQuestion = /[?]/.test(tr) || /^(What|How|Can|Could|Would|Do you|Are you|Is it|Will you|Can we|Ne|Nasıl|Neden|Kaç|Kim|Nerede|Hangisi)/i.test(tr);
+          const isCompleteShortResponse = isShortResponse && (isQuestion || /[.!?]["'""]?\s*$/.test(tr));
+
           // Sadece gerçekten eksik olan yanıtlar için follow-up iste
-          const needsExample = !isShortResponse && (badPunct || openQuote || unfinished || trailingConnectorTR || (/Şöyle bir cümle/i.test(tr)) || (missingTerminal && wordCount > 5));
+          const needsExample = !isCompleteShortResponse && !isShortResponse && (badPunct || openQuote || unfinished || trailingConnectorTR || (/Şöyle bir cümle/i.test(tr)) || (missingTerminal && wordCount > 8));
           
           if (needsExample) {
             try {

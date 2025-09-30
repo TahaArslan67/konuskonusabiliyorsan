@@ -2525,9 +2525,9 @@ app.post('/realtime/ephemeral', async (req, res) => {
         max_response_output_tokens: 200,
         turn_detection: {
           type: 'server_vad',
-          threshold: 0.3,
-          prefix_padding_ms: 300,
-          silence_duration_ms: 600,
+          threshold: 0.2,
+          prefix_padding_ms: 200,
+          silence_duration_ms: 400,
           create_response: true,
           interrupt_response: true
         }
@@ -2841,9 +2841,9 @@ wss.on('connection', (clientWs, request) => {
           max_response_output_tokens: 320,
           turn_detection: {
             type: 'server_vad',
-            threshold: 0.3,
-            prefix_padding_ms: 300,
-            silence_duration_ms: 600,
+            threshold: 0.2,
+            prefix_padding_ms: 200,
+            silence_duration_ms: 400,
             create_response: true,
             interrupt_response: true,
           },
@@ -2880,9 +2880,9 @@ wss.on('connection', (clientWs, request) => {
           output_audio_format: 'pcm16',
           turn_detection: {
             type: 'server_vad',
-            threshold: 0.3,
-            prefix_padding_ms: 300,
-            silence_duration_ms: 600,
+            threshold: 0.2,
+            prefix_padding_ms: 200,
+            silence_duration_ms: 400,
             create_response: true,
             interrupt_response: true,
           },
@@ -2952,6 +2952,19 @@ wss.on('connection', (clientWs, request) => {
         }
         // If a delayed response is pending, cancel it because user started speaking again
         if (pendingResponseTimer) { try { clearTimeout(pendingResponseTimer); } catch {} pendingResponseTimer = null; }
+
+        // If bot is currently responding, cancel the active response
+        if (isResponding) {
+          try {
+            const cancel = { type: 'response.cancel' };
+            openaiWs.send(JSON.stringify(cancel));
+            console.log('[proxy] cancelled active response due to user interruption');
+            isResponding = false;
+          } catch (e) {
+            console.error('[proxy] failed to cancel response:', e);
+          }
+        }
+
         // Convert PCM bytes to base64 and send as input_audio_buffer.append
         const b64 = Buffer.from(data).toString('base64');
         const msg = {

@@ -6,6 +6,7 @@ const { Schema, model } = mongoose;
 const userSchema = new Schema(
   {
     email: { type: String, required: true, unique: true, index: true },
+    googleId: { type: String, default: null, unique: true, sparse: true, index: true },
     passwordHash: { type: String, required: true },
     emailVerified: { type: Boolean, default: false },
     preferredLanguage: { type: String, default: null },

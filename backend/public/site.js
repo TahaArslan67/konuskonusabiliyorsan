@@ -154,6 +154,9 @@ async function onPlanClick(e){
       if (r.ok) {
         alert('Free plana geçiş yapıldı! 🎉');
         updateHeader();
+
+// Initialize Google Sign-In lazily
+try{ if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initGoogleSignin); else initGoogleSignin(); }catch{}
         window.location.reload();
       } else {
         alert(j?.error || 'Free plana geçiş yapılamadı');
@@ -315,6 +318,53 @@ const formLogin = $('#formLogin');
 const formRegister = $('#formRegister');
 const formForgot = $('#formForgot');
 const authMsg = $('#authMsg');
+
+// Google Sign-In
+async function initGoogleSignin(){
+  try{
+    const mount = document.getElementById('googleBtn');
+    if (!mount) return;
+    // Get client ID from backend
+    let clientId = null;
+    try{
+      const r = await fetch(`${backendBase}/auth/google-client-id`);
+      const j = await r.json();
+      clientId = j?.clientId || null;
+    } catch {}
+    if (!clientId){ console.log('[gsi] clientId yok, buton render edilmeyecek'); return; }
+
+    let tries = 0;
+    const start = () => {
+      try{
+        if (!window.google || !google.accounts || !google.accounts.id){ throw new Error('gsi not ready'); }
+        google.accounts.id.initialize({
+          client_id: clientId,
+          ux_mode: 'popup',
+          context: 'signin',
+          callback: async (resp) => {
+            try{
+              const cred = resp && resp.credential;
+              if (!cred) return;
+              const rr = await fetch(`${backendBase}/auth/google`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credential: cred }) });
+              const jj = await rr.json();
+              if (!rr.ok){ alert(jj?.error || 'Google ile giriş başarısız'); return; }
+              setToken(jj.token); updateHeader();
+              const dest = consumePostLoginRedirect(); if (dest){ window.location.href = dest; return; }
+              closeAuth();
+            } catch (e){ alert('Google ile giriş bağlantı hatası'); }
+          }
+        });
+        // Render button
+        try{ mount.innerHTML = ''; }catch{}
+        google.accounts.id.renderButton(mount, { theme: 'filled_blue', size: 'large', shape: 'pill', text: 'continue_with', width: 280 });
+        console.log('[gsi] button rendered');
+      } catch (e){
+        if (tries++ < 20){ setTimeout(start, 300); } else { console.log('[gsi] yüklenemedi'); }
+      }
+    };
+    start();
+  }catch{}
+}
 
 function openAuth(){
   try{

@@ -13,6 +13,7 @@ import jwt from 'jsonwebtoken';
 import { User, Subscription, Usage, Streak, Achievement, Goal, Payment, DailyChallenge } from './models.js';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
+import { OAuth2Client } from 'google-auth-library';
 import { v4 as uuidv4 } from 'uuid';
 import Iyzipay from 'iyzipay';
 import crypto from 'crypto';
@@ -33,6 +34,9 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 const STRICT_REALTIME = String(process.env.STRICT_REALTIME || 'false').toLowerCase() === 'true';
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/hemekonus';
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // MongoDB bağlantı ayarları
 const mongooseOptions = {
@@ -1567,6 +1571,55 @@ app.post('/auth/login',
     return res.json({ token, user: { id: String(userDoc._id), email: userDoc.email } });
   } catch (e) {
     console.error('[auth/login] error:', e);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// Expose Google Client ID to frontend (not secret)
+app.get('/auth/google-client-id', (req, res) => {
+  try {
+    return res.json({ clientId: GOOGLE_CLIENT_ID || null });
+  } catch {
+    return res.json({ clientId: null });
+  }
+});
+
+// Auth: Google Sign-In — verify ID token and issue our JWT
+app.post('/auth/google', async (req, res) => {
+  try {
+    const { idToken, credential } = req.body || {};
+    const token = String(idToken || credential || '').trim();
+    if (!token) return res.status(400).json({ error: 'invalid_input', hint: 'idToken missing' });
+    if (!GOOGLE_CLIENT_ID) return res.status(500).json({ error: 'server_not_configured', hint: 'GOOGLE_CLIENT_ID missing' });
+
+    let ticket;
+    try {
+      ticket = await googleClient.verifyIdToken({ idToken: token, audience: GOOGLE_CLIENT_ID });
+    } catch (e) {
+      return res.status(401).json({ error: 'invalid_google_token' });
+    }
+    const payload = ticket.getPayload() || {};
+    const sub = String(payload.sub || '');
+    const email = String(payload.email || '').toLowerCase();
+    const emailVerified = Boolean(payload.email_verified);
+    if (!sub || !email) return res.status(400).json({ error: 'invalid_google_payload' });
+
+    let userDoc = await User.findOne({ $or: [{ googleId: sub }, { email }] });
+    if (!userDoc) {
+      const randomPass = crypto.randomBytes(16).toString('hex');
+      const passwordHash = await bcrypt.hash(randomPass, 10);
+      userDoc = await User.create({ email, googleId: sub, passwordHash, emailVerified: emailVerified || true });
+    } else {
+      const updates = {};
+      if (!userDoc.googleId) updates.googleId = sub;
+      if (!userDoc.emailVerified && emailVerified) updates.emailVerified = true;
+      if (Object.keys(updates).length) userDoc = await User.findByIdAndUpdate(userDoc._id, { $set: updates }, { new: true });
+    }
+
+    const jwtToken = jwt.sign({ uid: String(userDoc._id), email: userDoc.email }, JWT_SECRET, { expiresIn: '7d' });
+    return res.json({ token: jwtToken, user: { id: String(userDoc._id), email: userDoc.email } });
+  } catch (e) {
+    console.error('[auth/google] error:', e);
     return res.status(500).json({ error: 'server_error' });
   }
 });

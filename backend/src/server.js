@@ -246,16 +246,33 @@ const corsOptions = {
   origin: function (origin, callback) {
     try {
       if (!origin) return callback(null, true); // non-browser or same-origin
+
       const o = String(origin).trim();
+
+      // Allow localhost for development
+      if (o.startsWith('http://localhost:') || o.startsWith('https://localhost:')) {
+        return callback(null, true);
+      }
+
+      // Allow all konuskonusabilirsen.com subdomains
+      if (o.endsWith('.konuskonusabilirsen.com') || o.endsWith('konuskonusabilirsen.com')) {
+        return callback(null, true);
+      }
+
       if (allowedOriginsSet.size === 0) {
         // Fallback defaults (prod web origins)
         const defaults = new Set([
           'https://www.konuskonusabilirsen.com',
-          'https://konuskonusabilirsen.com'
+          'https://konuskonusabilirsen.com',
+          'http://localhost:3000',
+          'http://localhost:5173',
+          'https://app.konuskonusabilirsen.com',
+          'https://admin.konuskonusabilirsen.com'
         ]);
         if (defaults.has(o)) return callback(null, true);
         return callback(null, false);
       }
+
       if (allowedOriginsSet.has(o)) return callback(null, true);
       return callback(null, false);
     } catch (e) {
@@ -264,7 +281,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS', 'PATCH', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   optionsSuccessStatus: 204
 };
 app.use(cors(corsOptions));

@@ -2525,9 +2525,9 @@ app.post('/realtime/ephemeral', async (req, res) => {
         max_response_output_tokens: 200,
         turn_detection: {
           type: 'server_vad',
-          threshold: 0.2,
-          prefix_padding_ms: 200,
-          silence_duration_ms: 400,
+          threshold: 0.3,
+          prefix_padding_ms: 300,
+          silence_duration_ms: 500,
           create_response: true,
           interrupt_response: true
         }
@@ -2841,9 +2841,9 @@ wss.on('connection', (clientWs, request) => {
           max_response_output_tokens: 320,
           turn_detection: {
             type: 'server_vad',
-            threshold: 0.2,
-            prefix_padding_ms: 200,
-            silence_duration_ms: 400,
+            threshold: 0.3,
+            prefix_padding_ms: 300,
+            silence_duration_ms: 500,
             create_response: true,
             interrupt_response: true,
           },
@@ -2880,9 +2880,9 @@ wss.on('connection', (clientWs, request) => {
           output_audio_format: 'pcm16',
           turn_detection: {
             type: 'server_vad',
-            threshold: 0.2,
-            prefix_padding_ms: 200,
-            silence_duration_ms: 400,
+            threshold: 0.3,
+            prefix_padding_ms: 300,
+            silence_duration_ms: 500,
             create_response: true,
             interrupt_response: true,
           },
@@ -2964,6 +2964,9 @@ wss.on('connection', (clientWs, request) => {
             console.error('[proxy] failed to cancel response:', e);
           }
         }
+
+        // Reset suppression since user started speaking again
+        suppressUntilTs = 0;
 
         // Convert PCM bytes to base64 and send as input_audio_buffer.append
         const b64 = Buffer.from(data).toString('base64');
@@ -3100,6 +3103,9 @@ wss.on('connection', (clientWs, request) => {
         const commit = { type: 'input_audio_buffer.commit' };
         openaiWs.send(JSON.stringify(commit));
         console.log('[proxy] sent input_audio_buffer.commit');
+
+        // Clear suppression since user finished speaking
+        suppressUntilTs = 0;
         if (inactivityTimer) { clearTimeout(inactivityTimer); inactivityTimer = null; }
         // Update usage based on precise turn duration if realtime timer is NOT active
         let usage = { usedDaily: sess?.minutesUsedDaily, usedMonthly: sess?.minutesUsedMonthly, limits: sess?.limits, over: false };
@@ -3133,8 +3139,13 @@ wss.on('connection', (clientWs, request) => {
         if (pendingResponseTimer) { try { clearTimeout(pendingResponseTimer); } catch {} pendingResponseTimer = null; }
         pendingResponseTimer = setTimeout(() => {
           try {
-            // If suppressed (user just started speaking), skip
-            if (Date.now() < suppressUntilTs) { console.log('[proxy] response.create skipped due to suppress window'); return; }
+        // If suppressed (user just started speaking), skip
+        if (Date.now() < suppressUntilTs) {
+          console.log('[proxy] response.create skipped due to suppress window');
+          // Reset suppression since user finished speaking
+          suppressUntilTs = 0;
+          return;
+        }
             if (STRICT_REALTIME || !isResponding) {
               openaiWs.send(JSON.stringify(create));
               console.log('[proxy] sent response.create (delayed 1s)');

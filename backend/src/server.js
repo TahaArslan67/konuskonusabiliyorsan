@@ -2525,9 +2525,9 @@ app.post('/realtime/ephemeral', async (req, res) => {
         max_response_output_tokens: 200,
         turn_detection: {
           type: 'server_vad',
-          threshold: 0.3,
-          prefix_padding_ms: 300,
-          silence_duration_ms: 500,
+          threshold: 0.25,
+          prefix_padding_ms: 250,
+          silence_duration_ms: 400,
           create_response: true,
           interrupt_response: true
         }
@@ -2841,9 +2841,9 @@ wss.on('connection', (clientWs, request) => {
           max_response_output_tokens: 320,
           turn_detection: {
             type: 'server_vad',
-            threshold: 0.3,
-            prefix_padding_ms: 300,
-            silence_duration_ms: 500,
+            threshold: 0.25,
+            prefix_padding_ms: 250,
+            silence_duration_ms: 400,
             create_response: true,
             interrupt_response: true,
           },
@@ -2880,9 +2880,9 @@ wss.on('connection', (clientWs, request) => {
           output_audio_format: 'pcm16',
           turn_detection: {
             type: 'server_vad',
-            threshold: 0.3,
-            prefix_padding_ms: 300,
-            silence_duration_ms: 500,
+            threshold: 0.25,
+            prefix_padding_ms: 250,
+            silence_duration_ms: 400,
             create_response: true,
             interrupt_response: true,
           },
@@ -3450,6 +3450,32 @@ wss.on('connection', (clientWs, request) => {
         // Ensure client resumes mic
         clientWs.send(JSON.stringify({ type: 'audio_end' }));
         openaiWs._audioStreamMode = null;
+
+        // Reset audio buffer state for next conversation turn
+        hasAppendedAudio = false;
+        appendedBytes = 0;
+        suppressUntilTs = 0;
+
+        // Re-apply session instructions for next turn (ensure consistency)
+        try {
+          const lang = (sess?.prefs?.learnLang || 'tr').toLowerCase();
+          const nlang = (sess?.prefs?.nativeLang || 'tr').toLowerCase();
+          const corr = (sess?.prefs?.correction || 'gentle').toLowerCase();
+          const persona = buildPersonaInstruction(lang, nlang, corr, '', sess.userLevel);
+          const sessionUpdate = {
+            type: 'session.update',
+            session: {
+              instructions: persona,
+              max_response_output_tokens: 200,
+              voice: sess?.prefs?.voice || 'alloy',
+              temperature: 0.8,
+            }
+          };
+          openaiWs.send(JSON.stringify(sessionUpdate));
+          console.log('[proxy] Re-applied session instructions after response completion');
+        } catch (e) {
+          console.error('[proxy] Failed to re-apply session instructions:', e);
+        }
         break;
       }
       case 'error': {

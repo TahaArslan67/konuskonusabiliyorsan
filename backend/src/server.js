@@ -2525,10 +2525,11 @@ app.post('/realtime/ephemeral', async (req, res) => {
         max_response_output_tokens: 200,
         turn_detection: {
           type: 'server_vad',
-          // conservative defaults; can be tuned later
-          threshold: 0.5,
+          threshold: 0.3,
           prefix_padding_ms: 300,
-          silence_duration_ms: 800
+          silence_duration_ms: 600,
+          create_response: true,
+          interrupt_response: true
         }
       })
     });
@@ -2838,8 +2839,14 @@ wss.on('connection', (clientWs, request) => {
           temperature: 0.8,
           // Let Realtime model handle audio directly; no separate ASR model
           max_response_output_tokens: 320,
-          // Kesin çözüm: turn detection'ı tamamen devre dışı bırak
-          turn_detection: null,
+          turn_detection: {
+            type: 'server_vad',
+            threshold: 0.3,
+            prefix_padding_ms: 300,
+            silence_duration_ms: 600,
+            create_response: true,
+            interrupt_response: true,
+          },
           instructions: persona
         },
       };
@@ -2876,8 +2883,8 @@ wss.on('connection', (clientWs, request) => {
             threshold: 0.3,
             prefix_padding_ms: 300,
             silence_duration_ms: 600,
-            create_response: false,
-            interrupt_response: false,
+            create_response: true,
+            interrupt_response: true,
           },
           input_audio_transcription: { language: lang },
           instructions: persona,

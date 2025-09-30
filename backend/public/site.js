@@ -4,7 +4,8 @@ if (yearEl) yearEl.textContent = new Date().getFullYear();
 
 // Util
 const $ = (s) => document.querySelector(s);
-const backendBase = 'https://api.konuskonusabilirsen.com';
+// Use configured backend base if provided, otherwise same origin
+const backendBase = (window.__BACKEND_BASE__ && window.__BACKEND_BASE__.trim()) || window.location.origin;
 
 // Global elements
 
@@ -154,6 +155,8 @@ async function onPlanClick(e){
       if (r.ok) {
         alert('Free plana geçiş yapıldı! 🎉');
         updateHeader();
+// Ensure Google Sign-In initializes on page load
+try{ if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initGoogleSignin); else initGoogleSignin(); }catch{}
 
 // Initialize Google Sign-In lazily
 try{ if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initGoogleSignin); else initGoogleSignin(); }catch{}
@@ -324,14 +327,17 @@ async function initGoogleSignin(){
   try{
     const mount = document.getElementById('googleBtn');
     if (!mount) return;
-    // Get client ID from backend
-    let clientId = null;
-    try{
-      const r = await fetch(`${backendBase}/auth/google-client-id`);
-      const j = await r.json();
-      clientId = j?.clientId || null;
-    } catch {}
-    if (!clientId){ console.log('[gsi] clientId yok, buton render edilmeyecek'); return; }
+    // Prefer inline config if provided, otherwise fetch from backend
+    let clientId = (window.__GOOGLE_CLIENT_ID__ && String(window.__GOOGLE_CLIENT_ID__).trim()) || null;
+    if (!clientId){
+      try{
+        const r = await fetch(`${backendBase}/auth/google-client-id`);
+        if (!r.ok) { console.log('[gsi] /auth/google-client-id yanıtı ok değil:', r.status); }
+        const j = await r.json().catch(()=>({}));
+        clientId = j?.clientId || null;
+      } catch (e){ console.log('[gsi] clientId fetch hatası:', e?.message||e); }
+    }
+    if (!clientId){ console.log('[gsi] clientId yok (inline veya backend). Buton çizilmeyecek.'); return; }
 
     let tries = 0;
     const start = () => {
@@ -368,7 +374,7 @@ async function initGoogleSignin(){
 
 function openAuth(){
   try{
-    if (authModal){ authModal.style.display = 'block'; return; }
+    if (authModal){ authModal.style.display = 'block'; try{ initGoogleSignin(); }catch{} return; }
     const redirect = encodeURIComponent(window.location.pathname + window.location.search);
     window.location.href = `/?auth=1&redirect=${redirect}`;
   } catch {}

@@ -3213,7 +3213,7 @@ wss.on('connection', (clientWs, request) => {
           // Arm pending audio_end
           openaiWs._waitingAudioEnd = true;
           if (openaiWs._audioEndTimer) { try { clearTimeout(openaiWs._audioEndTimer); } catch {} }
-          // Fallback: if transcript.done never arrives, flush after 4500ms (uzun yanıtlarda son paketleri kaçırmamak için)
+          // Fallback: if transcript.done never arrives, flush after 6000ms (uzun yanıtlarda son paketleri kaçırmamak için)
           openaiWs._audioEndTimer = setTimeout(() => {
             try {
               if (openaiWs._waitingAudioEnd && clientWs.readyState === WebSocket.OPEN) {
@@ -3222,20 +3222,28 @@ wss.on('connection', (clientWs, request) => {
             } catch {}
             openaiWs._waitingAudioEnd = false;
             openaiWs._audioEndTimer = null;
-          }, 4500);
+          }, 6000);
           break;
         }
         case 'response.audio_transcript.done': {
           const tr = String(obj?.transcript || '');
           try { clientWs.send(JSON.stringify({ type: 'transcript', text: tr, final: true })); } catch {}
-          // Eğer yanıt ':' veya ',' ile bitiyorsa ya da tırnaklar eşleşmiyorsa örnek/bitir follow-up iste
+          
+          // Daha esnek kontroller - kısa yanıtları da kabul et
           const quoteCount = (tr.match(/"/g) || []).length;
           const openQuote = (quoteCount % 2) === 1;
           const badPunct = /[:;,]\s*$/.test(tr);
           const trailingConnectorTR = /(diye|ve|ama|fakat|çünkü|yani|ki|gibi|de|da)\s*$/i.test(tr);
-          const missingTerminal = !/[.!?]["'””]?\s*$/.test(tr);
-          const unfinished = /(What do you|How do you|Can you|Could you|Would you|Let’s|Let's|Şöyle de diyebilirsin)[:\s]*$/i.test(tr);
-          const needsExample = badPunct || openQuote || unfinished || trailingConnectorTR || (/Şöyle bir cümle/i.test(tr)) || (missingTerminal);
+          const missingTerminal = !/[.!?]["'""]?\s*$/.test(tr);
+          const unfinished = /(What do you|How do you|Can you|Could you|Would you|Let's|Let's|Şöyle de diyebilirsin)[:\s]*$/i.test(tr);
+          
+          // Kısa yanıtları da geçerli say (3 kelimeden az olan yanıtlar için terminal punctuation zorunlu değil)
+          const wordCount = tr.trim().split(/\s+/).length;
+          const isShortResponse = wordCount <= 3;
+          
+          // Sadece gerçekten eksik olan yanıtlar için follow-up iste
+          const needsExample = !isShortResponse && (badPunct || openQuote || unfinished || trailingConnectorTR || (/Şöyle bir cümle/i.test(tr)) || (missingTerminal && wordCount > 5));
+          
           if (needsExample) {
             try {
               // This turn is not fully finished; cancel any pending audio_end from previous segment

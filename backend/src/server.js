@@ -74,6 +74,68 @@ process.on('SIGINT', async () => {
   }
 });
 
+// CORS
+const allowedOriginsRaw = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+// Build a set with both Unicode and punycode (ASCII) origin forms
+const allowedOriginsSet = new Set();
+for (const o of allowedOriginsRaw) {
+  if (!o) continue;
+  allowedOriginsSet.add(o);
+  try {
+    const u = new URL(o);
+    const asciiHost = toASCII(u.hostname);
+    const normalized = `${u.protocol}//${asciiHost}${u.port ? ':'+u.port : ''}`;
+    allowedOriginsSet.add(normalized);
+  } catch {}
+}
+
+// CORS configuration (lock down to allowed origins if provided)
+const corsOptions = {
+  origin: function (origin, callback) {
+    try {
+      if (!origin) return callback(null, true); // non-browser or same-origin
+
+      const o = String(origin).trim();
+
+      // Allow localhost for development
+      if (o.startsWith('http://localhost:') || o.startsWith('https://localhost:')) {
+        return callback(null, true);
+      }
+
+      // Allow all konuskonusabilirsen.com subdomains
+      if (o.endsWith('.konuskonusabilirsen.com') || o.endsWith('konuskonusabilirsen.com')) {
+        return callback(null, true);
+      }
+
+      if (allowedOriginsSet.size === 0) {
+        // Fallback defaults (prod web origins)
+        const defaults = new Set([
+          'https://www.konuskonusabilirsen.com',
+          'https://konuskonusabilirsen.com',
+          'http://localhost:3000',
+          'http://localhost:5173',
+          'https://app.konuskonusabilirsen.com',
+          'https://admin.konuskonusabilirsen.com'
+        ]);
+        if (defaults.has(o)) return callback(null, true);
+        return callback(null, false);
+      }
+
+      if (allowedOriginsSet.has(o)) return callback(null, true);
+      return callback(null, false);
+    } catch (e) {
+      return callback(e);
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS', 'PATCH', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 204
+};
+app.use(cors(corsOptions));
+// Explicitly handle preflight
+app.options('*', cors(corsOptions));
+
 // OCR + Çeviri (TR -> EN) — Görselleri alır, OpenAI ile metni çıkarıp çevirir
 // Bu uç, büyük görseller için daha yüksek JSON limitine ihtiyaç duyar
 app.post('/api/ocr-translate', express.json({ limit: '25mb' }), async (req, res) => {
@@ -309,67 +371,7 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// CORS
-const allowedOriginsRaw = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
-// Build a set with both Unicode and punycode (ASCII) origin forms
-const allowedOriginsSet = new Set();
-for (const o of allowedOriginsRaw) {
-  if (!o) continue;
-  allowedOriginsSet.add(o);
-  try {
-    const u = new URL(o);
-    const asciiHost = toASCII(u.hostname);
-    const normalized = `${u.protocol}//${asciiHost}${u.port ? ':'+u.port : ''}`;
-    allowedOriginsSet.add(normalized);
-  } catch {}
-}
-
-// CORS configuration (lock down to allowed origins if provided)
-const corsOptions = {
-  origin: function (origin, callback) {
-    try {
-      if (!origin) return callback(null, true); // non-browser or same-origin
-
-      const o = String(origin).trim();
-
-      // Allow localhost for development
-      if (o.startsWith('http://localhost:') || o.startsWith('https://localhost:')) {
-        return callback(null, true);
-      }
-
-      // Allow all konuskonusabilirsen.com subdomains
-      if (o.endsWith('.konuskonusabilirsen.com') || o.endsWith('konuskonusabilirsen.com')) {
-        return callback(null, true);
-      }
-
-      if (allowedOriginsSet.size === 0) {
-        // Fallback defaults (prod web origins)
-        const defaults = new Set([
-          'https://www.konuskonusabilirsen.com',
-          'https://konuskonusabilirsen.com',
-          'http://localhost:3000',
-          'http://localhost:5173',
-          'https://app.konuskonusabilirsen.com',
-          'https://admin.konuskonusabilirsen.com'
-        ]);
-        if (defaults.has(o)) return callback(null, true);
-        return callback(null, false);
-      }
-
-      if (allowedOriginsSet.has(o)) return callback(null, true);
-      return callback(null, false);
-    } catch (e) {
-      return callback(e);
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS', 'PATCH', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  optionsSuccessStatus: 204
-};
-app.use(cors(corsOptions));
-// Explicitly handle preflight
-app.options('*', cors(corsOptions));
+// CORS middleware yukarıya taşındı (rotalardan önce uygulanıyor)
 
 // Rate limit
 const limiter = rateLimit({

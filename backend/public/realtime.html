@@ -14,7 +14,7 @@
       // If logged in, enforce placement test completion
       (async () => {
         try{
-          const backendBase = 'https://api.konuskonusabilirsen.com';
+          const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : window.location.origin;
           console.log('[realtime] /me çağrısı başlatılıyor...');
           const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }});
           console.log('[realtime] /me yanıtı:', r.status, r.ok);

@@ -371,7 +371,7 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// CORS middleware yukarıya taşındı (rotalardan önce uygulanıyor)
+// CORS middleware yukarıda uygulanıyor
 
 // Rate limit
 const limiter = rateLimit({

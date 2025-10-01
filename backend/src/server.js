@@ -74,6 +74,83 @@ process.on('SIGINT', async () => {
   }
 });
 
+// OCR + Çeviri (TR -> EN) — Görselleri alır, OpenAI ile metni çıkarıp çevirir
+// Bu uç, büyük görseller için daha yüksek JSON limitine ihtiyaç duyar
+app.post('/api/ocr-translate', express.json({ limit: '25mb' }), async (req, res) => {
+  try {
+    const apiKey = process.env.OPENAI_API_KEY || '';
+    if (!apiKey) return res.status(500).json({ error: 'server_not_configured', hint: 'OPENAI_API_KEY missing' });
+
+    const { images = [], sourceLang = 'tr', targetLang = 'en' } = req.body || {};
+    if (!Array.isArray(images) || images.length === 0) {
+      return res.status(400).json({ error: 'no_images' });
+    }
+    if (images.length > 10) {
+      return res.status(400).json({ error: 'too_many_pages', hint: 'En fazla 10 sayfa/görsel gönderin' });
+    }
+
+    // Basit doğrulama: sadece data URL kabul et
+    const dataUrlRe = /^data:\s*image\/(png|jpe?g);base64,/i;
+    const cleaned = images.filter(u => typeof u === 'string' && dataUrlRe.test(u)).slice(0, 10);
+    if (cleaned.length === 0) return res.status(400).json({ error: 'invalid_images' });
+
+    const model = 'gpt-4o-mini';
+    const results = [];
+    for (let i = 0; i < cleaned.length; i++) {
+      const url = cleaned[i];
+      // Chat Completions ile multi‑modal: image_url olarak data URL gönderiyoruz
+      const payload = {
+        model,
+        temperature: 0.2,
+        messages: [
+          {
+            role: 'system',
+            content: `You are an OCR + translation assistant. Extract text in ${sourceLang.toUpperCase()} precisely (preserve line breaks). Then translate to ${targetLang.toUpperCase()} in a second section. Respond in this exact JSON shape without backticks: {"text_tr":"...","text_en":"..."}`
+          },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: `Extract Turkish text and translate to English. Output valid JSON.` },
+              { type: 'image_url', image_url: { url } }
+            ]
+          }
+        ]
+      };
+
+      const fetchImpl = (typeof fetch !== 'undefined') ? fetch : (await import('node-fetch')).default;
+      const r = await fetchImpl('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify(payload)
+      });
+      if (!r.ok) {
+        const txt = await r.text().catch(()=> '');
+        return res.status(502).json({ error: 'openai_error', status: r.status, detail: txt });
+      }
+      const j = await r.json();
+      const content = j?.choices?.[0]?.message?.content || '';
+      // İçerik saf metin; JSON bekliyoruz
+      let parsed = null;
+      try { parsed = JSON.parse(content); } catch {}
+      if (!parsed || (typeof parsed.text_tr !== 'string' && typeof parsed.text_en !== 'string')) {
+        // Model JSON döndürmediyse, hepsini EN çeviri gibi işaretle
+        results.push({ page: i+1, text_tr: '', text_en: String(content || '').trim() });
+      } else {
+        results.push({ page: i+1, text_tr: parsed.text_tr || '', text_en: parsed.text_en || '' });
+      }
+      // Kısa gecikme (isteğe bağlı, oran sınırlama için)
+      await new Promise(r => setTimeout(r, 50));
+    }
+
+    const combinedTR = results.map(r => r.text_tr).filter(Boolean).join('\n\n');
+    const combinedEN = results.map(r => r.text_en).filter(Boolean).join('\n\n');
+    return res.json({ pages: results, text_tr: combinedTR, text_en: combinedEN });
+  } catch (e) {
+    console.error('[ocr-translate] error:', e);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
 // MongoDB'ye bağlan
 mongoose.connect(MONGODB_URI, mongooseOptions).then(() => {
   console.log('MongoDB bağlantısı başarılı');
@@ -220,11 +297,13 @@ app.use(helmet({
     useDefaults: true,
     directives: {
       "default-src": ["'self'"],
-      "script-src": ["'self'", "'unsafe-inline'"],
+      "script-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
       "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       "font-src": ["'self'", "https://fonts.gstatic.com"],
-      "img-src": ["'self'", "data:"] ,
-      "connect-src": ["'self'", "https://api.konuskonusabilirsen.com", "https://api.openai.com", "wss:", "ws:"]
+      "img-src": ["'self'", "data:"],
+      "connect-src": ["'self'", "https://api.konuskonusabilirsen.com", "https://api.openai.com", "wss:", "ws:"],
+      "worker-src": ["'self'", "blob:", "https://cdn.jsdelivr.net"],
+      "child-src": ["'self'", "blob:"]
     }
   },
   crossOriginEmbedderPolicy: false,
@@ -499,6 +578,15 @@ app.get(['/realtime', '/realtime/'], (_req, res) => {
 });
 // Redirect legacy .html path to pretty URL
 app.get('/realtime.html', (_req, res) => res.redirect(301, '/realtime'));
+
+// Pretty URL for OCR page
+app.get(['/ocr', '/ocr/'], (_req, res) => {
+  try {
+    return res.sendFile(path.join(publicDir, 'ocr.html'));
+  } catch {
+    return res.status(404).end();
+  }
+});
 
 // Route-bazlı ek limitler
 // (tanımlar yukarıda yapıldı)

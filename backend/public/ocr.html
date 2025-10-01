@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OCR Çeviri (TR → EN) • KonusKonusabilirsen</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .container { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .card { background: #0e1430; border-radius: 12px; padding: 16px; box-shadow: 0 8px 18px rgba(0,0,0,0.3); color: #e8ecff; }
+    h1 { font-size: 22px; margin: 0 0 8px; }
+    .subtle { color: #9aa4c7; font-size: 13px; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
+    .btn { background: linear-gradient(135deg,#7c3aed,#00d1ff); color: white; border: none; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-weight: 600; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .file-drop { border: 1.5px dashed rgba(255,255,255,0.25); border-radius: 12px; padding: 18px; text-align: center; color: #b8c2e8; }
+    .file-drop.drag { border-color: #7c3aed; background: rgba(124,58,237,0.08); }
+    .previews { display: grid; grid-template-columns: repeat(auto-fill,minmax(140px,1fr)); gap: 10px; margin-top: 12px; }
+    .thumb { border-radius: 8px; overflow: hidden; background: #11183c; border: 1px solid rgba(255,255,255,0.07); }
+    .thumb img { width: 100%; display: block; }
+    .thumb small { display: block; padding: 6px 8px; color: #b8c2e8; font-size: 12px; }
+    .cols { display: grid; gap: 12px; grid-template-columns: 1fr; }
+    @media(min-width: 900px){ .cols { grid-template-columns: 1fr 1fr; } }
+    textarea { width: 100%; min-height: 220px; background: #0b112a; color: #e8ecff; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 10px; resize: vertical; }
+    .muted { color: #93a2cf; font-size: 12px; }
+    nav { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    nav a { color: #b8c2e8; text-decoration: none; padding: 8px 10px; border-radius: 8px; }
+    nav a.active, nav a:hover { color: #fff; background: rgba(255,255,255,0.08); }
+    label { font-size: 13px; color: #9aa4c7; }
+    select { background: #0b112a; color: #e8ecff; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <nav>
+        <div>
+          <a href="/konus">Konuş</a>
+          <a href="/ocr" class="active">OCR Çeviri</a>
+          <a href="/contact">İletişim</a>
+        </div>
+        <div class="subtle">TR → EN OCR + Çeviri</div>
+      </nav>
+      <h1>PDF/Resimden Türkçe Metni İngilizceye Çevir</h1>
+      <div class="subtle">PDF dosyası veya görsel (PNG/JPG) yükleyin. En fazla 10 sayfa/görsel.</div>
+
+      <div id="drop" class="file-drop" tabindex="0">
+        Dosyaları buraya sürükleyip bırakın veya
+        <br/>
+        <input id="fileInput" type="file" accept="application/pdf,image/*" multiple />
+      </div>
+
+      <div class="toolbar">
+        <label for="sourceLang">Kaynak</label>
+        <select id="sourceLang">
+          <option value="tr" selected>Türkçe (tr)</option>
+          <option value="en">İngilizce (en)</option>
+          <option value="de">Almanca (de)</option>
+          <option value="fr">Fransızca (fr)</option>
+        </select>
+        <label for="targetLang">Hedef</label>
+        <select id="targetLang">
+          <option value="en" selected>İngilizce (en)</option>
+          <option value="tr">Türkçe (tr)</option>
+          <option value="de">Almanca (de)</option>
+          <option value="fr">Fransızca (fr)</option>
+        </select>
+        <button id="btnTranslate" class="btn" disabled>Çevir</button>
+      </div>
+
+      <div id="status" class="muted"></div>
+
+      <div id="previews" class="previews" aria-live="polite"></div>
+
+      <h2 style="margin-top:16px; font-size:18px">Sonuçlar</h2>
+      <div class="cols">
+        <div>
+          <label>Çıkarılan metin (Kaynak)</label>
+          <textarea id="textTR" placeholder="Kaynak metin burada görünecek" readonly></textarea>
+        </div>
+        <div>
+          <label>Çeviri (Hedef)</label>
+          <textarea id="textEN" placeholder="Çeviri burada görünecek" readonly></textarea>
+        </div>
+      </div>
+      <div class="toolbar" style="margin-top:10px">
+        <button id="btnCopyEN" class="btn" disabled>İngilizce Metni Kopyala</button>
+      </div>
+      <div class="muted">Gizlilik: Yüklediğiniz içerikler yalnızca metin çıkarma/çeviri için geçici olarak işlenir.</div>
+    </div>
+  </div>
+
+  <!-- pdf.js (cdn) -->
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+  <script src="/config.js"></script>
+  <script src="/ocr.js"></script>
+</body>
+</html>

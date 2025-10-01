@@ -167,12 +167,12 @@ app.post('/api/ocr-translate', express.json({ limit: '25mb' }), async (req, res)
         messages: [
           {
             role: 'system',
-            content: `You are an OCR + translation assistant. Extract text in ${sourceLang.toUpperCase()} precisely (preserve line breaks). Then translate to ${targetLang.toUpperCase()} in a second section. Respond in this exact JSON shape without backticks: {"text_tr":"...","text_en":"..."}`
+            content: `You are an OCR + translation assistant. Extract text in ${sourceLang.toUpperCase()} precisely (preserve line breaks). Then translate to ${targetLang.toUpperCase()} in a second section. IMPORTANT: The translated text MUST be in ${targetLang.toUpperCase()} only (do NOT use English unless targetLang is EN). Respond in this exact JSON shape without backticks: {"text_tr":"<SOURCE_TEXT>","text_en":"<TRANSLATED_TEXT>"}. NOTE: The key name 'text_en' is legacy; it does NOT imply English. Always put the translation in ${targetLang.toUpperCase()}.`
           },
           {
             role: 'user',
             content: [
-              { type: 'text', text: `Extract Turkish text and translate to English. Output valid JSON.` },
+              { type: 'text', text: `Extract text in language code "${sourceLang}" and translate to language code "${targetLang}". Output valid JSON with keys text_tr (source text) and text_en (translated text), exactly as instructed.` },
               { type: 'image_url', image_url: { url } }
             ]
           }

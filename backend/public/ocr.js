@@ -31,6 +31,26 @@
     textEN.value = '';
   }
 
+  // Dinamik: Hedef dil adına göre kopyalama butonu metnini güncelle
+  function getSelectedLangName(sel){
+    try{
+      const opt = sel && sel.options && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex] : null;
+      if (!opt) return (sel && sel.value) ? sel.value.toUpperCase() : 'Hedef';
+      const txt = String(opt.textContent || '').trim(); // Örn: "İngilizce (en)"
+      const idx = txt.lastIndexOf('(');
+      return idx > 0 ? txt.slice(0, idx).trim() : txt;
+    }catch{ return 'Hedef'; }
+  }
+  function updateCopyBtnLabel(){
+    try{
+      const name = getSelectedLangName(dstSel);
+      if (copyEN) copyEN.textContent = `${name} Metni Kopyala`;
+    }catch{}
+  }
+  // İlk yüklemede ve dil değişiminde güncelle
+  try{ updateCopyBtnLabel(); }catch{}
+  try{ dstSel && dstSel.addEventListener('change', updateCopyBtnLabel); }catch{}
+
   drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('drag'); });
   drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
   drop.addEventListener('drop', (e) => {

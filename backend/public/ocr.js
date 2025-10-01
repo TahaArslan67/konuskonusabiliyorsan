@@ -127,14 +127,32 @@
     btn.disabled = true;
     setStatus('Metin çıkarılıyor ve çevriliyor...');
     try{
+      const token = localStorage.getItem('hk_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       const r = await fetch(`${backendBase}/api/ocr-translate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ images, sourceLang: srcSel.value || 'tr', targetLang: dstSel.value || 'en' })
       });
       if (!r.ok){
-        const t = await r.text();
-        setStatus(`Hata: ${r.status} ${t}`);
+        // Try to parse JSON for structured error
+        let msg = `Hata: ${r.status}`;
+        try {
+          const j = await r.json();
+          if (j?.error === 'limit_reached'){
+            setStatus(`Günlük OCR hakkınız doldu (${j.dailyUsed}/${j.dailyLimit}). Plan yükseltmeyi düşünebilirsiniz.`);
+          } else if (j?.error === 'unauthorized' || r.status === 401){
+            setStatus('Devam etmek için giriş yapın.');
+          } else if (j?.error){
+            setStatus(`Hata: ${j.error}`);
+          } else {
+            setStatus(msg);
+          }
+        } catch {
+          const t = await r.text();
+          setStatus(`${msg} ${t}`);
+        }
         btn.disabled = false;
         return;
       }
@@ -142,7 +160,12 @@
       textTR.value = j.text_tr || '';
       textEN.value = j.text_en || '';
       copyEN.disabled = !(j.text_en && j.text_en.length);
-      setStatus('Tamamlandı');
+      if (j.quota && typeof j.quota.dailyLimit === 'number' && typeof j.quota.dailyUsed === 'number'){
+        const remain = Math.max(0, j.quota.dailyLimit - j.quota.dailyUsed);
+        setStatus(`Tamamlandı • Kalan günlük hak: ${remain}/${j.quota.dailyLimit}`);
+      } else {
+        setStatus('Tamamlandı');
+      }
     }catch(e){
       console.error(e);
       setStatus('Sunucu hatası');

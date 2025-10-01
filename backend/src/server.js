@@ -136,9 +136,9 @@ app.use(cors(corsOptions));
 // Explicitly handle preflight
 app.options('*', cors(corsOptions));
 
-// OCR + Çeviri (TR -> EN) — Görselleri alır, OpenAI ile metni çıkarıp çevirir
+// OCR + Çeviri — Görselleri alır, OpenAI ile metni çıkarıp çevirir (auth + günlük kota)
 // Bu uç, büyük görseller için daha yüksek JSON limitine ihtiyaç duyar
-app.post('/api/ocr-translate', express.json({ limit: '25mb' }), async (req, res) => {
+app.post('/api/ocr-translate', authRequired, express.json({ limit: '25mb' }), async (req, res) => {
   try {
     const apiKey = process.env.OPENAI_API_KEY || '';
     if (!apiKey) return res.status(500).json({ error: 'server_not_configured', hint: 'OPENAI_API_KEY missing' });
@@ -149,6 +149,19 @@ app.post('/api/ocr-translate', express.json({ limit: '25mb' }), async (req, res)
     }
     if (images.length > 10) {
       return res.status(400).json({ error: 'too_many_pages', hint: 'En fazla 10 sayfa/görsel gönderin' });
+    }
+
+    // --- Plan bazlı günlük OCR kota kontrolü ---
+    const uid = req.auth?.uid;
+    const userDoc = await User.findById(uid);
+    if (!userDoc) return res.status(401).json({ error: 'unauthorized' });
+    const plan = userDoc.plan || 'free';
+    const ocrDailyLimit = plan === 'pro' ? 30 : (plan === 'starter' ? 10 : 1);
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    userDoc.ocrUsage = userDoc.ocrUsage || { day: today, count: 0 };
+    if (userDoc.ocrUsage.day !== today) { userDoc.ocrUsage.day = today; userDoc.ocrUsage.count = 0; }
+    if ((userDoc.ocrUsage.count || 0) >= ocrDailyLimit) {
+      return res.status(403).json({ error: 'limit_reached', dailyUsed: userDoc.ocrUsage.count, dailyLimit: ocrDailyLimit });
     }
 
     // Basit doğrulama: sadece data URL kabul et
@@ -206,7 +219,12 @@ app.post('/api/ocr-translate', express.json({ limit: '25mb' }), async (req, res)
 
     const combinedTR = results.map(r => r.text_tr).filter(Boolean).join('\n\n');
     const combinedEN = results.map(r => r.text_en).filter(Boolean).join('\n\n');
-    return res.json({ pages: results, text_tr: combinedTR, text_en: combinedEN });
+    // İşlem başarılıysa sayaç artır ve kaydet
+    try {
+      userDoc.ocrUsage.count = (userDoc.ocrUsage.count || 0) + 1;
+      await userDoc.save();
+    } catch (e) { console.warn('[ocr-translate] quota increment failed:', e?.message || e); }
+    return res.json({ pages: results, text_tr: combinedTR, text_en: combinedEN, quota: { dailyUsed: userDoc.ocrUsage.count, dailyLimit: ocrDailyLimit } });
   } catch (e) {
     console.error('[ocr-translate] error:', e);
     return res.status(500).json({ error: 'server_error' });

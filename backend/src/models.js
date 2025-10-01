@@ -2,10 +2,10 @@ import mongoose from 'mongoose';
 
 const { Schema, model } = mongoose;
 
-// User schema
-const userSchema = new Schema(
-  {
-    email: { type: String, required: true, unique: true, index: true },
+  // User schema
+  const userSchema = new Schema(
+    {
+      email: { type: String, required: true, unique: true, index: true },
     googleId: { type: String, default: null, unique: true, sparse: true, index: true },
     passwordHash: { type: String, required: true },
     emailVerified: { type: Boolean, default: false },
@@ -20,40 +20,41 @@ const userSchema = new Schema(
     verifyExpires: { type: Date, default: null },
     resetToken: { type: String, default: null },
     resetExpires: { type: Date, default: null },
-    
-    // Plan ve kullanım bilgileri
-    plan: { 
-      type: String, 
-      enum: ['free', 'starter', 'pro'], 
-      default: 'free' 
+        // Plan ve kullanım bilgileri
+      plan: { 
+        type: String, 
+        enum: ['free', 'starter', 'pro'], 
+        default: 'free' 
+      },
+      planUpdatedAt: { type: Date, default: null },
+      usage: {
+        dailyUsed: { type: Number, default: 0 },
+        dailyLimit: { type: Number, default: 3 }, // Ücretsiz kullanım limiti (dakika)
+        monthlyUsed: { type: Number, default: 0 },
+        monthlyLimit: { type: Number, default: 30 }, // Ücretsiz aylık limit (dakika)
+        lastReset: { type: Date, default: () => new Date() },
+        monthlyResetAt: { type: Date, default: () => {
+          const now = new Date();
+          return new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        }},
+      },
+      // OCR kullanım sayaçları (günlük adet)
+      ocrUsage: {
+        day: { type: String, default: null }, // YYYY-MM-DD
+        count: { type: Number, default: 0 }
+      },
     },
-    planUpdatedAt: { type: Date, default: null },
-    usage: {
-      dailyUsed: { type: Number, default: 0 },
-      dailyLimit: { type: Number, default: 3 }, // Ücretsiz kullanım limiti (dakika)
-      monthlyUsed: { type: Number, default: 0 },
-      monthlyLimit: { type: Number, default: 30 }, // Ücretsiz aylık limit (dakika)
-      lastReset: { type: Date, default: () => new Date() },
-      monthlyResetAt: { type: Date, default: () => {
-        const now = new Date();
-        return new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      }},
-    },
-  },
-  { timestamps: true }
-);
+    { timestamps: true }
+  );
 
-// Eski abonelik modelini kullanmayacağız, ancak mevcut verileri korumak için şimdilik siliyoruz
-const subscriptionSchema = new Schema({}, { strict: false });
-
-// Eski kullanım modelini kullanmayacağız, ancak mevcut verileri korumak için şimdilik siliyoruz
-const usageSchema = new Schema({}, { strict: false });
+  // Eski abonelik modelini kullanmayacağız, ancak mevcut verileri korumak için şimdilik siliyoruz
+  const subscriptionSchema = new Schema({}, { strict: false });
+  // Eski kullanım modelini kullanmayacağız, ancak mevcut verileri korumak için şimdilik siliyoruz
+  const usageSchema = new Schema({}, { strict: false });
 
 export const User = model('User', userSchema);
 export const Subscription = model('Subscription', subscriptionSchema);
 export const Usage = model('Usage', usageSchema);
-
-// Payments: PayTR (and others) payment records for idempotency and cross-instance persistence
 const paymentSchema = new Schema(
   {
     provider: { type: String, default: 'paytr', index: true },

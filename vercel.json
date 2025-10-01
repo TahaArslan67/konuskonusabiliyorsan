@@ -6,6 +6,10 @@
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "/backend/src/server.js" },
+    { "src": "/(auth|me|usage|session|scenarios)(/.*)?", "dest": "/backend/src/server.js" },
+    { "src": "/realtime/ephemeral", "dest": "/backend/src/server.js" },
+    { "src": "/paytr/(.*)", "dest": "/backend/src/server.js" },
+    { "src": "/admin/(.*)", "dest": "/backend/src/server.js" },
     { "src": "/contact", "dest": "/backend/public/contact.html" },
     { "src": "/konus", "dest": "/backend/public/realtime.html" },
     { "src": "/ocr", "dest": "/backend/public/ocr.html" },

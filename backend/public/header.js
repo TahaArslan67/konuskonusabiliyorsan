@@ -15,18 +15,12 @@
           const token = localStorage.getItem('hk_token');
           const btnLogin = document.getElementById('btnLogin');
           const btnAccount = document.getElementById('btnAccount');
-          const navOcr = document.getElementById('navOcr');
-          const mmOcr = document.getElementById('mmOcr');
           if (token){
             if (btnLogin) btnLogin.style.display = 'none';
             if (btnAccount) btnAccount.style.display = 'inline-flex';
-            if (navOcr) navOcr.style.display = '';
-            if (mmOcr) mmOcr.style.display = '';
           } else {
             if (btnLogin) btnLogin.style.display = 'inline-flex';
             if (btnAccount) btnAccount.style.display = 'none';
-            if (navOcr) navOcr.style.display = 'none';
-            if (mmOcr) mmOcr.style.display = 'none';
           }
         }catch{}
       }
@@ -43,7 +37,6 @@
         const mmLogin = document.getElementById('mmLogin');
         const mmAccount = document.getElementById('mmAccount');
         const mmStart = document.getElementById('mmStart');
-        const mmOcr = document.getElementById('mmOcr');
         if (btnMenu && mm){
           const open = () => { mm.style.display = 'block'; document.body.style.overflow = 'hidden'; };
           const close = () => { mm.style.display = 'none'; document.body.style.overflow = ''; };
@@ -53,7 +46,7 @@
           if (mmLogin){ mmLogin.addEventListener('click', () => { close(); try{ window.openAuth && window.openAuth(); window.showLogin && window.showLogin(); }catch{} }); }
           if (mmAccount){ mmAccount.addEventListener('click', () => { close(); window.location.href = '/account.html'; }); }
           if (mmStart){ mmStart.addEventListener('click', (ev) => { ev.preventDefault(); close(); const t = localStorage.getItem('hk_token'); if (!t){ try{ window.setPostLoginRedirect && window.setPostLoginRedirect('/realtime.html'); window.openAuth && window.openAuth(); window.showLogin && window.showLogin(); }catch{} } else { window.location.href = '/realtime.html'; } }); }
-          if (mmOcr){ mmOcr.addEventListener('click', (ev) => { const t = localStorage.getItem('hk_token'); if (!t){ ev.preventDefault(); close(); const redirect = encodeURIComponent('/ocr'); window.location.href = `/?auth=1&redirect=${redirect}`; } }); }
+          // mmOcr linki artık herkese açık, sayfa içinde buton seviyesinde login kontrolü yapılacak
         }
       }catch{}
       // Wire login button even if site.js hasn't loaded yet

@@ -4,15 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>OCR Çeviri (TR → EN) • KonusKonusabilirsen</title>
-  <script>
-    try{
-      const t = localStorage.getItem('hk_token');
-      if (!t){
-        const redirect = encodeURIComponent('/ocr');
-        window.location.replace(`/?auth=1&redirect=${redirect}`);
-      }
-    }catch{}
-  </script>
   <link rel="stylesheet" href="/styles.css" />
   <style>
     .container { max-width: 980px; margin: 24px auto; padding: 0 16px; }

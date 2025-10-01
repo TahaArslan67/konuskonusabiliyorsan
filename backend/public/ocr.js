@@ -128,8 +128,15 @@
     setStatus('Metin çıkarılıyor ve çevriliyor...');
     try{
       const token = localStorage.getItem('hk_token');
+      if (!token){
+        setStatus('Giriş gerekiyor, yönlendiriliyor...');
+        const redirect = encodeURIComponent('/ocr');
+        window.location.href = `/?auth=1&redirect=${redirect}`;
+        btn.disabled = false;
+        return;
+      }
       const headers = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      headers['Authorization'] = `Bearer ${token}`;
       const r = await fetch(`${backendBase}/api/ocr-translate`, {
         method: 'POST',
         headers,

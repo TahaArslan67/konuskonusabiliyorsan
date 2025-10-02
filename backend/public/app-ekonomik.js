@@ -133,6 +133,9 @@ async function startConversation() {
 
     ws.onclose = (e) => {
       console.log('[app-ekonomik] WebSocket closed:', e.code, e.reason);
+      console.log('[app-ekonomik] WebSocket close event:', e);
+      console.log('[app-ekonomik] ws wasClean:', e.wasClean);
+      console.log('[app-ekonomik] ws readyState at close:', ws.readyState);
       cleanup();
     };
 
@@ -286,6 +289,11 @@ async function processAudioForSpeechToText() {
     console.log('[app-ekonomik] ws exists:', !!ws);
     console.log('[app-ekonomik] ws readyState:', ws ? ws.readyState : 'ws is null');
 
+    // Check if WebSocket is still open before sending
+    console.log('[app-ekonomik] Checking WebSocket before send...');
+    console.log('[app-ekonomik] ws exists:', !!ws);
+    console.log('[app-ekonomik] ws readyState:', ws ? ws.readyState : 'ws is null');
+
     if (transcribedText && ws && ws.readyState === WebSocket.OPEN) {
       console.log('[app-ekonomik] WebSocket state:', ws.readyState);
       console.log('[app-ekonomik] Sending message:', transcribedText);
@@ -306,8 +314,17 @@ async function processAudioForSpeechToText() {
       const messageStr = JSON.stringify(message);
       console.log('[app-ekonomik] Message JSON:', messageStr);
 
-      ws.send(messageStr);
-      console.log('[app-ekonomik] Sent transcribed text:', transcribedText);
+      try {
+        ws.send(messageStr);
+        console.log('[app-ekonomik] Sent transcribed text:', transcribedText);
+      } catch (sendError) {
+        console.error('[app-ekonomik] Error sending message:', sendError);
+      }
+    } else {
+      console.error('[app-ekonomik] Cannot send message - WebSocket not ready');
+      console.error('[app-ekonomik] transcribedText:', transcribedText);
+      console.error('[app-ekonomik] ws exists:', !!ws);
+      console.error('[app-ekonomik] ws readyState:', ws ? ws.readyState : 'ws is null');
     }
 
     // Clear chunks for next recording

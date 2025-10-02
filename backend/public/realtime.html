@@ -29,9 +29,17 @@
               const redirect = encodeURIComponent('/realtime.html');
               window.location.replace(`/placement.html?redirect=${redirect}`);
               return;
-            } else {
-              console.log('[realtime] placementLevel var, realtime sayfası açık kalıyor:', me.user?.placementLevel);
             }
+
+            // Plan kontrolü - ekonomik paket sahipleri otomatik olarak ekonomik sayfaya yönlendirilsin
+            const userPlan = me.user?.plan || 'free';
+            if (userPlan === 'economic') {
+              console.log('[realtime] ekonomik paket kullanıcısı tespit edildi, ekonomik sayfaya yönlendiriliyor...');
+              window.location.replace('/ekonomik.html');
+              return;
+            }
+
+            console.log('[realtime] plan kontrolü geçildi, sayfa açık kalıyor:', userPlan);
           } else {
             console.log('[realtime] /me çağrısı başarısız:', r.status);
           }

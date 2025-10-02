@@ -50,11 +50,19 @@ async function loadUserData() {
 
     if (r.ok) {
       const me = await r.json();
+      console.log('[app-ekonomik] User data loaded:', me);
+
       if (statusPlanEl) statusPlanEl.textContent = `Plan: ${me.user?.plan || 'free'}`;
       if (limitDailyEl) {
         const used = me.usage?.dailyUsed || 0;
         const limit = me.usage?.dailyLimit || 0;
         limitDailyEl.textContent = `Günlük: ${used}/${limit} dk`;
+      }
+
+      // Update placement level
+      const placementBadgeEl = document.getElementById('placementBadge');
+      if (placementBadgeEl && me.user?.placementLevel) {
+        placementBadgeEl.textContent = `Seviye: ${me.user.placementLevel}`;
       }
     }
   } catch (e) {
@@ -201,11 +209,53 @@ async function startMicrophoneRecording() {
       console.error('[app-ekonomik] MediaRecorder error:', error);
     };
 
-    // Record in 1 second chunks
+    // Record in 1 second chunks and process them
     console.log('[app-ekonomik] Starting MediaRecorder...');
-    mediaRecorder.start(1000);
+
+    let recordingInterval;
+    mediaRecorder.ondataavailable = (event) => {
+      console.log('[app-ekonomik] Audio chunk received, size:', event.data.size);
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
+        // Process immediately when we get a chunk
+        if (audioChunks.length > 0) {
+          processAudioForSpeechToText();
+        }
+      }
+    };
+
+    // Start recording and set up interval to restart every 3 seconds
+    const startRecording = () => {
+      if (mediaRecorder && mediaRecorder.state === 'inactive') {
+        audioChunks = []; // Clear previous chunks
+        mediaRecorder.start(3000); // Record for 3 seconds
+        console.log('[app-ekonomik] Recording started for 3 seconds');
+      }
+    };
+
+    const stopAndRestart = () => {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        console.log('[app-ekonomik] Recording stopped, will restart...');
+        setTimeout(startRecording, 100); // Restart after 100ms
+      }
+    };
+
+    mediaRecorder.onstop = () => {
+      console.log('[app-ekonomik] MediaRecorder stopped, processing audio...');
+      if (audioChunks.length > 0) {
+        processAudioForSpeechToText();
+      }
+      // Restart recording after processing
+      setTimeout(startRecording, 500);
+    };
+
+    startRecording();
     isRecording = true;
     console.log('[app-ekonomik] Recording started');
+
+    // Set up interval to check and restart recording
+    recordingInterval = setInterval(stopAndRestart, 3500);
 
   } catch (e) {
     console.error('[app-ekonomik] microphone error:', e);
@@ -333,6 +383,11 @@ async function replayLastResponse() {
 }
 
 function cleanup() {
+  // Clear recording interval
+  if (typeof recordingInterval !== 'undefined') {
+    clearInterval(recordingInterval);
+  }
+
   if (mediaRecorder && isRecording) {
     mediaRecorder.stop();
     isRecording = false;

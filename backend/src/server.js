@@ -3092,11 +3092,20 @@ wssEconomic.on('connection', (clientWs, request) => {
 
   // Keep connection alive with periodic ping
   const pingInterval = setInterval(() => {
+    console.log('[ws-economic] ping check - readyState:', clientWs.readyState);
     if (clientWs.readyState === WebSocket.OPEN) {
       clientWs.ping();
       console.log('[ws-economic] sent ping');
+    } else {
+      console.log('[ws-economic] cannot ping - connection not open, readyState:', clientWs.readyState);
     }
-  }, 30000); // Ping every 30 seconds
+  }, 10000); // Ping every 10 seconds for debugging
+
+  // Set a timeout to close connection if no activity
+  const connectionTimeout = setTimeout(() => {
+    console.log('[ws-economic] connection timeout - closing connection');
+    clientWs.close(1000, 'connection timeout');
+  }, 60000); // 60 seconds timeout
 
   // For economic plan, we'll use a simpler approach without OpenAI Realtime API
   // This is more cost-effective for the economic tier
@@ -3241,6 +3250,7 @@ wssEconomic.on('connection', (clientWs, request) => {
       readyState: clientWs.readyState
     });
     clearInterval(pingInterval);
+    clearTimeout(connectionTimeout);
   });
 
   clientWs.on('error', (error) => {

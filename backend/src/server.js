@@ -2910,9 +2910,19 @@ app.post('/session/economic/start', async (req, res) => {
   if (minutesUsedDaily >= limits.daily || minutesUsedMonthly >= limits.monthly) {
     return res.status(403).json({ error: 'limit_reached', message: 'Kullanım limitiniz doldu.', minutesUsedDaily, minutesUsedMonthly, minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, limits, plan: String(plan) });
   }
-  const sessObj = { plan: String(plan), createdAt, minutesUsedDaily, minutesUsedMonthly, limits, userId: uid, prefs, userLevel };
+
+  const createdAt = new Date();
+  const sessionId = uuidv4();
+
+  const sessObj = { plan: String(plan), createdAt, minutesUsedDaily, minutesUsedMonthly, limits, userId: uid, prefs: {}, userLevel };
   sessions.set(sessionId, sessObj);
-  return res.json({ sessionId, wsUrl: `/realtime/economic/ws?sessionId=${sessionId}`.replace('http','ws'), plan: String(plan), minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, minutesUsedDaily, minutesUsedMonthly });
+
+  // Get the base URL dynamically
+  const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+  const host = req.get('host');
+  const baseUrl = `${protocol}://${host}`;
+
+  return res.json({ sessionId, wsUrl: `${baseUrl.replace(/^http/, 'ws')}/realtime/economic/ws?sessionId=${sessionId}`, plan: String(plan), minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, minutesUsedDaily, minutesUsedMonthly });
 });
 
 // Start session
@@ -3012,9 +3022,19 @@ app.post('/session/start', async (req, res) => {
   if (minutesUsedDaily >= limits.daily || minutesUsedMonthly >= limits.monthly) {
     return res.status(403).json({ error: 'limit_reached', message: 'Kullanım limitiniz doldu.', minutesUsedDaily, minutesUsedMonthly, minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, limits, plan: String(plan) });
   }
-  const sessObj = { plan: String(plan), createdAt, minutesUsedDaily, minutesUsedMonthly, limits, userId: uid, prefs, userLevel };
+
+  const createdAt = new Date();
+  const sessionId = uuidv4();
+
+  const sessObj = { plan: String(plan), createdAt, minutesUsedDaily, minutesUsedMonthly, limits, userId: uid, prefs: {}, userLevel };
   sessions.set(sessionId, sessObj);
-  return res.json({ sessionId, wsUrl: `/realtime/ws?sessionId=${sessionId}`.replace('http','ws'), plan: String(plan), minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, minutesUsedDaily, minutesUsedMonthly });
+
+  // Get the base URL dynamically
+  const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+  const host = req.get('host');
+  const baseUrl = `${protocol}://${host}`;
+
+  return res.json({ sessionId, wsUrl: `${baseUrl.replace(/^http/, 'ws')}/realtime/ws?sessionId=${sessionId}`, plan: String(plan), minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, minutesUsedDaily, minutesUsedMonthly });
 });
 
 // Close session

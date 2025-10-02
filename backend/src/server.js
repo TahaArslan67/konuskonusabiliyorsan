@@ -3074,6 +3074,10 @@ wssEconomic.on('connection', (clientWs, request) => {
     userLevel: sess.userLevel
   });
 
+  // Check OpenAI API key
+  console.log('[ws-economic] OPENAI_API_KEY exists:', !!OPENAI_API_KEY);
+  console.log('[ws-economic] OPENAI_API_KEY length:', OPENAI_API_KEY ? OPENAI_API_KEY.length : 0);
+
   // Check if session is too old (30 minutes timeout)
   const sessionAge = Date.now() - sess.createdAt;
   const maxSessionAge = 30 * 60 * 1000; // 30 minutes
@@ -3226,6 +3230,7 @@ wssEconomic.on('connection', (clientWs, request) => {
 
   clientWs.on('close', (code, reason) => {
     console.log('[ws-economic] client disconnected:', code, reason?.toString());
+    console.log('[ws-economic] client WebSocket wasClean:', clientWs.readyState);
     clearInterval(pingInterval);
   });
 

@@ -302,6 +302,12 @@ async function processAudioForSpeechToText() {
 
     if (!ws) {
       console.error('[app-ekonomik] WebSocket is null - cannot send message');
+      console.log('[app-ekonomik] Attempting to reconnect WebSocket...');
+      // Try to reconnect if WebSocket is closed
+      if (window.location.reload) {
+        console.log('[app-ekonomik] Reloading page to reconnect...');
+        window.location.reload();
+      }
       return;
     }
 

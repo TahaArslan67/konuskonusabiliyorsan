@@ -2846,8 +2846,6 @@ app.post('/session/economic/start', async (req, res) => {
       return res.status(403).json({ error: 'plan_required', message: 'Bu özellik sadece ekonomik paket kullanıcıları için geçerlidir.' });
     }
   } catch {}
-  const sessionId = uuidv4();
-  const createdAt = Date.now();
   // minute limits per plan (daily / monthly) - getPlanLimit fonksiyonunu kullan
   const limits = {
     daily: getPlanLimit(String(plan), 'daily'),
@@ -2958,8 +2956,6 @@ app.post('/session/start', async (req, res) => {
       return res.status(403).json({ error: 'placement_required', message: 'Lütfen seviye belirleme testini tamamlayın.' });
     }
   } catch {}
-  const sessionId = uuidv4();
-  const createdAt = Date.now();
   // minute limits per plan (daily / monthly) - getPlanLimit fonksiyonunu kullan
   const limits = {
     daily: getPlanLimit(String(plan), 'daily'),

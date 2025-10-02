@@ -6,7 +6,9 @@
   <title>OCR Çeviri (TR → EN) • KonusKonusabilirsen</title>
   <link rel="stylesheet" href="/styles.css" />
   <style>
-    .container { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    /* Layout: make page fill viewport between global header and footer */
+    .ocr-page{ min-height:100vh; display:flex; flex-direction:column; }
+    .ocr-container { max-width: 980px; margin: 24px auto; padding: 0 16px; flex:1 0 auto; }
     .card { background: #0e1430; border-radius: 12px; padding: 16px; box-shadow: 0 8px 18px rgba(0,0,0,0.3); color: #e8ecff; }
     h1 { font-size: 22px; margin: 0 0 8px; }
     .subtle { color: #9aa4c7; font-size: 13px; }
@@ -23,19 +25,16 @@
     @media(min-width: 900px){ .cols { grid-template-columns: 1fr 1fr; } }
     textarea { width: 100%; min-height: 220px; background: #0b112a; color: #e8ecff; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 10px; resize: vertical; }
     .muted { color: #93a2cf; font-size: 12px; }
-    nav { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-    nav a { color: #b8c2e8; text-decoration: none; padding: 8px 10px; border-radius: 8px; }
-    nav a.active, nav a:hover { color: #fff; background: rgba(255,255,255,0.08); }
     label { font-size: 13px; color: #9aa4c7; }
     select { background: #0b112a; color: #e8ecff; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 8px; }
     /* OCR sayfasında alttaki boşluğu azalt */
-    .ocr-page .container { padding-bottom: 0; }
+    .ocr-page .ocr-container { padding-bottom: 0; }
     .ocr-page .card { margin-bottom: 0; }
   </style>
 </head>
 <body class="ocr-page">
   <script src="/header.js"></script>
-  <div class="container">
+  <div class="ocr-container">
     <div class="card">
       <!-- Global navbar already injected by header.js; local nav removed -->
       <h1>PDF/Resimden Türkçe Metni İngilizceye Çevir</h1>
@@ -79,17 +78,11 @@
           <label>Çeviri (Hedef)</label>
           <textarea id="textEN" placeholder="Çeviri burada görünecek" readonly></textarea>
         </div>
-      </div>
       <div class="toolbar" style="margin-top:10px">
         <button id="btnCopyEN" class="btn" disabled>İngilizce Metni Kopyala</button>
       </div>
       <div class="muted">Gizlilik: Yüklediğiniz içerikler yalnızca metin çıkarma/çeviri için geçici olarak işlenir.</div>
     </div>
   </div>
-
-  <!-- pdf.js (cdn) -->
-  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-  <script src="/config.js"></script>
-  <script src="/ocr.js"></script>
 </body>
 </html>

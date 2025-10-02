@@ -34,12 +34,24 @@
           const token = localStorage.getItem('hk_token');
           const btnLogin = document.getElementById('btnLogin');
           const btnAccount = document.getElementById('btnAccount');
+          const navFeatures = document.getElementById('navFeatures');
+          const navPricing = document.getElementById('navPricing');
+          const mmFeatures = document.getElementById('mmFeatures');
+          const mmPricing = document.getElementById('mmPricing');
           if (token){
             if (btnLogin) btnLogin.style.display = 'none';
             if (btnAccount) btnAccount.style.display = 'inline-flex';
+            if (navFeatures) navFeatures.style.display = 'none';
+            if (navPricing) navPricing.style.display = 'none';
+            if (mmFeatures) mmFeatures.style.display = 'none';
+            if (mmPricing) mmPricing.style.display = 'none';
           } else {
             if (btnLogin) btnLogin.style.display = 'inline-flex';
             if (btnAccount) btnAccount.style.display = 'none';
+            if (navFeatures) navFeatures.style.display = '';
+            if (navPricing) navPricing.style.display = '';
+            if (mmFeatures) mmFeatures.style.display = '';
+            if (mmPricing) mmPricing.style.display = '';
           }
         }catch{}
       }

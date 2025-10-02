@@ -671,14 +671,59 @@ if (formRegister){
   });
 }
 
-// Hemen Başla CTA
-const btnStart = document.getElementById('btnStart');
-if (btnStart){
-  btnStart.addEventListener('click', (ev) => {
+// Hemen Başla CTA butonları
+const btnStart1 = document.getElementById('btnStart');
+const btnStart2 = document.getElementById('btnStart2');
+
+if (btnStart1){
+  btnStart1.addEventListener('click', async (ev) => {
     ev.preventDefault();
     const token = getToken();
     if (!token){ setPostLoginRedirect('/realtime.html'); openAuth(); showLogin(); return; }
-    window.location.href = '/realtime.html';
+
+    // Kullanıcı planını kontrol et ve uygun sayfaya yönlendir
+    try {
+      const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) {
+        const me = await r.json();
+        const userPlan = me.user?.plan || 'free';
+        if (userPlan === 'economic') {
+          window.location.href = '/ekonomik.html';
+        } else {
+          window.location.href = '/realtime.html';
+        }
+      } else {
+        window.location.href = '/realtime.html';
+      }
+    } catch (error) {
+      window.location.href = '/realtime.html';
+    }
+  });
+}
+
+if (btnStart2){
+  btnStart2.addEventListener('click', async (ev) => {
+    ev.preventDefault();
+    const token = getToken();
+    if (!token){ setPostLoginRedirect('/realtime.html'); openAuth(); showLogin(); return; }
+
+    // Kullanıcı planını kontrol et ve uygun sayfaya yönlendir
+    try {
+      const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) {
+        const me = await r.json();
+        const userPlan = me.user?.plan || 'free';
+        if (userPlan === 'economic') {
+          window.location.href = '/ekonomik.html';
+        } else {
+          window.location.href = '/realtime.html';
+        }
+      } else {
+        window.location.href = '/realtime.html';
+      }
+    } catch (error) {
+      window.location.href = '/realtime.html';
+    }
   });
 }
 

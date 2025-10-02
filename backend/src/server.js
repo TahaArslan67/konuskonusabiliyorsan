@@ -3112,10 +3112,10 @@ wssEconomic.on('connection', (clientWs, request) => {
   let openaiWs = null;
   let openaiWsUrl = null;
 
-  // Only connect to OpenAI Realtime API if API key is available
+  // Try to connect to OpenAI Realtime API if API key is available
   if (OPENAI_API_KEY && OPENAI_API_KEY.length >= 20) {
     try {
-      openaiWsUrl = `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01`;
+      openaiWsUrl = `wss://api.openai.com/v1/realtime?model=gpt-realtime`;
       openaiWs = new WebSocket(openaiWsUrl, {
         headers: {
           'Authorization': `Bearer ${OPENAI_API_KEY}`,
@@ -3123,8 +3123,10 @@ wssEconomic.on('connection', (clientWs, request) => {
         }
       });
       console.log('[ws-economic] Attempting to connect to OpenAI Realtime API...');
+      console.log('[ws-economic] Note: OpenAI Realtime API may have regional restrictions or require specific API permissions');
     } catch (error) {
       console.error('[ws-economic] Failed to create OpenAI WebSocket:', error);
+      console.log('[ws-economic] Falling back to text-only mode');
       openaiWs = null;
       openaiWsUrl = null;
     }

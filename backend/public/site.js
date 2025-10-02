@@ -355,7 +355,27 @@ async function initGoogleSignin(){
               const jj = await rr.json();
               if (!rr.ok){ alert(jj?.error || 'Google ile giriş başarısız'); return; }
               setToken(jj.token); updateHeader();
-              const dest = consumePostLoginRedirect(); if (dest){ window.location.href = dest; return; }
+              const dest = consumePostLoginRedirect();
+              if (dest){
+                // Kullanıcı planına göre doğru sayfaya yönlendir
+                try {
+                  const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${jj.token}` } });
+                  if (r.ok) {
+                    const me = await r.json();
+                    const userPlan = me.user?.plan || 'free';
+                    if (userPlan === 'economic') {
+                      window.location.href = '/ekonomik.html';
+                    } else {
+                      window.location.href = dest;
+                    }
+                  } else {
+                    window.location.href = dest;
+                  }
+                } catch (error) {
+                  window.location.href = dest;
+                }
+                return;
+              }
               closeAuth();
             } catch (e){ alert('Google ile giriş bağlantı hatası'); }
           }
@@ -647,7 +667,26 @@ if (formLogin){
       setToken(j.token); updateHeader();
       // post-login redirect if requested
       const dest = consumePostLoginRedirect();
-      if (dest){ window.location.href = dest; return; }
+      if (dest){
+        // Kullanıcı planına göre doğru sayfaya yönlendir
+        try {
+          const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${j.token}` } });
+          if (r.ok) {
+            const me = await r.json();
+            const userPlan = me.user?.plan || 'free';
+            if (userPlan === 'economic') {
+              window.location.href = '/ekonomik.html';
+            } else {
+              window.location.href = dest;
+            }
+          } else {
+            window.location.href = dest;
+          }
+        } catch (error) {
+          window.location.href = dest;
+        }
+        return;
+      }
       closeAuth();
     } catch (e){ authMsg.textContent = 'Bağlantı hatası'; }
   });
@@ -919,3 +958,28 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.addEventListener('click', onPlanClick);
     });
 });
+
+// /konus URL'sine erişim kontrolü
+if (window.location.pathname === '/konus') {
+  (async () => {
+    const token = getToken();
+    if (token) {
+      try {
+        const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
+        if (r.ok) {
+          const me = await r.json();
+          const userPlan = me.user?.plan || 'free';
+          if (userPlan === 'economic') {
+            window.location.href = '/ekonomik.html';
+          } else {
+            window.location.href = '/realtime.html';
+          }
+        } else {
+          window.location.href = '/realtime.html';
+        }
+      } catch (error) {
+        window.location.href = '/realtime.html';
+      }
+    }
+  })();
+}

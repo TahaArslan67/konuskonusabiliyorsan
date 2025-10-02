@@ -1,4 +1,4 @@
-import 'dotenv/config';
+﻿import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { toASCII } from 'punycode';
@@ -24,7 +24,7 @@ const app = express();
 const server = createServer(app);
 // Trust proxy headers (Render/Heroku/Nginx vb.) so rate-limit and req.ip work correctly
 // This fixes ERR_ERL_UNEXPECTED_X_FORWARDED_FOR from express-rate-limit
-app.set('trust proxy', 1);
+app.set('trust proxy', true);
 // Remove X-Powered-By header
 app.disable('x-powered-by');
 
@@ -600,13 +600,15 @@ app.get(['/realtime', '/realtime/'], (_req, res) => {
 app.get('/realtime.html', (_req, res) => res.redirect(301, '/realtime'));
 
 // Pretty URL for OCR page
-app.get(['/ocr', '/ocr/'], (_req, res) => {
+app.get(['/ceviri', '/ceviri/'], (_req, res) => {
   try {
     return res.sendFile(path.join(publicDir, 'ocr.html'));
   } catch {
     return res.status(404).end();
   }
 });
+// Redirect legacy OCR
+app.get(['/ocr', '/ocr/'], (_req, res) => res.redirect(301, '/ceviri'));
 
 // Route-bazlı ek limitler
 // (tanımlar yukarıda yapıldı)
@@ -1133,7 +1135,7 @@ function loadScenarios(){
 }
 loadScenarios();
 // Enable trust proxy for correct req.ip behind proxies (set explicit hop count instead of boolean true)
-try { app.set('trust proxy', 1); } catch {}
+try { app.set('trust proxy', true); } catch {}
 
 // --- In-house analytics middleware (non-blocking) ---
 function hashIp(ip){
@@ -1199,19 +1201,22 @@ app.use((req, res, next) => {
     if (/\.(css|js|png|jpg|jpeg|svg|ico|gif|webp|mp3|wav|ogg|woff|woff2|ttf|map)$/i.test(p)) return next();
     const ref = req.get('referer') || null;
     const ua = req.get('user-agent') || null;
+    const host = req.headers['host'] || null;
     // Choose first public IP from X-Forwarded-For chain
+        const priorityIp = (req.headers['cf-connecting-ip'] || req.headers['true-client-ip'] || req.headers['x-real-ip'] || req.headers['x-client-ip'] || '').toString().trim();
+    let chosenIp = priorityIp && !isPrivateIp(priorityIp) ? priorityIp : null;
     const xff = (req.headers['x-forwarded-for'] || '').toString();
     const chain = xff.split(',').map(s => s.trim()).filter(Boolean);
-    let chosenIp = null;
+    // chosenIp initialized above if present
     for (const cand of chain){ if (!isPrivateIp(cand)) { chosenIp = cand; break; } }
-    if (!chosenIp) chosenIp = (req.ip || req.connection?.remoteAddress || '').toString();
-    const ip = chosenIp.replace('::ffff:','');
+    if (!chosenIp) chosenIp = (req.ip || req.socket?.remoteAddress || req.connection?.remoteAddress || '').toString();
+    const ip = chosenIp.replace('::ffff','').replace('::ffff:','');
     const ipHash = hashIp(ip);
     let country = (req.headers['cf-ipcountry'] || req.headers['x-vercel-ip-country'] || req.headers['x-country'] || null) || null;
     let countrySource = country ? 'header' : null;
     const uid = req.auth?.uid ? new mongoose.Types.ObjectId(req.auth.uid) : null;
     const anonId = getOrSetAnonId(req, res) || null;
-    const doc = { path: p, referrer: ref, userAgent: ua, ipHash, ipRaw: ip, country, countrySource, anonId, uid, ts: new Date() };
+    const doc = { path: p, host, referrer: ref, userAgent: ua, ipHash, ipRaw: ip, country, countrySource, anonId, uid, ts: new Date() };
     Analytics.create(doc).then(async (saved) => {
       try {
         const cached = !country ? cacheGet(ip) : null;
@@ -3740,3 +3745,5 @@ mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 5000 })
       console.log(`Sunucu ${PORT} portunda çalışıyor (MongoDB bağlantısı yok)`);
     });
   });
+
+

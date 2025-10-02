@@ -118,16 +118,16 @@ const dailyChallengeSchema = new Schema(
     minutes: { type: Number, default: 0 },
     completedAt: { type: Date, default: () => new Date() },
   },
-  { timestamps: true }
 );
 dailyChallengeSchema.index({ userId: 1, dateBucket: 1 }, { unique: true });
 
 export const DailyChallenge = model('DailyChallenge', dailyChallengeSchema);
 
-// Analytics: minimal request logs
-const analyticsSchema = new Schema(
-  {
+  // Analytics: minimal request logs
+  const analyticsSchema = new Schema(
+    {
     path: { type: String, index: true },
+    host: { type: String, default: null },
     referrer: { type: String, default: null },
     userAgent: { type: String, default: null },
     ipHash: { type: String, index: true },

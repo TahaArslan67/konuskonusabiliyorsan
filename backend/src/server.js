@@ -3067,12 +3067,22 @@ wssEconomic.on('connection', (clientWs, request) => {
 
   console.log('[ws-economic] client connected, session:', sessionId, 'plan:', sess.plan);
 
+  // Keep connection alive with periodic ping
+  const pingInterval = setInterval(() => {
+    if (clientWs.readyState === WebSocket.OPEN) {
+      clientWs.ping();
+      console.log('[ws-economic] sent ping');
+    }
+  }, 30000); // Ping every 30 seconds
+
   // For economic plan, we'll use a simpler approach without OpenAI Realtime API
   // This is more cost-effective for the economic tier
 
   clientWs.on('message', async (data) => {
     try {
+      console.log('[ws-economic] received raw message:', data.toString());
       const msg = JSON.parse(data.toString());
+      console.log('[ws-economic] parsed message:', JSON.stringify(msg, null, 2));
 
       if (msg.type === 'conversation.item.create' && msg.item?.content?.[0]) {
         // Handle text input for economic plan
@@ -3090,7 +3100,16 @@ wssEconomic.on('connection', (clientWs, request) => {
 
         console.log('[ws-economic] received user text:', userText);
 
+        // Check if session is still valid
+        if (!sessions.has(sessionId)) {
+          console.log('[ws-economic] session expired:', sessionId);
+          clientWs.close(1008, 'session expired');
+          return;
+        }
+
         try {
+          console.log('[ws-economic] calling OpenAI API...');
+
           // Use OpenAI Chat Completions API (much cheaper than Realtime)
           const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -3103,7 +3122,7 @@ wssEconomic.on('connection', (clientWs, request) => {
               messages: [
                 {
                   role: 'system',
-                  content: 'Sen Türkçe konuşan bir dil koçusun. Kullanıcının dil seviyesine göre konuş ve hatalarını nazikçe düzelt.'
+                  content: `Sen Türkçe konuşan bir dil koçusun. Kullanıcının dil seviyesi ${sess.userLevel || 'B1'}. Bu seviyeye göre konuş ve hatalarını nazikçe düzelt. Kısa ve net yanıtlar ver.`
                 },
                 {
                   role: 'user',
@@ -3118,6 +3137,8 @@ wssEconomic.on('connection', (clientWs, request) => {
           if (response.ok) {
             const aiResponse = await response.json();
             const aiText = aiResponse.choices[0]?.message?.content;
+
+            console.log('[ws-economic] OpenAI response received:', aiText);
 
             if (aiText && clientWs.readyState === WebSocket.OPEN) {
               // Send response back to client
@@ -3152,6 +3173,10 @@ wssEconomic.on('connection', (clientWs, request) => {
                 clientWs.send(JSON.stringify(responseMsg));
               }, 500);
             }
+          } else {
+            console.error('[ws-economic] OpenAI API error:', response.status, response.statusText);
+            const errorText = await response.text();
+            console.error('[ws-economic] OpenAI error details:', errorText);
           }
         } catch (error) {
           console.error('[ws-economic] OpenAI API error:', error);
@@ -3164,6 +3189,7 @@ wssEconomic.on('connection', (clientWs, request) => {
 
   clientWs.on('close', (code, reason) => {
     console.log('[ws-economic] client disconnected:', code, reason?.toString());
+    clearInterval(pingInterval);
   });
 
   clientWs.on('error', (error) => {

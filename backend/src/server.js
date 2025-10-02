@@ -3066,6 +3066,22 @@ wssEconomic.on('connection', (clientWs, request) => {
   }
 
   console.log('[ws-economic] client connected, session:', sessionId, 'plan:', sess.plan);
+  console.log('[ws-economic] session details:', {
+    createdAt: sess.createdAt,
+    minutesUsedDaily: sess.minutesUsedDaily,
+    minutesUsedMonthly: sess.minutesUsedMonthly,
+    limits: sess.limits,
+    userLevel: sess.userLevel
+  });
+
+  // Check if session is too old (30 minutes timeout)
+  const sessionAge = Date.now() - sess.createdAt;
+  const maxSessionAge = 30 * 60 * 1000; // 30 minutes
+  if (sessionAge > maxSessionAge) {
+    console.log('[ws-economic] session expired, age:', sessionAge, 'max:', maxSessionAge);
+    clientWs.close(1008, 'session expired');
+    return;
+  }
 
   // Keep connection alive with periodic ping
   const pingInterval = setInterval(() => {
@@ -3080,9 +3096,23 @@ wssEconomic.on('connection', (clientWs, request) => {
 
   clientWs.on('message', async (data) => {
     try {
-      console.log('[ws-economic] received raw message:', data.toString());
-      const msg = JSON.parse(data.toString());
-      console.log('[ws-economic] parsed message:', JSON.stringify(msg, null, 2));
+      const rawData = data.toString();
+      console.log('[ws-economic] received raw message:', rawData);
+
+      if (!rawData || rawData.trim() === '') {
+        console.log('[ws-economic] received empty message');
+        return;
+      }
+
+      let msg;
+      try {
+        msg = JSON.parse(rawData);
+        console.log('[ws-economic] parsed message:', JSON.stringify(msg, null, 2));
+      } catch (parseError) {
+        console.error('[ws-economic] JSON parse error:', parseError);
+        console.error('[ws-economic] raw data that failed to parse:', rawData);
+        return;
+      }
 
       if (msg.type === 'conversation.item.create' && msg.item?.content?.[0]) {
         // Handle text input for economic plan
@@ -3109,6 +3139,13 @@ wssEconomic.on('connection', (clientWs, request) => {
 
         try {
           console.log('[ws-economic] calling OpenAI API...');
+
+          // Check if API key is available
+          if (!OPENAI_API_KEY) {
+            console.error('[ws-economic] OpenAI API key not configured');
+            clientWs.close(1011, 'OpenAI API key not configured');
+            return;
+          }
 
           // Use OpenAI Chat Completions API (much cheaper than Realtime)
           const response = await fetch('https://api.openai.com/v1/chat/completions', {

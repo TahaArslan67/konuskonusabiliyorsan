@@ -3101,11 +3101,11 @@ wssEconomic.on('connection', (clientWs, request) => {
     }
   }, 10000); // Ping every 10 seconds for debugging
 
-  // Set a timeout to close connection if no activity
+  // Set a timeout to close connection if no activity (longer timeout for economic plan)
   const connectionTimeout = setTimeout(() => {
     console.log('[ws-economic] connection timeout - closing connection');
     clientWs.close(1000, 'connection timeout');
-  }, 60000); // 60 seconds timeout
+  }, 300000); // 5 minutes timeout for economic plan
 
   // For economic plan, we'll use a simpler approach without OpenAI Realtime API
   // This is more cost-effective for the economic tier
@@ -3131,6 +3131,21 @@ wssEconomic.on('connection', (clientWs, request) => {
       }
 
       if (msg.type === 'conversation.item.create' && msg.item?.content?.[0]) {
+        // First, acknowledge the message to keep connection alive
+        const ackMsg = {
+          type: 'conversation.item.created',
+          item: {
+            id: crypto.randomUUID(),
+            object: 'realtime.item',
+            type: 'message',
+            status: 'completed',
+            role: 'user',
+            content: msg.item.content
+          }
+        };
+        clientWs.send(JSON.stringify(ackMsg));
+        console.log('[ws-economic] sent conversation.item.created acknowledgment');
+
         // Handle text input for economic plan
         const content = msg.item.content[0];
 
@@ -3224,6 +3239,38 @@ wssEconomic.on('connection', (clientWs, request) => {
                   }
                 };
                 clientWs.send(JSON.stringify(responseMsg));
+
+                // Send response completion messages
+                setTimeout(() => {
+                  const doneMsg = {
+                    type: 'response.output_item.done',
+                    item: {
+                      id: crypto.randomUUID(),
+                      object: 'realtime.item',
+                      type: 'message',
+                      status: 'completed',
+                      role: 'assistant',
+                      content: [{
+                        type: 'text',
+                        text: aiText
+                      }]
+                    }
+                  };
+                  clientWs.send(JSON.stringify(doneMsg));
+
+                  // Final response completion
+                  setTimeout(() => {
+                    const finalMsg = {
+                      type: 'response.done',
+                      response: {
+                        id: crypto.randomUUID(),
+                        object: 'realtime.response',
+                        status: 'completed'
+                      }
+                    };
+                    clientWs.send(JSON.stringify(finalMsg));
+                  }, 100);
+                }, 300);
               }, 500);
             }
           } else {

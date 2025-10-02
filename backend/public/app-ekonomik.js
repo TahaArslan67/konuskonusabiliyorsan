@@ -114,12 +114,18 @@ async function startConversation() {
       $('#btnStopTalk').disabled = false;
       $('#btnStartTalk').disabled = true;
 
-      // Start microphone recording for speech-to-text
-      console.log('[app-ekonomik] Starting microphone recording...');
-      startMicrophoneRecording().catch(error => {
-        console.error('[app-ekonomik] Microphone error:', error);
-        alert('Mikrofon erişimi başarısız: ' + error.message);
-      });
+      // Wait a moment for connection to stabilize before starting recording
+      setTimeout(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          console.log('[app-ekonomik] Starting microphone recording after connection stabilization...');
+          startMicrophoneRecording().catch(error => {
+            console.error('[app-ekonomik] Microphone error:', error);
+            alert('Mikrofon erişimi başarısız: ' + error.message);
+          });
+        } else {
+          console.error('[app-ekonomik] WebSocket connection lost before recording could start');
+        }
+      }, 1000);
     };
 
     ws.onmessage = (e) => {
@@ -136,7 +142,32 @@ async function startConversation() {
       console.log('[app-ekonomik] WebSocket close event:', e);
       console.log('[app-ekonomik] ws wasClean:', e.wasClean);
       console.log('[app-ekonomik] ws readyState at close:', ws.readyState);
+
+      // Handle different close codes
+      if (e.code === 1005) {
+        console.warn('[app-ekonomik] WebSocket closed without status - possible connection issue');
+      } else if (e.code === 1006) {
+        console.warn('[app-ekonomik] WebSocket closed abnormally - network issue');
+      } else if (e.code === 1008) {
+        console.warn('[app-ekonomik] WebSocket closed due to policy violation');
+      } else if (e.code === 1011) {
+        console.error('[app-ekonomik] WebSocket closed due to server error');
+      }
+
       cleanup();
+
+      // Auto-reconnect for certain error codes (but not if user manually stopped)
+      if (e.code !== 1000 && typeof startConversation === 'function') { // 1000 = normal closure
+        console.log('[app-ekonomik] Attempting auto-reconnect in 3 seconds...');
+        setTimeout(() => {
+          if (!$('#btnStartTalk').disabled) { // Only reconnect if not manually stopped
+            console.log('[app-ekonomik] Auto-reconnecting...');
+            startConversation().catch(err => {
+              console.error('[app-ekonomik] Auto-reconnect failed:', err);
+            });
+          }
+        }, 3000);
+      }
     };
 
     ws.onerror = (e) => {
@@ -303,9 +334,17 @@ async function processAudioForSpeechToText() {
     if (!ws) {
       console.error('[app-ekonomik] WebSocket is null - cannot send message');
       console.log('[app-ekonomik] Attempting to reconnect WebSocket...');
-      // Try to reconnect if WebSocket is closed
-      if (window.location.reload) {
-        console.log('[app-ekonomik] Reloading page to reconnect...');
+      // Try to reconnect more gracefully first
+      if (typeof startConversation === 'function') {
+        console.log('[app-ekonomik] Attempting graceful reconnection...');
+        setTimeout(() => {
+          if (!ws || ws.readyState !== WebSocket.OPEN) {
+            console.log('[app-ekonomik] Graceful reconnection failed, reloading page...');
+            window.location.reload();
+          }
+        }, 2000);
+      } else {
+        console.log('[app-ekonomik] Cannot reconnect gracefully, reloading page...');
         window.location.reload();
       }
       return;
@@ -458,7 +497,11 @@ function cleanup() {
     wsMicStream = null;
   }
 
-  $('#btnStartTalk').disabled = false;
+  // Don't reset button states during cleanup if we're reconnecting
+  // Let the reconnection logic handle button states
+  if (!$('#btnStartTalk').disabled) {
+    $('#btnStartTalk').disabled = false;
+  }
   $('#btnStopTalk').disabled = true;
   $('#btnReplay').disabled = true;
 

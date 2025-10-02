@@ -70,7 +70,7 @@
     for (const f of files.slice(0, max)){
       if (f.type === 'application/pdf'){
         await handlePdf(f, max - images.length);
-      } else if (/^image\/(png|jpe?g)$/i.test(f.type)){
+      } else if (/^image\/(png|jpe?g|webp|heic|heif)$/i.test(f.type)){
         const url = await fileToDataUrl(f);
         if (url) addImage(url, `Görsel`);
       }
@@ -131,7 +131,7 @@
       const token = localStorage.getItem('hk_token');
       if (!token){
         setStatus('Giriş gerekiyor, yönlendiriliyor...');
-        const redirect = encodeURIComponent('/ocr');
+        const redirect = encodeURIComponent('/ceviri');
         window.location.href = `/?auth=1&redirect=${redirect}`;
         btn.disabled = false;
         return;

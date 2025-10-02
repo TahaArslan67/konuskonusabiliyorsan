@@ -9,25 +9,7 @@
       // Insert at top of body
       body.insertBefore(hdr, body.firstChild);
       body.insertBefore(mm, hdr.nextSibling);
-      // Inject dropdown CSS once (keeps header.html with only two top-level elements)
-      try{
-        if (!document.getElementById('hdrDropdownCss')){
-          const s = document.createElement('style');
-          s.id = 'hdrDropdownCss';
-          s.textContent = `
-            .nav .dropdown{ position:relative; }
-            .nav .dropdown > a{ display:inline-flex; align-items:center; gap:6px; }
-            .nav .dropdown > a::after{ content:"▾"; font-size:10px; opacity:.7; }
-            .dropdown-menu{ position:absolute; top:100%; left:0; display:none; min-width:200px; padding:8px; background:rgba(14,20,48,.98); border:1px solid rgba(124,58,237,.25); border-radius:10px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
-            .dropdown-menu a{ display:block; padding:8px 10px; border-radius:8px; color:var(--muted); }
-            .dropdown-menu a:hover{ background: rgba(124,58,237,.12); color:#fff; }
-            .dropdown:hover .dropdown-menu{ display:block; }
-            .dropdown-menu a.disabled{ opacity:.6; pointer-events:none; }
-            @media (max-width: 640px){ .nav .dropdown .dropdown-menu{ display:none !important; } }
-          `;
-          document.head.appendChild(s);
-        }
-      }catch{}
+      // Dropdown CSS injector removed (no dropdown menu)
       // Helper to apply header state immediately
       function applyHeaderState(){
         try{

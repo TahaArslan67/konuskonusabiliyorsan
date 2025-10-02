@@ -3249,91 +3249,82 @@ wssEconomic.on('connection', (clientWs, request) => {
           };
           openaiWs.send(JSON.stringify(commitMsg));
         }
-      }
 
-        // Check if session is still valid
-        if (!sessions.has(sessionId)) {
-          console.log('[ws-economic] session expired:', sessionId);
-          clientWs.close(1008, 'session expired');
-          return;
+        // Extract user text for API call
+        const content = msg.item.content[0];
+        let userText = null;
+        if (content.type === 'input_text' && content.text) {
+          userText = content.text;
+        } else if (content.type === 'text' && content.text) {
+          userText = content.text;
         }
 
-        try {
-          console.log('[ws-economic] calling OpenAI API...');
-
-          // Check if API key is available
-          if (!OPENAI_API_KEY) {
-            console.error('[ws-economic] OpenAI API key not configured');
-            clientWs.close(1011, 'OpenAI API key not configured');
+        if (userText) {
+          // Check if session is still valid
+          if (!sessions.has(sessionId)) {
+            console.log('[ws-economic] session expired:', sessionId);
+            clientWs.close(1008, 'session expired');
             return;
           }
 
-          // Use OpenAI Chat Completions API (much cheaper than Realtime)
-          const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${OPENAI_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'gpt-3.5-turbo',
-              messages: [
-                {
-                  role: 'system',
-                  content: `Sen Türkçe konuşan bir dil koçusun. Kullanıcının dil seviyesi ${sess.userLevel || 'B1'}. Bu seviyeye göre konuş ve hatalarını nazikçe düzelt. Kısa ve net yanıtlar ver.`
-                },
-                {
-                  role: 'user',
-                  content: userText
-                }
-              ],
-              max_tokens: 150,
-              temperature: 0.7
-            })
-          });
+          try {
+            console.log('[ws-economic] calling OpenAI API...');
 
-          if (response.ok) {
-            const aiResponse = await response.json();
-            const aiText = aiResponse.choices[0]?.message?.content;
+            // Check if API key is available
+            if (!OPENAI_API_KEY) {
+              console.error('[ws-economic] OpenAI API key not configured');
+              clientWs.close(1011, 'OpenAI API key not configured');
+              return;
+            }
 
-            console.log('[ws-economic] OpenAI response received:', aiText);
+            // Use OpenAI Chat Completions API (much cheaper than Realtime)
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'gpt-3.5-turbo',
+                messages: [
+                  {
+                    role: 'system',
+                    content: `Sen Türkçe konuşan bir dil koçusun. Kullanıcının dil seviyesi ${sess.userLevel || 'B1'}. Bu seviyeye göre konuş ve hatalarını nazikçe düzelt. Kısa ve net yanıtlar ver.`
+                  },
+                  {
+                    role: 'user',
+                    content: userText
+                  }
+                ],
+                max_tokens: 150,
+                temperature: 0.7
+              })
+            });
 
-            if (aiText && clientWs.readyState === WebSocket.OPEN) {
-              // Send response back to client
-              const responseMsg = {
-                type: 'response.created',
-                response: {
-                  id: crypto.randomUUID(),
-                  object: 'realtime.response',
-                  created_at: Date.now(),
-                  status: 'completed'
-                }
-              };
+            if (response.ok) {
+              const aiResponse = await response.json();
+              const aiText = aiResponse.choices[0]?.message?.content;
 
-              clientWs.send(JSON.stringify(responseMsg));
+              console.log('[ws-economic] OpenAI response received:', aiText);
 
-              // Send response back to client
-              setTimeout(() => {
+              if (aiText && clientWs.readyState === WebSocket.OPEN) {
+                // Send response back to client
                 const responseMsg = {
-                  type: 'response.output_item.added',
-                  item: {
+                  type: 'response.created',
+                  response: {
                     id: crypto.randomUUID(),
-                    object: 'realtime.item',
-                    type: 'message',
-                    status: 'completed',
-                    role: 'assistant',
-                    content: [{
-                      type: 'text',
-                      text: aiText
-                    }]
+                    object: 'realtime.response',
+                    created_at: Date.now(),
+                    status: 'completed'
                   }
                 };
+
                 clientWs.send(JSON.stringify(responseMsg));
 
-                // Send response completion messages
+                // Send response back to client
                 setTimeout(() => {
-                  const doneMsg = {
-                    type: 'response.output_item.done',
+                  const responseMsg = {
+                    type: 'response.output_item.added',
                     item: {
                       id: crypto.randomUUID(),
                       object: 'realtime.item',
@@ -3346,28 +3337,51 @@ wssEconomic.on('connection', (clientWs, request) => {
                       }]
                     }
                   };
-                  clientWs.send(JSON.stringify(doneMsg));
+                  clientWs.send(JSON.stringify(responseMsg));
 
-                  // Final response completion
+                  // Send response completion messages
                   setTimeout(() => {
-                    const finalMsg = {
-                      type: 'response.done',
-                      response: {
+                    const doneMsg = {
+                      type: 'response.output_item.done',
+                      item: {
                         id: crypto.randomUUID(),
-                        object: 'realtime.response',
-                        status: 'completed'
+                        object: 'realtime.item',
+                        type: 'message',
+                        status: 'completed',
+                        role: 'assistant',
+                        content: [{
+                          type: 'text',
+                          text: aiText
+                        }]
                       }
                     };
-                    clientWs.send(JSON.stringify(finalMsg));
-                  }, 100);
-                }, 300);
-              }, 500);
+                    clientWs.send(JSON.stringify(doneMsg));
+
+                    // Final response completion
+                    setTimeout(() => {
+                      const finalMsg = {
+                        type: 'response.done',
+                        response: {
+                          id: crypto.randomUUID(),
+                          object: 'realtime.response',
+                          status: 'completed'
+                        }
+                      };
+                      clientWs.send(JSON.stringify(finalMsg));
+                    }, 100);
+                  }, 300);
+                }, 500);
+              }
+            } else {
+              console.error('[ws-economic] OpenAI API error:', response.status, response.statusText);
+              const errorText = await response.text();
+              console.error('[ws-economic] OpenAI error details:', errorText);
             }
-          } else {
-            console.error('[ws-economic] OpenAI API error:', response.status, response.statusText);
-            const errorText = await response.text();
-            console.error('[ws-economic] OpenAI error details:', errorText);
+          } catch (error) {
+            console.error('[ws-economic] OpenAI API error:', error);
           }
+        }
+      }
     } catch (e) {
       console.error('[ws-economic] failed to parse client message:', e);
     }

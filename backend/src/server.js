@@ -165,7 +165,7 @@ app.post('/api/ocr-translate', authRequired, express.json({ limit: '25mb' }), as
     }
 
     // Basit doğrulama: sadece data URL kabul et
-    const dataUrlRe = /^data:\s*image\/(png|jpe?g);base64,/i;
+    const dataUrlRe = /^data:\s*image\/(png|jpe?g|webp|heic|heif);base64,/i;
     const cleaned = images.filter(u => typeof u === 'string' && dataUrlRe.test(u)).slice(0, 10);
     if (cleaned.length === 0) return res.status(400).json({ error: 'invalid_images' });
 

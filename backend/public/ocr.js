@@ -87,6 +87,7 @@
     div.className = 'thumb';
     div.innerHTML = `<img alt="${label}" src="${url}"/><small>${label}</small>`;
     previews.appendChild(div);
+    try{ btn.disabled = images.length === 0; }catch{}
   }
 
   function fileToDataUrl(file){

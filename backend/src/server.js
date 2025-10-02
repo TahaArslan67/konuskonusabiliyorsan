@@ -3067,61 +3067,95 @@ wssEconomic.on('connection', (clientWs, request) => {
 
   console.log('[ws-economic] client connected, session:', sessionId, 'plan:', sess.plan);
 
-  let openaiWs = null;
-  let isResponding = false;
-  let suppressUntilTs = 0;
-  let speechStartTs = null;
-  let realtimeTimer = null;
-  let realtimeStartedAt = null;
+  // For economic plan, we'll use a simpler approach without OpenAI Realtime API
+  // This is more cost-effective for the economic tier
 
-  // Establish connection to Realtime API
-  const headers = USE_AZURE
-    ? { 'api-key': AZURE_OPENAI_API_KEY, 'Content-Type': 'application/json' }
-    : { Authorization: `Bearer ${OPENAI_API_KEY}`, 'OpenAI-Beta': 'realtime=v1' };
-  const protocols = ['realtime'];
-  openaiWs = new WebSocket(OPENAI_REALTIME_URL, protocols, { headers });
-
-  openaiWs.on('open', () => {
-    console.log('[ws-economic] connected to OpenAI Realtime');
-  });
-
-  openaiWs.on('message', (data) => {
+  clientWs.on('message', async (data) => {
     try {
       const msg = JSON.parse(data.toString());
-      // Forward to client (same as regular realtime)
-      if (clientWs.readyState === WebSocket.OPEN) {
-        clientWs.send(JSON.stringify(msg));
-      }
-    } catch (e) {
-      console.error('[ws-economic] failed to parse OpenAI message:', e);
-    }
-  });
 
-  openaiWs.on('error', (error) => {
-    console.error('[ws-economic] OpenAI WebSocket error:', error);
-  });
+      if (msg.type === 'conversation.item.create' && msg.item?.content?.[0]) {
+        // Handle text input for economic plan
+        const content = msg.item.content[0];
 
-  openaiWs.on('close', (code, reason) => {
-    console.log('[ws-economic] OpenAI connection closed:', code, reason?.toString());
-    if (clientWs.readyState === WebSocket.OPEN) {
-      clientWs.close(code, reason);
-    }
-  });
+        // Handle both input_text and text content types
+        let userText = null;
+        if (content.type === 'input_text' && content.text) {
+          userText = content.text;
+        } else if (content.type === 'text' && content.text) {
+          userText = content.text;
+        }
 
-  clientWs.on('message', (data) => {
-    try {
-      const msg = JSON.parse(data.toString());
-      // For economic plan, we need to handle audio differently
-      // Convert audio input to text using cheaper speech-to-text service
-      if (msg.type === 'input_audio_buffer.append' && !isResponding) {
-        // Here we would integrate with a cheaper speech-to-text service
-        // For now, just forward as-is but log that this is where optimization would happen
-        console.log('[ws-economic] audio input received, would convert to text for economic plan');
-      }
+        if (!userText) return;
 
-      // Forward messages to OpenAI (same as regular realtime)
-      if (openaiWs.readyState === WebSocket.OPEN) {
-        openaiWs.send(JSON.stringify(msg));
+        console.log('[ws-economic] received user text:', userText);
+
+        try {
+          // Use OpenAI Chat Completions API (much cheaper than Realtime)
+          const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${OPENAI_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'gpt-3.5-turbo',
+              messages: [
+                {
+                  role: 'system',
+                  content: 'Sen Türkçe konuşan bir dil koçusun. Kullanıcının dil seviyesine göre konuş ve hatalarını nazikçe düzelt.'
+                },
+                {
+                  role: 'user',
+                  content: userText
+                }
+              ],
+              max_tokens: 150,
+              temperature: 0.7
+            })
+          });
+
+          if (response.ok) {
+            const aiResponse = await response.json();
+            const aiText = aiResponse.choices[0]?.message?.content;
+
+            if (aiText && clientWs.readyState === WebSocket.OPEN) {
+              // Send response back to client
+              const responseMsg = {
+                type: 'response.created',
+                response: {
+                  id: crypto.randomUUID(),
+                  object: 'realtime.response',
+                  created_at: Date.now(),
+                  status: 'completed'
+                }
+              };
+
+              clientWs.send(JSON.stringify(responseMsg));
+
+              // Send response back to client
+              setTimeout(() => {
+                const responseMsg = {
+                  type: 'response.output_item.added',
+                  item: {
+                    id: crypto.randomUUID(),
+                    object: 'realtime.item',
+                    type: 'message',
+                    status: 'completed',
+                    role: 'assistant',
+                    content: [{
+                      type: 'text',
+                      text: aiText
+                    }]
+                  }
+                };
+                clientWs.send(JSON.stringify(responseMsg));
+              }, 500);
+            }
+          }
+        } catch (error) {
+          console.error('[ws-economic] OpenAI API error:', error);
+        }
       }
     } catch (e) {
       console.error('[ws-economic] failed to parse client message:', e);
@@ -3130,9 +3164,6 @@ wssEconomic.on('connection', (clientWs, request) => {
 
   clientWs.on('close', (code, reason) => {
     console.log('[ws-economic] client disconnected:', code, reason?.toString());
-    if (openaiWs && openaiWs.readyState === WebSocket.OPEN) {
-      openaiWs.close();
-    }
   });
 
   clientWs.on('error', (error) => {

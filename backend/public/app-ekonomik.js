@@ -1,7 +1,8 @@
 // Economic Plan App - Uses cheaper speech-to-text processing
 // Instead of direct WebRTC audio streaming, this converts speech to text first
 
-import { backendBase } from './config.js';
+// Get backend base URL from config (same pattern as app.js)
+const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : 'https://api.konuskonusabilirsen.com';
 
 let ws = null;
 let wsMicStream = null;

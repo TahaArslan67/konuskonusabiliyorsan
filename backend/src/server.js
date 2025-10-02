@@ -685,10 +685,17 @@ function authRequired(req, res, next){
     const m = /^Bearer\s+(.+)/i.exec(h);
     if (!m) return res.status(401).json({ error: 'missing_token' });
     const token = m[1];
+
+    if (!JWT_SECRET || JWT_SECRET === 'your-super-secret-jwt-key-here-change-this-in-production') {
+      console.error('[AUTH] JWT_SECRET not properly configured');
+      return res.status(500).json({ error: 'server_configuration_error' });
+    }
+
     const payload = jwt.verify(token, JWT_SECRET);
     req.auth = { uid: payload.uid, email: payload.email };
     next();
   } catch (e){
+    console.error('[AUTH] JWT verification error:', e.message);
     return res.status(401).json({ error: 'invalid_token' });
   }
 }
@@ -2811,11 +2818,18 @@ app.post('/session/economic/start', async (req, res) => {
     const h = req.headers['authorization'] || '';
     const m = /^Bearer\s+(.+)/i.exec(h);
     if (m) {
+      if (!JWT_SECRET || JWT_SECRET === 'your-super-secret-jwt-key-here-change-this-in-production') {
+        console.error('[SESSION] JWT_SECRET not properly configured');
+        return res.status(500).json({ error: 'server_configuration_error' });
+      }
       const payload = jwt.verify(m[1], JWT_SECRET);
       uid = String(payload.uid);
       email = payload.email || null;
     }
-  } catch {}
+  } catch (e) {
+    console.error('[SESSION] JWT verification error:', e.message);
+    return res.status(401).json({ error: 'invalid_token' });
+  }
   // Enforce auth for realtime sessions (free demo dahil):
   if (!uid) {
     return res.status(401).json({ error: 'auth_required', message: 'Lütfen giriş yapın ve tekrar deneyin.' });
@@ -2910,11 +2924,18 @@ app.post('/session/start', async (req, res) => {
     const h = req.headers['authorization'] || '';
     const m = /^Bearer\s+(.+)/i.exec(h);
     if (m) {
+      if (!JWT_SECRET || JWT_SECRET === 'your-super-secret-jwt-key-here-change-this-in-production') {
+        console.error('[SESSION] JWT_SECRET not properly configured');
+        return res.status(500).json({ error: 'server_configuration_error' });
+      }
       const payload = jwt.verify(m[1], JWT_SECRET);
       uid = String(payload.uid);
       email = payload.email || null;
     }
-  } catch {}
+  } catch (e) {
+    console.error('[SESSION] JWT verification error:', e.message);
+    return res.status(401).json({ error: 'invalid_token' });
+  }
   // Enforce auth for realtime sessions (free demo dahil):
   if (!uid) {
     return res.status(401).json({ error: 'auth_required', message: 'Lütfen giriş yapın ve tekrar deneyin.' });

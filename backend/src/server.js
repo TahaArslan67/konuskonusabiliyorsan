@@ -599,7 +599,7 @@ app.get(['/realtime', '/realtime/'], (_req, res) => {
 // Redirect legacy .html path to pretty URL
 app.get('/realtime.html', (_req, res) => res.redirect(301, '/realtime'));
 
-// Pretty URL for OCR page
+// Pretty URL for OCR page (now at /ceviri)
 app.get(['/ceviri', '/ceviri/'], (_req, res) => {
   try {
     return res.sendFile(path.join(publicDir, 'ocr.html'));
@@ -607,9 +607,9 @@ app.get(['/ceviri', '/ceviri/'], (_req, res) => {
     return res.status(404).end();
   }
 });
-// Redirect legacy OCR
-app.get(['/ocr', '/ocr/'], (_req, res) => res.redirect(301, '/ceviri'));
 
+// Redirect legacy /ocr to /ceviri
+app.get(['/ocr', '/ocr/'], (_req, res) => res.redirect(301, '/ceviri'));
 // Route-bazlı ek limitler
 // (tanımlar yukarıda yapıldı)
 

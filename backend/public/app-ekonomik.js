@@ -14,6 +14,10 @@ let audioContext = null;
 let processor = null;
 let audioBufferQueue = [];
 let isPlaying = false;
+let reconnectAttempts = 0;
+let maxReconnectAttempts = 5;
+let reconnectDelay = 3000; // Start with 3 seconds
+let lastActivity = Date.now();
 
 // DOM elements
 const btnStartTalk = document.getElementById('btnStartTalk');
@@ -92,6 +96,8 @@ async function startConversation() {
 
   try {
     $('#btnStartTalk').disabled = true;
+    reconnectAttempts = 0; // Reset reconnect attempts for new conversation
+    console.log('[app-ekonomik] Starting new conversation...');
 
     // 1) Get session
     const sessionRes = await fetch(`${backendBase}/session/economic/start`, {
@@ -108,8 +114,10 @@ async function startConversation() {
     }
 
     const { sessionId, wsUrl } = await sessionRes.json();
+    console.log('[app-ekonomik] Got session:', sessionId, 'wsUrl:', wsUrl);
 
     // 2) Connect WebSocket (for economic plan - handles text input/output)
+    console.log('[app-ekonomik] Connecting to WebSocket:', wsUrl);
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
@@ -117,6 +125,7 @@ async function startConversation() {
       console.log('[app-ekonomik] WebSocket readyState:', ws.readyState);
       $('#btnStopTalk').disabled = false;
       $('#btnStartTalk').disabled = true;
+      reconnectAttempts = 0; // Reset reconnect attempts on successful connection
 
       // Wait a moment for connection to stabilize before starting recording
       setTimeout(() => {
@@ -135,6 +144,9 @@ async function startConversation() {
 
     ws.onmessage = (e) => {
       try {
+        // Update activity timestamp on any message received
+        lastActivity = Date.now();
+
         // Handle binary audio data from OpenAI
         if (e.data instanceof Blob || e.data.constructor.name === 'ArrayBuffer') {
           handleAudioData(e.data);
@@ -155,30 +167,49 @@ async function startConversation() {
       console.log('[app-ekonomik] ws wasClean:', e.wasClean);
       console.log('[app-ekonomik] ws readyState at close:', ws.readyState);
 
-      // Handle different close codes
+      // Handle different close codes with more detailed logging
       if (e.code === 1005) {
         console.warn('[app-ekonomik] WebSocket closed without status - possible connection issue');
+        console.warn('[app-ekonomik] This usually indicates network interruption or server-side issue');
       } else if (e.code === 1006) {
         console.warn('[app-ekonomik] WebSocket closed abnormally - network issue');
+        console.warn('[app-ekonomik] Connection lost unexpectedly');
       } else if (e.code === 1008) {
         console.warn('[app-ekonomik] WebSocket closed due to policy violation');
       } else if (e.code === 1011) {
         console.error('[app-ekonomik] WebSocket closed due to server error');
+      } else if (e.code === 1000) {
+        console.log('[app-ekonomik] WebSocket closed normally');
+      } else {
+        console.warn(`[app-ekonomik] WebSocket closed with unknown code: ${e.code}`);
       }
 
       cleanup();
 
       // Auto-reconnect for certain error codes (but not if user manually stopped)
       if (e.code !== 1000 && typeof startConversation === 'function') { // 1000 = normal closure
-        console.log('[app-ekonomik] Attempting auto-reconnect in 5 seconds...');
-        setTimeout(() => {
-          if (!$('#btnStartTalk').disabled) { // Only reconnect if not manually stopped
-            console.log('[app-ekonomik] Auto-reconnecting...');
-            startConversation().catch(err => {
-              console.error('[app-ekonomik] Auto-reconnect failed:', err);
-            });
-          }
-        }, 5000);
+        if (reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++;
+          const delay = Math.min(reconnectDelay * Math.pow(1.5, reconnectAttempts - 1), 30000); // Exponential backoff, max 30s
+          console.log(`[app-ekonomik] Auto-reconnect attempt ${reconnectAttempts}/${maxReconnectAttempts} in ${delay/1000} seconds...`);
+
+          setTimeout(() => {
+            if (!$('#btnStartTalk').disabled) { // Only reconnect if not manually stopped
+              console.log('[app-ekonomik] Auto-reconnecting...');
+              startConversation().catch(err => {
+                console.error('[app-ekonomik] Auto-reconnect failed:', err);
+              });
+            }
+          }, delay);
+        } else {
+          console.error('[app-ekonomik] Max reconnection attempts reached, giving up');
+          $('#btnStartTalk').disabled = false;
+          $('#btnStopTalk').disabled = true;
+          alert('Bağlantı sorunları yaşanıyor. Lütfen sayfayı yeniden yükleyin.');
+        }
+      } else {
+        // Reset reconnect attempts on normal closure
+        reconnectAttempts = 0;
       }
     };
 
@@ -417,6 +448,7 @@ function cleanup() {
   $('#btnReplay').disabled = true;
 
   ws = null;
+  // Note: Don't reset reconnectAttempts here as it should persist across cleanup calls
 }
 
 // Helper function

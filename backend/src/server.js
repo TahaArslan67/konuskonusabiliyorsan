@@ -3110,7 +3110,7 @@ wssEconomic.on('connection', (clientWs, request) => {
   // Only connect to OpenAI Realtime API if API key is available
   if (OPENAI_API_KEY && OPENAI_API_KEY.length >= 20) {
     try {
-      const openaiWsUrl = `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01`;
+      const openaiWsUrl = `wss://api.openai.com/v1/realtime?model=gpt-realtime`;
       openaiWs = new WebSocket(openaiWsUrl, {
         headers: {
           'Authorization': `Bearer ${OPENAI_API_KEY}`,
@@ -3141,6 +3141,17 @@ wssEconomic.on('connection', (clientWs, request) => {
     console.log('[ws-economic] connection timeout - closing connection');
     clientWs.close(1000, 'connection timeout');
   }, 600000); // 10 minutes timeout for economic plan
+
+  // Add connection health monitoring
+  let lastActivity = Date.now();
+  const healthCheckInterval = setInterval(() => {
+    const now = Date.now();
+    const timeSinceLastActivity = now - lastActivity;
+
+    if (timeSinceLastActivity > 60000) { // 1 minute of inactivity
+      console.log('[ws-economic] Health check: no activity for', timeSinceLastActivity, 'ms');
+    }
+  }, 30000); // Check every 30 seconds
 
   // Set up OpenAI Realtime API event handlers (only if WebSocket exists)
   if (openaiWs) {
@@ -3239,28 +3250,35 @@ wssEconomic.on('connection', (clientWs, request) => {
       console.error('[ws-economic] OpenAI WebSocket URL:', openaiWsUrl);
     };
 
-    openaiWs.onclose = (code, reason) => {
-      console.log(`[ws-economic] OpenAI connection closed: ${code} ${reason}`);
-      console.log(`[ws-economic] OpenAI readyState at close: ${openaiWs.readyState}`);
+  openaiWs.onclose = (code, reason) => {
+    console.log(`[ws-economic] OpenAI connection closed: ${code} ${reason}`);
+    console.log(`[ws-economic] OpenAI readyState at close: ${openaiWs.readyState}`);
 
-      // If OpenAI connection fails, switch to text-only mode instead of closing client connection
-      if (code !== 1000 && clientWs.readyState === WebSocket.OPEN) {
-        console.log('[ws-economic] OpenAI connection failed, switching to text-only mode');
-        // Send a message to client indicating text-only mode
-        try {
-          clientWs.send(JSON.stringify({
-            type: 'system_message',
-            message: 'Voice mode unavailable, using text-only mode'
-          }));
-        } catch (e) {
-          console.error('[ws-economic] Failed to send text-only mode message:', e);
-        }
+    // If OpenAI connection fails with abnormal codes, switch to text-only mode
+    // Don't close client connection - keep it alive for text-based communication
+    if (code !== 1000 && clientWs.readyState === WebSocket.OPEN) {
+      console.log('[ws-economic] OpenAI connection failed, switching to text-only mode');
+      console.log('[ws-economic] Client connection remains active for text-based communication');
+
+      // Send a message to client indicating text-only mode
+      try {
+        clientWs.send(JSON.stringify({
+          type: 'system_message',
+          message: 'Voice mode unavailable, using text-only mode'
+        }));
+        console.log('[ws-economic] Sent text-only mode notification to client');
+      } catch (e) {
+        console.error('[ws-economic] Failed to send text-only mode message:', e);
       }
-    };
+    }
+  };
   }
 
   clientWs.on('message', async (data) => {
     try {
+      // Update last activity timestamp
+      lastActivity = Date.now();
+
       // Handle binary audio data from client
       if (data instanceof Buffer) {
         console.log('[ws-economic] received audio data:', data.length, 'bytes');
@@ -3468,6 +3486,10 @@ wssEconomic.on('connection', (clientWs, request) => {
     if (connectionTimeout) {
       clearTimeout(connectionTimeout);
       console.log('[ws-economic] Connection timeout cleared');
+    }
+    if (healthCheckInterval) {
+      clearInterval(healthCheckInterval);
+      console.log('[ws-economic] Health check interval cleared');
     }
 
     console.log('[ws-economic] Cleanup completed');

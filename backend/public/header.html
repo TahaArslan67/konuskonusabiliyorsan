@@ -9,7 +9,13 @@
   <nav class="nav">
     <a id="navFeatures" href="/#features">Özellikler</a>
     <a id="navDaily" href="/daily.html">Günlük Görev</a>
-    <a id="navOcr" href="/ocr">Belgeden Çeviri</a>
+    <div class="dropdown">
+      <a id="navTranslate" href="/ocr">Çeviri</a>
+      <div class="dropdown-menu">
+        <a id="navOcr" href="/ocr">Belgeden Çeviri</a>
+        <a id="navImgOcr" href="#" class="disabled" aria-disabled="true" title="Yakında">Resimden Çeviri (yakında)</a>
+      </div>
+    </div>
     <a id="navPricing" href="/#pricing">Fiyatlandırma</a>
     <button class="btn btn-text" id="btnAccount" type="button" style="display:none;">Hesabım <span id="verifyDot" class="dot" style="display:none;"></span></button>
     <button class="btn btn-secondary" id="btnLogin" type="button">Giriş Yap</button>
@@ -25,6 +31,7 @@
     <a id="mmFeatures" href="/#features" class="btn btn-text" data-mm-close>Özellikler</a>
     <a id="mmDaily" href="/daily.html" class="btn btn-text" data-mm-close>Günlük Görev</a>
     <a id="mmOcr" href="/ocr" class="btn btn-text" data-mm-close>Belgeden Çeviri</a>
+    <a id="mmImgOcr" href="#" class="btn btn-text" data-mm-close aria-disabled="true" style="opacity:.6; pointer-events:none;">Resimden Çeviri (yakında)</a>
     <a id="mmPricing" href="/#pricing" class="btn btn-text" data-mm-close>Fiyatlandırma</a>
     <div class="row" style="gap:8px;">
       <button class="btn btn-secondary" id="mmLogin" type="button" style="flex:1;">Giriş Yap</button>
@@ -35,3 +42,4 @@
 </div>
 
 
+ 

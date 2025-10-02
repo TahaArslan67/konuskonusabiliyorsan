@@ -381,12 +381,21 @@ function handleMessage(msg) {
 
     case 'system_message':
       console.log('[app-ekonomik] System message:', msg.message);
+
       // Handle system messages (like switching to text-only mode)
       if (msg.message && msg.message.includes('text-only')) {
         console.log('[app-ekonomik] Switching to text-only mode');
+
         // Update UI to indicate text-only mode
         if (statusConnEl) {
           statusConnEl.textContent = 'Bağlantı: Metin Modu';
+        }
+
+        // Show user notification
+        if (msg.message.includes('API key not configured')) {
+          console.warn('[app-ekonomik] OpenAI API key not configured - voice features disabled');
+        } else {
+          console.info('[app-ekonomik] Voice mode unavailable, using text-only mode');
         }
       }
       break;

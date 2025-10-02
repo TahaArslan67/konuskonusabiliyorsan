@@ -3077,6 +3077,7 @@ wssEconomic.on('connection', (clientWs, request) => {
   // Check OpenAI API key
   console.log('[ws-economic] OPENAI_API_KEY exists:', !!OPENAI_API_KEY);
   console.log('[ws-economic] OPENAI_API_KEY length:', OPENAI_API_KEY ? OPENAI_API_KEY.length : 0);
+  console.log('[ws-economic] OPENAI_API_KEY prefix:', OPENAI_API_KEY ? OPENAI_API_KEY.substring(0, 20) + '...' : 'NOT SET');
 
   if (!OPENAI_API_KEY || OPENAI_API_KEY.length < 20) {
     console.error('[ws-economic] OpenAI API key is not properly configured');
@@ -3088,9 +3089,12 @@ wssEconomic.on('connection', (clientWs, request) => {
         type: 'system_message',
         message: 'OpenAI API key not configured, running in text-only mode. Please set OPENAI_API_KEY in .env file for voice features.'
       }));
+      console.log('[ws-economic] Sent API key warning to client');
     } catch (e) {
       console.error('[ws-economic] Failed to send API key warning:', e);
     }
+  } else {
+    console.log('[ws-economic] OpenAI API key appears valid, proceeding with voice mode');
   }
 
   // Check if session is too old (30 minutes timeout)
@@ -3106,11 +3110,12 @@ wssEconomic.on('connection', (clientWs, request) => {
   console.log('[ws-economic] session is valid, continuing...');
 
   let openaiWs = null;
+  let openaiWsUrl = null;
 
   // Only connect to OpenAI Realtime API if API key is available
   if (OPENAI_API_KEY && OPENAI_API_KEY.length >= 20) {
     try {
-      const openaiWsUrl = `wss://api.openai.com/v1/realtime?model=gpt-realtime`;
+      openaiWsUrl = `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01`;
       openaiWs = new WebSocket(openaiWsUrl, {
         headers: {
           'Authorization': `Bearer ${OPENAI_API_KEY}`,
@@ -3121,6 +3126,7 @@ wssEconomic.on('connection', (clientWs, request) => {
     } catch (error) {
       console.error('[ws-economic] Failed to create OpenAI WebSocket:', error);
       openaiWs = null;
+      openaiWsUrl = null;
     }
   } else {
     console.log('[ws-economic] Skipping OpenAI connection - API key not available');
@@ -3247,7 +3253,9 @@ wssEconomic.on('connection', (clientWs, request) => {
     openaiWs.onerror = (error) => {
       console.error('[ws-economic] OpenAI WebSocket error:', error);
       console.error('[ws-economic] OpenAI WebSocket readyState:', openaiWs.readyState);
-      console.error('[ws-economic] OpenAI WebSocket URL:', openaiWsUrl);
+      console.error('[ws-economic] OpenAI WebSocket URL:', openaiWsUrl || 'URL not set');
+
+      // Don't cleanup here - let onclose handle it
     };
 
   openaiWs.onclose = (code, reason) => {
@@ -3271,6 +3279,8 @@ wssEconomic.on('connection', (clientWs, request) => {
         console.error('[ws-economic] Failed to send text-only mode message:', e);
       }
     }
+
+    // Note: Don't call cleanup() here as it might interfere with client connection
   };
   }
 
@@ -3282,10 +3292,16 @@ wssEconomic.on('connection', (clientWs, request) => {
       // Handle binary audio data from client
       if (data instanceof Buffer) {
         console.log('[ws-economic] received audio data:', data.length, 'bytes');
+
         if (openaiWs && openaiWs.readyState === WebSocket.OPEN) {
-          openaiWs.send(data, { binary: true });
+          try {
+            openaiWs.send(data, { binary: true });
+            console.log('[ws-economic] Forwarded audio data to OpenAI');
+          } catch (error) {
+            console.error('[ws-economic] Failed to send audio data to OpenAI:', error.message);
+          }
         } else {
-          console.log('[ws-economic] OpenAI WebSocket not available, ignoring audio data');
+          console.log('[ws-economic] OpenAI WebSocket not available (state:', openaiWs ? openaiWs.readyState : 'null', '), ignoring audio data');
         }
         return;
       }

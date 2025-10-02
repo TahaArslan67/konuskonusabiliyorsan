@@ -21,10 +21,10 @@ const { Schema, model } = mongoose;
     resetToken: { type: String, default: null },
     resetExpires: { type: Date, default: null },
         // Plan ve kullanım bilgileri
-      plan: { 
-        type: String, 
-        enum: ['free', 'starter', 'pro'], 
-        default: 'free' 
+      plan: {
+        type: String,
+        enum: ['free', 'economic', 'starter', 'pro'],
+        default: 'free'
       },
       planUpdatedAt: { type: Date, default: null },
       usage: {
@@ -60,7 +60,7 @@ const paymentSchema = new Schema(
     provider: { type: String, default: 'paytr', index: true },
     merchant_oid: { type: String, required: true, unique: true, index: true },
     uid: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    plan: { type: String, enum: ['free', 'starter', 'pro'], required: true },
+    plan: { type: String, enum: ['free', 'economic', 'starter', 'pro'], required: true },
     status: { type: String, enum: ['pending', 'success', 'failed'], default: 'pending', index: true },
     total_amount: { type: Number, default: null },
     currency: { type: String, default: 'TL' },

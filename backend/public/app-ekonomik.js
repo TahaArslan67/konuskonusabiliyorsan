@@ -170,7 +170,7 @@ async function startConversation() {
 
       // Auto-reconnect for certain error codes (but not if user manually stopped)
       if (e.code !== 1000 && typeof startConversation === 'function') { // 1000 = normal closure
-        console.log('[app-ekonomik] Attempting auto-reconnect in 3 seconds...');
+        console.log('[app-ekonomik] Attempting auto-reconnect in 5 seconds...');
         setTimeout(() => {
           if (!$('#btnStartTalk').disabled) { // Only reconnect if not manually stopped
             console.log('[app-ekonomik] Auto-reconnecting...');
@@ -178,7 +178,7 @@ async function startConversation() {
               console.error('[app-ekonomik] Auto-reconnect failed:', err);
             });
           }
-        }, 3000);
+        }, 5000);
       }
     };
 
@@ -346,6 +346,18 @@ function handleMessage(msg) {
     case 'limit_reached':
       alert('Günlük kullanım limitiniz doldu!');
       stopConversation();
+      break;
+
+    case 'system_message':
+      console.log('[app-ekonomik] System message:', msg.message);
+      // Handle system messages (like switching to text-only mode)
+      if (msg.message && msg.message.includes('text-only')) {
+        console.log('[app-ekonomik] Switching to text-only mode');
+        // Update UI to indicate text-only mode
+        if (statusConnEl) {
+          statusConnEl.textContent = 'Bağlantı: Metin Modu';
+        }
+      }
       break;
 
     default:

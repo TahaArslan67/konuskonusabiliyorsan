@@ -3078,6 +3078,21 @@ wssEconomic.on('connection', (clientWs, request) => {
   console.log('[ws-economic] OPENAI_API_KEY exists:', !!OPENAI_API_KEY);
   console.log('[ws-economic] OPENAI_API_KEY length:', OPENAI_API_KEY ? OPENAI_API_KEY.length : 0);
 
+  if (!OPENAI_API_KEY || OPENAI_API_KEY.length < 20) {
+    console.error('[ws-economic] OpenAI API key is not properly configured');
+    console.log('[ws-economic] Running in text-only mode without OpenAI Realtime API');
+
+    // Send a message to client indicating text-only mode
+    try {
+      clientWs.send(JSON.stringify({
+        type: 'system_message',
+        message: 'OpenAI API key not configured, running in text-only mode. Please set OPENAI_API_KEY in .env file for voice features.'
+      }));
+    } catch (e) {
+      console.error('[ws-economic] Failed to send API key warning:', e);
+    }
+  }
+
   // Check if session is too old (30 minutes timeout)
   const sessionAge = Date.now() - sess.createdAt;
   const maxSessionAge = 30 * 60 * 1000; // 30 minutes
@@ -3090,21 +3105,33 @@ wssEconomic.on('connection', (clientWs, request) => {
 
   console.log('[ws-economic] session is valid, continuing...');
 
-  // Connect to OpenAI Realtime API for voice conversation
-  const openaiWsUrl = `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01`;
-  const openaiWs = new WebSocket(openaiWsUrl, [], {
-    headers: {
-      'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      'OpenAI-Beta': 'realtime=v1'
+  let openaiWs = null;
+
+  // Only connect to OpenAI Realtime API if API key is available
+  if (OPENAI_API_KEY && OPENAI_API_KEY.length >= 20) {
+    try {
+      const openaiWsUrl = `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01`;
+      openaiWs = new WebSocket(openaiWsUrl, {
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'OpenAI-Beta': 'realtime=v1'
+        }
+      });
+      console.log('[ws-economic] Attempting to connect to OpenAI Realtime API...');
+    } catch (error) {
+      console.error('[ws-economic] Failed to create OpenAI WebSocket:', error);
+      openaiWs = null;
     }
-  });
+  } else {
+    console.log('[ws-economic] Skipping OpenAI connection - API key not available');
+  }
 
   // Keep connections alive with periodic ping
   const pingInterval = setInterval(() => {
     if (clientWs.readyState === WebSocket.OPEN) {
       clientWs.ping();
     }
-    if (openaiWs.readyState === WebSocket.OPEN) {
+    if (openaiWs && openaiWs.readyState === WebSocket.OPEN) {
       openaiWs.ping();
     }
   }, 30000); // Ping every 30 seconds
@@ -3115,110 +3142,132 @@ wssEconomic.on('connection', (clientWs, request) => {
     clientWs.close(1000, 'connection timeout');
   }, 600000); // 10 minutes timeout for economic plan
 
-  // Set up OpenAI Realtime API event handlers
-  openaiWs.onopen = () => {
-    console.log('[ws-economic] Connected to OpenAI Realtime API');
+  // Set up OpenAI Realtime API event handlers (only if WebSocket exists)
+  if (openaiWs) {
+    openaiWs.onopen = () => {
+      console.log('[ws-economic] Connected to OpenAI Realtime API');
 
-    // Configure session for Turkish language tutor
-    const sessionConfig = {
-      type: 'session.update',
-      session: {
-        modalities: ['text', 'audio'],
-        instructions: `Sen Türkçe konuşan bir dil koçusun. Kullanıcının dil seviyesi ${sess.userLevel || 'B1'}. Bu seviyeye göre konuş ve hatalarını nazikçe düzelt. Kısa ve net yanıtlar ver. Türkçe konuş.`,
-        voice: 'alloy',
-        input_audio_format: 'pcm16',
-        output_audio_format: 'pcm16',
-        input_audio_transcription: {
-          model: 'whisper-1'
-        },
-        turn_detection: {
-          type: 'server_vad',
-          threshold: 0.5,
-          prefix_padding_ms: 300,
-          silence_duration_ms: 800
-        },
-        tools: [],
-        tool_choice: 'none',
-        temperature: 0.8,
-        max_response_output_tokens: 250
+      // Configure session for Turkish language tutor
+      const sessionConfig = {
+        type: 'session.update',
+        session: {
+          modalities: ['text', 'audio'],
+          instructions: `Sen Türkçe konuşan bir dil koçusun. Kullanıcının dil seviyesi ${sess.userLevel || 'B1'}. Bu seviyeye göre konuş ve hatalarını nazikçe düzelt. Kısa ve net yanıtlar ver. Türkçe konuş.`,
+          voice: 'alloy',
+          input_audio_format: 'pcm16',
+          output_audio_format: 'pcm16',
+          input_audio_transcription: {
+            model: 'whisper-1'
+          },
+          turn_detection: {
+            type: 'server_vad',
+            threshold: 0.5,
+            prefix_padding_ms: 300,
+            silence_duration_ms: 800
+          },
+          tools: [],
+          tool_choice: 'none',
+          temperature: 0.8,
+          max_response_output_tokens: 250
+        }
+      };
+
+      openaiWs.send(JSON.stringify(sessionConfig));
+      console.log('[ws-economic] Sent session configuration to OpenAI');
+    };
+  }
+
+  // Set up OpenAI Realtime API event handlers (only if WebSocket exists)
+  if (openaiWs) {
+    openaiWs.onmessage = (message) => {
+      try {
+        const msg = JSON.parse(message.data);
+
+        switch (msg.type) {
+          case 'session.created':
+            console.log('[ws-economic] OpenAI session created');
+            break;
+
+          case 'input_audio_buffer.speech_started':
+            console.log('[ws-economic] User started speaking');
+            break;
+
+          case 'input_audio_buffer.speech_stopped':
+            console.log('[ws-economic] User stopped speaking');
+            break;
+
+          case 'input_audio_buffer.committed':
+            console.log('[ws-economic] Audio buffer committed');
+            break;
+
+          case 'response.created':
+            console.log('[ws-economic] Response created');
+            break;
+
+          case 'response.output_item.added':
+            console.log('[ws-economic] Output item added');
+            break;
+
+          case 'response.output_item.done':
+            console.log('[ws-economic] Output item done');
+            break;
+
+          case 'response.done':
+            console.log('[ws-economic] Response completed');
+            break;
+
+          case 'error':
+            console.error('[ws-economic] OpenAI error:', msg.error);
+            break;
+
+          default:
+            // Forward audio data and other events to client
+            if (msg.type.includes('audio')) {
+              clientWs.send(message.data, { binary: true });
+            } else {
+              clientWs.send(message.data);
+            }
+        }
+      } catch (e) {
+        console.error('[ws-economic] Error processing OpenAI message:', e);
       }
     };
 
-    if (openaiWs.readyState === WebSocket.OPEN) {
-      openaiWs.send(JSON.stringify(sessionConfig));
-      console.log('[ws-economic] Sent session configuration to OpenAI');
-    }
-  };
+    openaiWs.onerror = (error) => {
+      console.error('[ws-economic] OpenAI WebSocket error:', error);
+      console.error('[ws-economic] OpenAI WebSocket readyState:', openaiWs.readyState);
+      console.error('[ws-economic] OpenAI WebSocket URL:', openaiWsUrl);
+    };
 
-  openaiWs.onmessage = (message) => {
-    try {
-      const msg = JSON.parse(message.data);
+    openaiWs.onclose = (code, reason) => {
+      console.log(`[ws-economic] OpenAI connection closed: ${code} ${reason}`);
+      console.log(`[ws-economic] OpenAI readyState at close: ${openaiWs.readyState}`);
 
-      switch (msg.type) {
-        case 'session.created':
-          console.log('[ws-economic] OpenAI session created');
-          break;
-
-        case 'input_audio_buffer.speech_started':
-          console.log('[ws-economic] User started speaking');
-          break;
-
-        case 'input_audio_buffer.speech_stopped':
-          console.log('[ws-economic] User stopped speaking');
-          break;
-
-        case 'input_audio_buffer.committed':
-          console.log('[ws-economic] Audio buffer committed');
-          break;
-
-        case 'response.created':
-          console.log('[ws-economic] Response created');
-          break;
-
-        case 'response.output_item.added':
-          console.log('[ws-economic] Output item added');
-          break;
-
-        case 'response.output_item.done':
-          console.log('[ws-economic] Output item done');
-          break;
-
-        case 'response.done':
-          console.log('[ws-economic] Response completed');
-          break;
-
-        case 'error':
-          console.error('[ws-economic] OpenAI error:', msg.error);
-          break;
-
-        default:
-          // Forward audio data and other events to client
-          if (msg.type.includes('audio')) {
-            clientWs.send(message.data, { binary: true });
-          } else {
-            clientWs.send(message.data);
-          }
+      // If OpenAI connection fails, switch to text-only mode instead of closing client connection
+      if (code !== 1000 && clientWs.readyState === WebSocket.OPEN) {
+        console.log('[ws-economic] OpenAI connection failed, switching to text-only mode');
+        // Send a message to client indicating text-only mode
+        try {
+          clientWs.send(JSON.stringify({
+            type: 'system_message',
+            message: 'Voice mode unavailable, using text-only mode'
+          }));
+        } catch (e) {
+          console.error('[ws-economic] Failed to send text-only mode message:', e);
+        }
       }
-    } catch (e) {
-      console.error('[ws-economic] Error processing OpenAI message:', e);
-    }
-  };
-
-  openaiWs.onerror = (error) => {
-    console.error('[ws-economic] OpenAI WebSocket error:', error);
-  };
-
-  openaiWs.onclose = (code, reason) => {
-    console.log(`[ws-economic] OpenAI connection closed: ${code} ${reason}`);
-  };
+    };
+  }
 
   clientWs.on('message', async (data) => {
     try {
       // Handle binary audio data from client
       if (data instanceof Buffer) {
         console.log('[ws-economic] received audio data:', data.length, 'bytes');
-        if (openaiWs.readyState === WebSocket.OPEN) {
+        if (openaiWs && openaiWs.readyState === WebSocket.OPEN) {
           openaiWs.send(data, { binary: true });
+        } else {
+          console.log('[ws-economic] OpenAI WebSocket not available, ignoring audio data');
         }
         return;
       }
@@ -3242,8 +3291,8 @@ wssEconomic.on('connection', (clientWs, request) => {
 
       // Handle conversation control messages
       if (msg.type === 'conversation.item.create' && msg.item?.content?.[0]) {
-        // Send audio input commitment to OpenAI
-        if (openaiWs.readyState === WebSocket.OPEN) {
+        // Send audio input commitment to OpenAI (if available)
+        if (openaiWs && openaiWs.readyState === WebSocket.OPEN) {
           const commitMsg = {
             type: 'input_audio_buffer.commit'
           };
@@ -3389,15 +3438,39 @@ wssEconomic.on('connection', (clientWs, request) => {
 
   // Cleanup function for both connections
   const cleanup = () => {
-    if (openaiWs.readyState === WebSocket.OPEN || openaiWs.readyState === WebSocket.CONNECTING) {
-      openaiWs.close();
+    console.log('[ws-economic] Starting cleanup...');
+
+    // Close OpenAI WebSocket if it exists and is connected or connecting
+    if (openaiWs && (openaiWs.readyState === WebSocket.OPEN || openaiWs.readyState === WebSocket.CONNECTING)) {
+      try {
+        openaiWs.close(1000, 'Server cleanup');
+        console.log('[ws-economic] OpenAI WebSocket closed');
+      } catch (e) {
+        console.log('[ws-economic] Error closing OpenAI WebSocket:', e.message);
+      }
     }
-    if (clientWs.readyState === WebSocket.OPEN || clientWs.readyState === WebSocket.CONNECTING) {
-      clientWs.close();
+
+    // Close client WebSocket if it's connected or connecting
+    if (clientWs && (clientWs.readyState === WebSocket.OPEN || clientWs.readyState === WebSocket.CONNECTING)) {
+      try {
+        clientWs.close(1000, 'Server cleanup');
+        console.log('[ws-economic] Client WebSocket closed');
+      } catch (e) {
+        console.log('[ws-economic] Error closing client WebSocket:', e.message);
+      }
     }
-    if (pingInterval) { clearInterval(pingInterval); }
-    if (connectionTimeout) { clearTimeout(connectionTimeout); }
-    console.log('[ws-economic] Connections closed.');
+
+    // Clear timers
+    if (pingInterval) {
+      clearInterval(pingInterval);
+      console.log('[ws-economic] Ping interval cleared');
+    }
+    if (connectionTimeout) {
+      clearTimeout(connectionTimeout);
+      console.log('[ws-economic] Connection timeout cleared');
+    }
+
+    console.log('[ws-economic] Cleanup completed');
   };
 
   clientWs.on('close', (code, reason) => {

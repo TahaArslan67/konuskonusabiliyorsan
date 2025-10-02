@@ -3081,11 +3081,14 @@ wssEconomic.on('connection', (clientWs, request) => {
   // Check if session is too old (30 minutes timeout)
   const sessionAge = Date.now() - sess.createdAt;
   const maxSessionAge = 30 * 60 * 1000; // 30 minutes
+  console.log('[ws-economic] session age:', sessionAge, 'ms, max allowed:', maxSessionAge, 'ms');
   if (sessionAge > maxSessionAge) {
     console.log('[ws-economic] session expired, age:', sessionAge, 'max:', maxSessionAge);
     clientWs.close(1008, 'session expired');
     return;
   }
+
+  console.log('[ws-economic] session is valid, continuing...');
 
   // Keep connection alive with periodic ping
   const pingInterval = setInterval(() => {
@@ -3231,6 +3234,12 @@ wssEconomic.on('connection', (clientWs, request) => {
   clientWs.on('close', (code, reason) => {
     console.log('[ws-economic] client disconnected:', code, reason?.toString());
     console.log('[ws-economic] client WebSocket wasClean:', clientWs.readyState);
+    console.log('[ws-economic] close event details:', {
+      code,
+      reason: reason?.toString(),
+      wasClean: clientWs.readyState === WebSocket.CLOSED,
+      readyState: clientWs.readyState
+    });
     clearInterval(pingInterval);
   });
 

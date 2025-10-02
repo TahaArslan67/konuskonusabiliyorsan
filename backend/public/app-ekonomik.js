@@ -215,6 +215,9 @@ async function processAudioForSpeechToText() {
     const transcribedText = await simulateSpeechToText(audioBlob);
 
     if (transcribedText && ws && ws.readyState === WebSocket.OPEN) {
+      console.log('[app-ekonomik] WebSocket state:', ws.readyState);
+      console.log('[app-ekonomik] Sending message:', transcribedText);
+
       // Send transcribed text to server
       const message = {
         type: 'conversation.item.create',
@@ -228,7 +231,10 @@ async function processAudioForSpeechToText() {
         }
       };
 
-      ws.send(JSON.stringify(message));
+      const messageStr = JSON.stringify(message);
+      console.log('[app-ekonomik] Message JSON:', messageStr);
+
+      ws.send(messageStr);
       console.log('[app-ekonomik] Sent transcribed text:', transcribedText);
     }
 
@@ -240,25 +246,15 @@ async function processAudioForSpeechToText() {
   }
 }
 
-// Simulate speech-to-text (replace with real API call)
+// For demo purposes, we'll use a text input instead of speech-to-text
+// In production, you would integrate with a real speech-to-text API
 async function simulateSpeechToText(audioBlob) {
-  // In real implementation, you would:
-  // 1. Send audioBlob to speech-to-text API (e.g., OpenAI Whisper)
-  // 2. Return the transcribed text
-
-  // For demo, return some sample text after delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
-
-  // Simulate different responses based on recording length
-  const responses = [
-    "Merhaba, nasılsınız?",
-    "Bugün hava çok güzel.",
-    "Türkçe öğrenmek istiyorum.",
-    "Lütfen beni düzeltin.",
-    "Teşekkür ederim."
-  ];
-
-  return responses[Math.floor(Math.random() * responses.length)];
+  // Show text input for demo
+  const text = prompt('Demo mode: Lütfen söylemek istediğiniz metni yazın:');
+  if (text && text.trim()) {
+    return text.trim();
+  }
+  return null;
 }
 
 function handleMessage(msg) {

@@ -102,11 +102,16 @@ async function startConversation() {
 
     ws.onopen = () => {
       console.log('[app-ekonomik] WebSocket connected');
+      console.log('[app-ekonomik] WebSocket readyState:', ws.readyState);
       $('#btnStopTalk').disabled = false;
       $('#btnStartTalk').disabled = true;
 
       // Start microphone recording for speech-to-text
-      startMicrophoneRecording();
+      console.log('[app-ekonomik] Starting microphone recording...');
+      startMicrophoneRecording().catch(error => {
+        console.error('[app-ekonomik] Microphone error:', error);
+        alert('Mikrofon erişimi başarısız: ' + error.message);
+      });
     };
 
     ws.onmessage = (e) => {
@@ -159,6 +164,7 @@ async function stopConversation() {
 
 async function startMicrophoneRecording() {
   try {
+    console.log('[app-ekonomik] Requesting microphone access...');
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
@@ -167,27 +173,39 @@ async function startMicrophoneRecording() {
       }
     });
 
+    console.log('[app-ekonomik] Microphone access granted');
     wsMicStream = stream;
 
     // Use MediaRecorder for audio chunks
+    console.log('[app-ekonomik] Creating MediaRecorder...');
     mediaRecorder = new MediaRecorder(stream, {
       mimeType: 'audio/webm;codecs=opus'
     });
 
+    console.log('[app-ekonomik] MediaRecorder created, state:', mediaRecorder.state);
+
     mediaRecorder.ondataavailable = (event) => {
+      console.log('[app-ekonomik] Audio chunk received, size:', event.data.size);
       if (event.data.size > 0) {
         audioChunks.push(event.data);
       }
     };
 
     mediaRecorder.onstop = () => {
+      console.log('[app-ekonomik] MediaRecorder stopped, processing audio...');
       // Process audio chunk for speech-to-text
       processAudioForSpeechToText();
     };
 
+    mediaRecorder.onerror = (error) => {
+      console.error('[app-ekonomik] MediaRecorder error:', error);
+    };
+
     // Record in 1 second chunks
+    console.log('[app-ekonomik] Starting MediaRecorder...');
     mediaRecorder.start(1000);
     isRecording = true;
+    console.log('[app-ekonomik] Recording started');
 
   } catch (e) {
     console.error('[app-ekonomik] microphone error:', e);

@@ -280,7 +280,11 @@ async function processAudioForSpeechToText() {
 
     // Simulate speech-to-text processing
     // In real implementation, send to speech-to-text API
+    console.log('[app-ekonomik] Calling simulateSpeechToText...');
     const transcribedText = await simulateSpeechToText(audioBlob);
+    console.log('[app-ekonomik] simulateSpeechToText returned:', transcribedText);
+    console.log('[app-ekonomik] ws exists:', !!ws);
+    console.log('[app-ekonomik] ws readyState:', ws ? ws.readyState : 'ws is null');
 
     if (transcribedText && ws && ws.readyState === WebSocket.OPEN) {
       console.log('[app-ekonomik] WebSocket state:', ws.readyState);
@@ -317,12 +321,25 @@ async function processAudioForSpeechToText() {
 // For demo purposes, we'll use a text input instead of speech-to-text
 // In production, you would integrate with a real speech-to-text API
 async function simulateSpeechToText(audioBlob) {
-  // Show text input for demo
-  const text = prompt('Demo mode: Lütfen söylemek istediğiniz metni yazın:');
-  if (text && text.trim()) {
-    return text.trim();
+  console.log('[app-ekonomik] simulateSpeechToText called with blob size:', audioBlob.size);
+
+  try {
+    // Show text input for demo
+    const text = prompt('Demo mode: Lütfen söylemek istediğiniz metni yazın (örneğin: Merhaba):');
+    console.log('[app-ekonomik] User input from prompt:', text);
+
+    if (text && text.trim()) {
+      const trimmedText = text.trim();
+      console.log('[app-ekonomik] Returning trimmed text:', trimmedText);
+      return trimmedText;
+    } else {
+      console.log('[app-ekonomik] No valid text input, returning null');
+      return null;
+    }
+  } catch (error) {
+    console.error('[app-ekonomik] Error in simulateSpeechToText:', error);
+    return null;
   }
-  return null;
 }
 
 function handleMessage(msg) {

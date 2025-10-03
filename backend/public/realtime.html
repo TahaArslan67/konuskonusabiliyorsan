@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>KonusKonusabilirsen – Canlı Sesli Koç</title>
+  <script src="/config.js"></script>
   <script>
     try {
       const token = localStorage.getItem('hk_token');
@@ -14,7 +15,9 @@
       // If logged in, enforce placement test completion
       (async () => {
         try{
-          const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : api.konuskonusabilirsen.com;
+          // Wait a bit for config.js to load if needed
+          await new Promise(resolve => setTimeout(resolve, 10));
+          const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : window.location.origin;
           console.log('[realtime] /me çağrısı başlatılıyor...');
           const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }});
           console.log('[realtime] /me yanıtı:', r.status, r.ok);
@@ -40,7 +43,7 @@
         }
       })();
       // Update the URL to show /konus but PRESERVE query/hash (scenario, langs)
-      try { 
+      try {
         if (window.location.pathname !== '/konus') {
           const search = window.location.search || '';
           const hash = window.location.hash || '';
@@ -215,7 +218,6 @@
 
   <script src="/footer.js"></script>
 
-  <script src="/config.js"></script>
   <script>
     try{ if ('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{}); } }catch{}
   </script>

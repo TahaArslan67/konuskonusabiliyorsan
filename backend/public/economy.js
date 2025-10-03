@@ -519,19 +519,22 @@ async function startCapture(){
         } else {
           vadSilenceMs += ms;
           if (vadSilenceMs >= 300) {
-            if (bytesSinceStart >= 4800) { try { ws.send(JSON.stringify({ type: 'audio_stop' })); } catch {} }
+            try { ws.send(JSON.stringify({ type: 'audio_stop' })); } catch {}
             micStreaming = false; setRec(false); vadSilenceMs = 0; bytesSinceStart = 0; turnElapsedMs = 0;
           }
         }
 
         // Force-stop fallback: if user keeps streaming (noise) and silence never triggers
         if (turnElapsedMs >= MAX_TURN_MS) {
-          if (bytesSinceStart >= 4800) { try { ws.send(JSON.stringify({ type: 'audio_stop' })); } catch {} }
+          try { ws.send(JSON.stringify({ type: 'audio_stop' })); } catch {}
           micStreaming = false; setRec(false); vadSilenceMs = 0; bytesSinceStart = 0; turnElapsedMs = 0;
         }
       }
     }catch{}
   };
+  // Başlar başlamaz input turunu aç (kullanıcıyı bekletme)
+  try { ws.send(JSON.stringify({ type: 'audio_start', format: 'pcm16', sampleRate: 24000, channels: 1 })); } catch {}
+  micStreaming = true; bytesSinceStart = 0; vadSilenceMs = 0; turnElapsedMs = 0; setRec(true);
   micSource.connect(micProcessor);
   micProcessor.connect(audioCtx.destination);
   micCapturing = true; updateMainButton();

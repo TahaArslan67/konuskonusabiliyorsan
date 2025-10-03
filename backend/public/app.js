@@ -854,7 +854,7 @@ async function wsConnect(){
       if (d) d.textContent = `Günlük: ${(usageData.dailyUsed||0).toFixed(1)}/${dailyLimit} dk`;
       if (m) m.textContent = `Aylık: ${(usageData.monthlyUsed||0).toFixed(1)}/${monthlyLimit} dk`;
     }
-    const url = wsUrl.startsWith('ws') ? wsUrl : `${backendBase.replace('http','ws')}${wsUrl}`;
+    const url = wsUrl.startsWith('ws') ? wsUrl : `${backendBase.replace('https','ws')}${wsUrl}`;
     ws = new WebSocket(url);
     ws.binaryType = 'arraybuffer';
     ws.onopen = async () => {

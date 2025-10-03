@@ -30,7 +30,7 @@ app.disable('x-powered-by');
 
 // Env
 const PORT = process.env.PORT || 8080;
-const NODE_ENV = process.env.NODE_ENV || 'development';
+const NODE_ENV = process.env.NODE_ENV || 'production';
 const STRICT_REALTIME = String(process.env.STRICT_REALTIME || 'false').toLowerCase() === 'true';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-here-change-this-in-production';
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/hemekonus';
@@ -2920,7 +2920,7 @@ app.post('/session/economic/start', async (req, res) => {
   const host = req.get('host');
   const baseUrl = `${protocol}://${host}`;
 
-  return res.json({ sessionId, wsUrl: `${baseUrl.replace(/^http/, 'ws')}/realtime/economic/ws?sessionId=${sessionId}`, plan: String(plan), minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, minutesUsedDaily, minutesUsedMonthly });
+  return res.json({ sessionId, wsUrl: `${baseUrl.replace(/^https/, 'ws')}/realtime/economic/ws?sessionId=${sessionId}`, plan: String(plan), minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, minutesUsedDaily, minutesUsedMonthly });
 });
 
 // Start session

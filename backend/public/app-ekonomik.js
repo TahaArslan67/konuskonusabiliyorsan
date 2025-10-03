@@ -394,8 +394,12 @@ function handleMessage(msg) {
         // Show user notification
         if (msg.message.includes('API key not configured')) {
           console.warn('[app-ekonomik] OpenAI API key not configured - voice features disabled');
-        } else {
-          console.info('[app-ekonomik] Voice mode unavailable, using text-only mode');
+        } else if (msg.message.includes('Voice mode unavailable')) {
+          console.info('[app-ekonomik] OpenAI Realtime API unavailable - using text-only mode');
+          // Update UI to show text-only mode
+          if (statusConnEl) {
+            statusConnEl.textContent = 'Bağlantı: Metin Modu (OpenAI Realtime kullanılamıyor)';
+          }
         }
       }
       break;

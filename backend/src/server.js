@@ -3115,7 +3115,7 @@ wssEconomic.on('connection', (clientWs, request) => {
   // Try to connect to OpenAI Realtime API if API key is available
   if (OPENAI_API_KEY && OPENAI_API_KEY.length >= 20) {
     try {
-      openaiWsUrl = `wss://api.openai.com/v1/realtime?model=gpt-realtime`;
+      openaiWsUrl = `wss://api.openai.com/v1/realtime?model=gpt-realtime-2025-08-28`;
       openaiWs = new WebSocket(openaiWsUrl, {
         headers: {
           'Authorization': `Bearer ${OPENAI_API_KEY}`,

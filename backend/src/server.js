@@ -3426,7 +3426,7 @@ wss.on('connection', (clientWs, request) => {
         const create = {
           type: 'response.create',
           response: {
-            modalities: RESPONSE_TEXT_ENABLED ? ['audio','text'] : ['audio'],
+            modalities: ['audio','text'],
             instructions: `Target language: ${lang}. Native: ${nlang}. Asla başka dile kayma. Kullanıcı: ${String(obj.text)}\n1-2 kısaltma öneri ver (hedef dilde), yeni satırda ${nlang} tek cümle 'Tip:' ekle.`,
             max_output_tokens: 60,
           }

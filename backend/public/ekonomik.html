@@ -35,12 +35,19 @@
             }
 
             // Plan kontrolü - sadece ekonomik plan kullanıcıları erişebilir
+            console.log('[ekonomik] plan kontrolü başlıyor...');
+            console.log('[ekonomik] kullanıcı planı:', me.user?.plan);
+            console.log('[ekonomik] mevcut URL:', window.location.href);
+
             if (me.user?.plan !== 'economic') {
-              console.log('[ekonomik] kullanıcı ekonomik plan sahibi değil, ana sayfaya yönlendiriliyor...');
+              console.log('[ekonomik] ❌ kullanıcı ekonomik plan sahibi değil, ana sayfaya yönlendiriliyor...');
+              console.log('[ekonomik] kullanıcı planı:', me.user?.plan, 'beklenen: economic');
               alert('Bu sayfaya erişim için ekonomik paket gereklidir.');
               window.location.replace('/');
               return;
             }
+
+            console.log('[ekonomik] ✅ ekonomik plan kontrolü geçildi, kullanıcı ekonomik paket sahibi');
           } else {
             console.log('[ekonomik] /me çağrısı başarısız:', r.status);
           }

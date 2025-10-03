@@ -39,17 +39,47 @@
             const userPlan = me.user?.plan || 'free';
             console.log('[realtime] kullanıcı planı:', userPlan);
             console.log('[realtime] kullanıcı plan kontrolü başlıyor...');
+            console.log('[realtime] mevcut URL:', window.location.href);
+            console.log('[realtime] mevcut pathname:', window.location.pathname);
 
-            if (userPlan === 'economic') {
+            // Plan kontrolü - free, pro, starter planları normal realtime sayfasında kalmalı
+            if (userPlan === 'free' || userPlan === 'pro' || userPlan === 'starter') {
+              console.log('[realtime] ✅ Kullanıcı normal planında (free/pro/starter), realtime sayfasında kalacak');
+              console.log('[realtime] Kullanıcı planı:', userPlan, '- ekonomik sayfaya yönlendirilmeyecek');
+            } else if (userPlan === 'economic') {
               console.log('[realtime] ✅ ekonomik paket kullanıcısı tespit edildi, ekonomik sayfaya yönlendiriliyor...');
               console.log('[realtime] yönlendirme: /ekonomik.html');
               window.location.replace('/ekonomik.html');
               return;
+            } else {
+              console.log('[realtime] ℹ️ Bilinmeyen plan kullanıcısı:', userPlan, '- normal realtime sayfasında kalacak');
             }
 
             console.log('[realtime] ✅ plan kontrolü geçildi, sayfa açık kalıyor:', userPlan);
             console.log('[realtime] kullanıcı realtime sayfasında kalabilir, plan:', userPlan);
-            console.log('[realtime] Kullanıcı ekonomik plan dışındaysa normal realtime modunda kalacak');
+
+            // Sayfa yenileme kontrolü - eğer kullanıcı bu sayfada zaten varsa ve plan değişmediyse sorun olabilir
+            console.log('[realtime] Sayfa durumu kontrolü:');
+            console.log('[realtime] - Sayfa zaten yüklendi mi?', document.readyState);
+            console.log('[realtime] - DOM yükleme tamamlandı mı?', document.readyState === 'complete');
+            console.log('[realtime] - Sayfa yükleme sayısı kontrolü');
+
+            // Sayfa yükleme döngüsü kontrolü
+            if (typeof window.realtimePageLoadCount === 'undefined') {
+              window.realtimePageLoadCount = 0;
+            }
+            window.realtimePageLoadCount++;
+
+            if (window.realtimePageLoadCount > 1) {
+              console.warn('[realtime] ⚠️ Sayfa birden fazla yüklendi! Yenileme döngüsü tespit edildi!');
+              console.warn('[realtime] Yükleme sayısı:', window.realtimePageLoadCount);
+            } else {
+              console.log('[realtime] İlk sayfa yüklemesi');
+            }
+
+            if (document.readyState === 'complete') {
+              console.warn('[realtime] ⚠️ Sayfa zaten tamamen yüklendi! Bu normal değil!');
+            }
           } else {
             console.log('[realtime] /me çağrısı başarısız:', r.status);
           }
@@ -59,12 +89,31 @@
       })();
       // Update the URL to show /konus but PRESERVE query/hash (scenario, langs)
       try {
+        console.log('[realtime] URL güncelleme kontrolü başlıyor...');
+        console.log('[realtime] mevcut pathname:', window.location.pathname);
+        console.log('[realtime] mevcut search:', window.location.search);
+        console.log('[realtime] mevcut hash:', window.location.hash);
+
         if (window.location.pathname !== '/konus') {
           const search = window.location.search || '';
           const hash = window.location.hash || '';
-          history.replaceState(null, '', `/konus${search}${hash}`);
+          const newUrl = `/konus${search}${hash}`;
+          console.log('[realtime] URL güncelleniyor:', window.location.href, '→', newUrl);
+          console.log('[realtime] pathname kontrolü:', window.location.pathname, '!== /konus');
+
+          // Eğer zaten /konus ise güncelleme yapma
+          if (window.location.pathname !== '/konus') {
+            history.replaceState(null, '', newUrl);
+            console.log('[realtime] URL güncellendi');
+          } else {
+            console.log('[realtime] URL zaten /konus, güncelleme yapılmadı');
+          }
+        } else {
+          console.log('[realtime] URL zaten /konus, güncelleme kontrolü atlandı');
         }
-      } catch {}
+      } catch (e) {
+        console.error('[realtime] URL güncelleme hatası:', e);
+      }
     } catch {}
   </script>
   <script src="/config.js"></script>

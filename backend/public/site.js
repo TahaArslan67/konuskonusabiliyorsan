@@ -1012,9 +1012,7 @@ if (window.location.pathname === '/konus' && window.location.hash !== '#debug') 
           const userPlan = me.user?.plan || 'free';
           if (userPlan === 'economic') {
             window.location.href = '/ekonomik.html';
-          } else {
-            window.location.href = '/realtime.html';
-          }
+          } 
         } else {
           window.location.href = '/realtime.html';
         }

@@ -702,10 +702,18 @@ if (formRegister){
 // Hemen Başla CTA
 const btnStart = document.getElementById('btnStart');
 if (btnStart){
-  btnStart.addEventListener('click', (ev) => {
+  btnStart.addEventListener('click', async (ev) => {
     ev.preventDefault();
     const token = getToken();
     if (!token){ setPostLoginRedirect('/realtime.html'); openAuth(); showLogin(); return; }
+    try{
+      const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok){
+        const me = await r.json();
+        const plan = me?.user?.plan || me?.plan || 'free';
+        if (plan === 'economy'){ window.location.href = '/ekonomi'; return; }
+      }
+    }catch{}
     window.location.href = '/realtime.html';
   });
 }

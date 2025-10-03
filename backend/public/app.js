@@ -781,6 +781,13 @@ async function wsConnect(){
         }
       } catch {}
     }
+    // Plan gate: economy plan bu sayfayı kullanamaz -> /ekonomi
+    try{
+      if (planToUse === 'economy'){
+        window.location.replace('/ekonomi');
+        return;
+      }
+    }catch{}
     const headers = { 'Content-Type':'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const r = await fetch(`${backendBase}/session/start`, { method: 'POST', headers, body: JSON.stringify({ plan: planToUse }) });

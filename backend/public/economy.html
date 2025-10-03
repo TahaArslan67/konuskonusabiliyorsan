@@ -21,6 +21,25 @@
       }
     } catch {}
   </script>
+  <script>
+    // Plan zorunluluğu: sadece 'economy' planı bu sayfayı kullanabilir
+    (async () => {
+      try {
+        const token = localStorage.getItem('hk_token');
+        if (!token) return; // üstteki login gate yönlendirir
+        const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : window.location.origin;
+        const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
+        if (r.ok){
+          const me = await r.json();
+          const plan = (me && (me.user?.plan || me.plan)) || 'free';
+          if (plan !== 'economy'){
+            window.location.replace('/realtime.html');
+            return;
+          }
+        }
+      } catch {}
+    })();
+  </script>
   <style>
     .subtle{ color: var(--muted); }
     .stack{ display:flex; flex-direction:column; gap:10px; }

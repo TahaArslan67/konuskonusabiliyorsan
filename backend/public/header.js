@@ -58,7 +58,27 @@
           window.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
           if (mmLogin){ mmLogin.addEventListener('click', () => { close(); try{ window.openAuth && window.openAuth(); window.showLogin && window.showLogin(); }catch{} }); }
           if (mmAccount){ mmAccount.addEventListener('click', () => { close(); window.location.href = '/account.html'; }); }
-          if (mmStart){ mmStart.addEventListener('click', (ev) => { ev.preventDefault(); close(); const t = localStorage.getItem('hk_token'); if (!t){ try{ window.setPostLoginRedirect && window.setPostLoginRedirect('/realtime.html'); window.openAuth && window.openAuth(); window.showLogin && window.showLogin(); }catch{} } else { window.location.href = '/realtime.html'; } }); }
+          if (mmStart){
+            mmStart.addEventListener('click', async (ev) => {
+              ev.preventDefault();
+              close();
+              const t = localStorage.getItem('hk_token');
+              if (!t){
+                try{ window.setPostLoginRedirect && window.setPostLoginRedirect('/realtime.html'); window.openAuth && window.openAuth(); window.showLogin && window.showLogin(); }catch{}
+                return;
+              }
+              try{
+                const backendBase = (window.__BACKEND_BASE__ && String(window.__BACKEND_BASE__).trim()) || window.location.origin;
+                const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${t}` } });
+                if (r.ok){
+                  const me = await r.json();
+                  const plan = me?.user?.plan || me?.plan || 'free';
+                  if (plan === 'economy'){ window.location.href = '/ekonomi'; return; }
+                }
+              }catch{}
+              window.location.href = '/realtime.html';
+            });
+          }
           // mmOcr linki artık herkese açık, sayfa içinde buton seviyesinde login kontrolü yapılacak
         }
       }catch{}

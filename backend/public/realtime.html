@@ -43,6 +43,18 @@
             const me = await r.json();
             console.log('[realtime] /me verisi:', JSON.stringify(me, null, 2));
             console.log('[realtime] placementLevel değeri:', me.placementLevel, typeof me.placementLevel);
+            // Plan kontrolü: realtime sadece free/starter/pro planlarına açık
+            try {
+              const plan = (me && (me.user?.plan || me.plan)) || 'free';
+              const allowedPlans = new Set(['free','starter','pro']);
+              if (!allowedPlans.has(plan)){
+                console.log('[realtime] Plan izin verilmiyor, ekonomi sayfasına yönlendiriliyor:', plan);
+                window.location.replace('/ekonomi');
+                return;
+              }
+            } catch (e) {
+              console.log('[realtime] Plan kontrolü hatası:', e && (e.message || e));
+            }
 
             // placementLevel kontrolü - null, undefined, "" veya false ise redirect
             if (!me.user?.placementLevel){

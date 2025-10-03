@@ -87,29 +87,50 @@
           console.error('[realtime] /me çağrısı hatası:', error);
         }
       })();
-      // Update the URL to show /konus but PRESERVE query/hash (scenario, langs)
+      // Sayfa yenileme döngüsü kontrolü - bu kodun çalışıp çalışmadığını kontrol edelim
+      console.log('[realtime] 🔄 Sayfa yenileme kontrolü başlıyor...');
+
+      // Eğer bu kod birden fazla çalışıyorsa sorun var
+      if (typeof window.realtimeInitCount === 'undefined') {
+        window.realtimeInitCount = 0;
+      }
+      window.realtimeInitCount++;
+
+      console.log('[realtime] Sayfa init sayısı:', window.realtimeInitCount);
+      console.log('[realtime] Sayfa durumu:', document.readyState);
+
+      if (window.realtimeInitCount > 1) {
+        console.error('[realtime] 🚨 Sayfa birden fazla kez initialize edildi! Bu normal değil!');
+        console.error('[realtime] Sayfa yenileme döngüsü tespit edildi!');
+        console.error('[realtime] Bu noktada sayfa zorla durdurulacak!');
+
+        // Acil durum - sayfayı zorla durdur
+        throw new Error('Sayfa yenileme döngüsü tespit edildi, sayfa yüklemesi durduruldu');
+      }
+
+      // URL güncelleme kontrolü - ÇOK ÖNEMLİ: Bu kodu daha güvenli hale getirelim
       try {
         console.log('[realtime] URL güncelleme kontrolü başlıyor...');
         console.log('[realtime] mevcut pathname:', window.location.pathname);
         console.log('[realtime] mevcut search:', window.location.search);
         console.log('[realtime] mevcut hash:', window.location.hash);
 
-        if (window.location.pathname !== '/konus') {
+        // Eğer pathname zaten /konus ise hiçbir şey yapma!
+        if (window.location.pathname === '/konus') {
+          console.log('[realtime] ✅ URL zaten /konus, hiçbir değişiklik yapılmayacak');
+        } else {
           const search = window.location.search || '';
           const hash = window.location.hash || '';
           const newUrl = `/konus${search}${hash}`;
           console.log('[realtime] URL güncelleniyor:', window.location.href, '→', newUrl);
-          console.log('[realtime] pathname kontrolü:', window.location.pathname, '!== /konus');
 
-          // Eğer zaten /konus ise güncelleme yapma
+          // Sadece pathname farklı ise güncelle
           if (window.location.pathname !== '/konus') {
             history.replaceState(null, '', newUrl);
             console.log('[realtime] URL güncellendi');
           } else {
-            console.log('[realtime] URL zaten /konus, güncelleme yapılmadı');
+            console.log('[realtime] URL zaten doğru, güncelleme yapılmadı');
           }
-        } else {
-          console.log('[realtime] URL zaten /konus, güncelleme kontrolü atlandı');
         }
       } catch (e) {
         console.error('[realtime] URL güncelleme hatası:', e);

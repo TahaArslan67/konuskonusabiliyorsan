@@ -3140,7 +3140,7 @@ wss.on('connection', (clientWs, request) => {
           modalities: ['audio','text'],
           input_audio_format: 'pcm16',
           output_audio_format: 'pcm16',
-          input_audio_transcription: { language: lang },
+          input_audio_transcription: { model: 'whisper-1', language: lang },
           voice: voicePref,
           temperature: 0.8,
           // Let Realtime model handle audio directly; no separate ASR model

@@ -430,8 +430,6 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const REALTIME_MODEL = process.env.OPENAI_REALTIME_MODEL || 'gpt-4o-realtime-preview-2025-08-28';
 const RESPONSE_TEXT_ENABLED = (process.env.RESPONSE_TEXT_ENABLED ?? 'true').toLowerCase() !== 'false';
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || '';
-// If set, /session/start will return an absolute wsUrl like `${PUBLIC_WS_BASE}/realtime/ws?...`
-const PUBLIC_WS_BASE = process.env.PUBLIC_WS_BASE || '';
 const IPINFO_TOKEN = process.env.IPINFO_TOKEN || '';
 
 // Azure OpenAI envs
@@ -2947,10 +2945,7 @@ app.post('/session/start', async (req, res) => {
   }
   const sessObj = { plan: String(effectivePlan), createdAt, minutesUsedDaily, minutesUsedMonthly, limits, userId: uid, prefs, userLevel };
   sessions.set(sessionId, sessObj);
-  const wsPath = `/realtime/ws?sessionId=${sessionId}`;
-  const base = PUBLIC_WS_BASE ? String(PUBLIC_WS_BASE).replace(/\/$/, '') : '';
-  const wsUrl = base ? `${base}${wsPath}` : wsPath;
-  return res.json({ sessionId, wsUrl, plan: String(effectivePlan), minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, minutesUsedDaily, minutesUsedMonthly });
+  return res.json({ sessionId, wsUrl: `/realtime/ws?sessionId=${sessionId}`.replace('http','ws'), plan: String(effectivePlan), minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, minutesUsedDaily, minutesUsedMonthly });
 });
 
 // Close session
@@ -3105,12 +3100,6 @@ wss.on('connection', (clientWs, request) => {
   }
 
   // Establish connection to Realtime API
-  if (!USE_AZURE && !OPENAI_API_KEY) {
-    try { clientWs.send(JSON.stringify({ type: 'error', code: 'server_not_configured', message: 'OPENAI_API_KEY missing' })); } catch {}
-    try { clientWs.send(JSON.stringify({ type: 'debug', src: 'server', event: 'missing_openai_api_key' })); } catch {}
-    try { clientWs.close(1011, 'OPENAI not configured'); } catch {}
-    return;
-  }
   const headers = USE_AZURE
     ? { 'api-key': AZURE_OPENAI_API_KEY }
     : { Authorization: `Bearer ${OPENAI_API_KEY}`, 'OpenAI-Beta': 'realtime=v1' };
@@ -3119,7 +3108,6 @@ wss.on('connection', (clientWs, request) => {
 
   openaiWs.on('open', () => {
     console.log(`[proxy] Connection to ${USE_AZURE ? 'Azure OpenAI' : 'OpenAI'} established.`);
-    try { clientWs.send(JSON.stringify({ type: 'debug', src: 'openai', event: 'open' })); } catch {}
     // For OpenAI (non-Azure), send initial config as before.
     if (!USE_AZURE) {
       // Configure OpenAI Realtime session using Realtime v1 schema
@@ -3171,23 +3159,6 @@ wss.on('connection', (clientWs, request) => {
       console.log('[proxy] Sent session.update to OpenAI.');
       // Persona is already set in session.instructions; avoid extra system item to reduce tokens
       console.log('[proxy] Session instructions set for OpenAI.');
-      // Flush any client text that arrived before upstream became OPEN
-      try {
-        if (bufferedText.length > 0) {
-          const batched = bufferedText.splice(0, bufferedText.length);
-          for (const userText of batched) {
-            try { clientWs.send(JSON.stringify({ type: 'debug', src: 'server', event: 'flush_queued_text', len: userText.length })); } catch {}
-            openaiWs.send(JSON.stringify({
-              type: 'conversation.item.create',
-              item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: userText }] }
-            }));
-            openaiWs.send(JSON.stringify({
-              type: 'response.create',
-              response: { modalities: ['audio','text'], temperature: 0.8, max_output_tokens: 160 }
-            }));
-          }
-        }
-      } catch (e) { console.warn('[proxy] failed to flush bufferedText:', e?.message || e); }
     } else {
       // Azure: declare audio formats explicitly as strings to ensure PCM16 output (avoid schema error)
       const lang = (sess?.prefs?.language || 'tr').toLowerCase();
@@ -3233,8 +3204,6 @@ wss.on('connection', (clientWs, request) => {
   let lastResponseId = null;
   let lastAudioBytes = 0;
   let streamMode = null; // 'buffer' | 'delta'
-  // Buffer for text messages arriving before upstream OpenAI WS is OPEN
-  const bufferedText = [];
   // We configure the model with turn_detection.create_response=true,
   // so DO NOT send our own response.create after commit to avoid duplicates.
   const AUTO_CREATE_RESPONSE = true;
@@ -3268,21 +3237,7 @@ wss.on('connection', (clientWs, request) => {
     }, 1500);
   };
   clientWs.on('message', (data, isBinary) => {
-    // If upstream is not open yet, queue TEXT messages, drop binary mic frames
-    if (openaiWs.readyState !== WebSocket.OPEN) {
-      if (!isBinary) {
-        try {
-          const text = data.toString();
-          let obj; try { obj = JSON.parse(text); } catch { obj = null; }
-          const t = obj?.type;
-          if (t === 'text' && obj?.text) {
-            bufferedText.push(String(obj.text));
-            try { clientWs.send(JSON.stringify({ type: 'debug', src: 'server', event: 'queued_text_before_upstream_open', len: String(obj.text||'').length })); } catch {}
-          }
-        } catch {}
-      }
-      return;
-    }
+    if (openaiWs.readyState !== WebSocket.OPEN) return;
 
     try {
       if (isBinary) {
@@ -3509,7 +3464,6 @@ wss.on('connection', (clientWs, request) => {
       if (t === 'text' && obj?.text) {
         // Proper Realtime text flow: add a user message, then ask for a response
         const userText = String(obj.text || '');
-        try { clientWs.send(JSON.stringify({ type: 'debug', src: 'server', event: 'recv_text', len: userText.length })); } catch {}
         try {
           openaiWs.send(JSON.stringify({
             type: 'conversation.item.create',

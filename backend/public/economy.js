@@ -1,4 +1,5 @@
 // Economy plan page logic: Whisper STT -> Realtime (text -> audio)
+console.log('[economy] script loaded v3');
 // This file intentionally does NOT modify the existing realtime app logic.
 
 const $ = (s) => document.querySelector(s);
@@ -16,7 +17,6 @@ const recDot = $('#recDot');
 const transcriptEl = $('#transcript');
 const remoteAudio = $('#remoteAudio');
 const autoTurnEl = document.querySelector('#autoTurn');
-const shortRecEl = document.querySelector('#shortRec');
 
 let ws = null;
 let wsAudioChunks = [];
@@ -27,7 +27,6 @@ let recorder = null;
 let recChunks = [];
 let isRecording = false;
 let recStartAt = 0;
-let playToken = 0;
 
 function setConn(open){
   try{ statusConn.textContent = `Bağlantı: ${open ? 'Açık' : 'Kapalı'}`; }catch{}
@@ -45,7 +44,7 @@ function wsEnsurePlaybackCtx(){
   if (wsPlaybackCtx.state === 'suspended') wsPlaybackCtx.resume();
 }
 
-function wsPlayPcm(arrayBuffer, token){
+function wsPlayPcm(arrayBuffer){
   try{
     wsEnsurePlaybackCtx();
     const pcm16 = new Int16Array(arrayBuffer);
@@ -70,8 +69,6 @@ function wsPlayPcm(arrayBuffer, token){
     try {
       src.onended = () => {
         try {
-          // Yalnızca son başlatılan oynatımın bitişini dikkate al
-          if (token !== playToken) return;
           const auto = !!(autoTurnEl && autoTurnEl.checked);
           if (auto && ws && ws.readyState === WebSocket.OPEN && !isRecording){
             setTimeout(() => { try { if (!isRecording) toggleRec(); } catch {} }, 300);
@@ -103,31 +100,21 @@ async function connect(){
     const token = localStorage.getItem('hk_token');
     if (!token){ window.location.replace(`/?auth=1&redirect=${encodeURIComponent('/ekonomi')}`); return; }
 
+    // Start session with economy plan
     const r = await fetch(`${backendBase}/session/start`, {
       method: 'POST',
       headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ plan: 'economy' })
     });
-    if (!r.ok) {
-      let err = {};
-      try { err = await r.json(); } catch {}
-      if (r.status === 401){
-        window.location.replace(`/?auth=1&redirect=${encodeURIComponent('/ekonomi')}`);
+    if (!r.ok){
+      if (r.status === 401){ window.location.replace(`/?auth=1&redirect=${encodeURIComponent('/ekonomi')}`); return; }
+      const j = await r.json().catch(()=>({}));
+      if (r.status === 403 && j?.error === 'placement_required'){
+        const redirect = encodeURIComponent('/ekonomi');
+        window.location.replace(`/placement.html?redirect=${redirect}`);
         return;
       }
-      if (r.status === 403){
-        if (err?.error === 'placement_required'){
-          const redirect = encodeURIComponent('/ekonomi');
-          window.location.replace(`/placement.html?redirect=${redirect}`);
-          return;
-        }
-        if (err?.error === 'limit_reached'){
-          alert('Günlük aylık limit dolu.');
-          btnConnect.disabled = false; return;
-        }
-      }
-      try { console.error('[economy] /session/start failed', r.status, err); } catch {}
-      try { alert(`${err?.message || err?.error || 'Bağlantı hatası'} (${r.status})`); } catch {}
+      alert(j?.error || `Bağlantı başlatılamadı (${r.status})`);
       btnConnect.disabled = false; return;
     }
     const s = await r.json();
@@ -145,14 +132,13 @@ async function connect(){
         ws.send(JSON.stringify({ type: 'session.update', session: { instructions: 'Sadece Türkçe ve kısa yanıt ver. 1-2 doğal cümle kullan. Cümleyi mutlaka nokta veya soru işaretiyle bitir. Sorudan sapma.' } }));
       } catch {}
     };
-    ws.onerror = (e) => { try { console.error('[economy] WS error', e); } catch {} };
-    ws.onclose = (ev) => {
+    ws.onclose = () => {
       setConn(false);
-      try { console.warn('[economy] WS closed', ev?.code, ev?.reason); } catch {}
       btnConnect.disabled = false;
       btnDisconnect.disabled = true;
       btnRec.disabled = true;
     };
+    ws.onerror = () => {};
     ws.onmessage = (ev) => {
       if (typeof ev.data === 'string'){
         try{
@@ -165,6 +151,8 @@ async function connect(){
           }
           if (obj.type === 'bot_speaking'){
             wsAudioChunks = [];
+            // Bot konuşmaya başlarsa kullanıcı kaydını hemen durdur
+            try { if (isRecording && recorder && recorder.state === 'recording') recorder.stop(); } catch {}
           }
           if (obj.type === 'debug'){
             try { console.log('[economy][debug]', obj); } catch {}
@@ -185,22 +173,19 @@ async function connect(){
             const merged = new Uint8Array(total);
             let off = 0; for (const c of wsAudioChunks){ merged.set(new Uint8Array(c), off); off += c.byteLength; }
             lastResponseBuffer = merged.buffer;
-            try { console.log('[economy] audio_end totalBytes=', total); } catch {}
-            // Boş/çok kısa ses paketlerinde tekrar kayda geçme ve çalma yapma
-            if (total < 512) {
-              wsAudioChunks = [];
-              // Yine de oto-tur açıksa yeni kayda geç (model sadece metin göndermiş olabilir)
+            try { console.debug('[economy] audio_end totalBytes=', total); } catch {}
+            if (btnReplay) btnReplay.disabled = false;
+            if (total > 0){
+              wsPlayPcm(lastResponseBuffer);
+            } else {
+              // Hiç ses gelmediyse oto-tur açıkken kısa gecikme ile tekrar kayda başla
               try {
                 const auto = !!(autoTurnEl && autoTurnEl.checked);
                 if (auto && ws && ws.readyState === WebSocket.OPEN && !isRecording){
-                  setTimeout(() => { try { if (!isRecording) toggleRec(); } catch {} }, 200);
+                  setTimeout(() => { try { if (!isRecording) toggleRec(); } catch {} }, 300);
                 }
               } catch {}
-              return;
             }
-            if (btnReplay) btnReplay.disabled = false;
-            playToken++; const token = playToken;
-            wsPlayPcm(lastResponseBuffer, token);
             wsAudioChunks = [];
           }
         }catch{}
@@ -243,7 +228,9 @@ async function toggleRec(){
         const durationMs = recStartAt ? (Date.now() - recStartAt) : 0;
         const text = await doSTT(b64, durationMs);
         if (typeof text === 'string' && text.trim().length > 0){
-          transcriptEl.textContent = text;
+          const prev = transcriptEl.textContent || '';
+          const you = `[YOU] ${text}`;
+          transcriptEl.textContent = prev ? `${prev}\n${you}` : you;
           if (ws && ws.readyState === WebSocket.OPEN){
             try{ ws.send(JSON.stringify({ type: 'text', text })); }catch{}
           }
@@ -258,10 +245,8 @@ async function toggleRec(){
     isRecording = true;
     btnRec.textContent = 'Kaydı Durdur';
     setRec(true);
-    // Otomatik durdurmayı sadece "Kısa kayıt (7s)" açıkken uygula
-    if (shortRecEl && shortRecEl.checked){
-      setTimeout(() => { try{ isRecording && recorder && recorder.state === 'recording' && recorder.stop(); }catch{} }, 7000);
-    }
+    // Otomatik olarak 7 sn sonra durdur (kısa cümleler için)
+    setTimeout(() => { try{ isRecording && recorder && recorder.state === 'recording' && recorder.stop(); }catch{} }, 7000);
   }catch(e){ alert('Mikrofona erişilemiyor'); }
 }
 

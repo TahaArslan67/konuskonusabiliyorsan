@@ -103,21 +103,31 @@ async function connect(){
     const token = localStorage.getItem('hk_token');
     if (!token){ window.location.replace(`/?auth=1&redirect=${encodeURIComponent('/ekonomi')}`); return; }
 
-    // Start session with economy plan
     const r = await fetch(`${backendBase}/session/start`, {
       method: 'POST',
       headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ plan: 'economy' })
     });
-    if (!r.ok){
-      if (r.status === 401){ window.location.replace(`/?auth=1&redirect=${encodeURIComponent('/ekonomi')}`); return; }
-      const j = await r.json().catch(()=>({}));
-      if (r.status === 403 && j?.error === 'placement_required'){
-        const redirect = encodeURIComponent('/ekonomi');
-        window.location.replace(`/placement.html?redirect=${redirect}`);
+    if (!r.ok) {
+      let err = {};
+      try { err = await r.json(); } catch {}
+      if (r.status === 401){
+        window.location.replace(`/?auth=1&redirect=${encodeURIComponent('/ekonomi')}`);
         return;
       }
-      alert(j?.error || `Bağlantı başlatılamadı (${r.status})`);
+      if (r.status === 403){
+        if (err?.error === 'placement_required'){
+          const redirect = encodeURIComponent('/ekonomi');
+          window.location.replace(`/placement.html?redirect=${redirect}`);
+          return;
+        }
+        if (err?.error === 'limit_reached'){
+          alert('Günlük aylık limit dolu.');
+          btnConnect.disabled = false; return;
+        }
+      }
+      try { console.error('[economy] /session/start failed', r.status, err); } catch {}
+      try { alert(`${err?.message || err?.error || 'Bağlantı hatası'} (${r.status})`); } catch {}
       btnConnect.disabled = false; return;
     }
     const s = await r.json();
@@ -135,13 +145,14 @@ async function connect(){
         ws.send(JSON.stringify({ type: 'session.update', session: { instructions: 'Sadece Türkçe ve kısa yanıt ver. 1-2 doğal cümle kullan. Cümleyi mutlaka nokta veya soru işaretiyle bitir. Sorudan sapma.' } }));
       } catch {}
     };
-    ws.onclose = () => {
+    ws.onerror = (e) => { try { console.error('[economy] WS error', e); } catch {} };
+    ws.onclose = (ev) => {
       setConn(false);
+      try { console.warn('[economy] WS closed', ev?.code, ev?.reason); } catch {}
       btnConnect.disabled = false;
       btnDisconnect.disabled = true;
       btnRec.disabled = true;
     };
-    ws.onerror = () => {};
     ws.onmessage = (ev) => {
       if (typeof ev.data === 'string'){
         try{
@@ -156,7 +167,7 @@ async function connect(){
             wsAudioChunks = [];
           }
           if (obj.type === 'debug'){
-            try { console.debug('[economy][debug]', obj); } catch {}
+            try { console.log('[economy][debug]', obj); } catch {}
           }
           if (obj.type === 'error'){
             try { console.error('[economy][ws error]', obj.error || obj); } catch {}
@@ -174,7 +185,7 @@ async function connect(){
             const merged = new Uint8Array(total);
             let off = 0; for (const c of wsAudioChunks){ merged.set(new Uint8Array(c), off); off += c.byteLength; }
             lastResponseBuffer = merged.buffer;
-            try { console.debug('[economy] audio_end totalBytes=', total); } catch {}
+            try { console.log('[economy] audio_end totalBytes=', total); } catch {}
             // Boş/çok kısa ses paketlerinde tekrar kayda geçme ve çalma yapma
             if (total < 512) {
               wsAudioChunks = [];

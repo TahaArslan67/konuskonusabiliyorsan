@@ -430,6 +430,8 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const REALTIME_MODEL = process.env.OPENAI_REALTIME_MODEL || 'gpt-4o-realtime-preview-2025-08-28';
 const RESPONSE_TEXT_ENABLED = (process.env.RESPONSE_TEXT_ENABLED ?? 'true').toLowerCase() !== 'false';
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || '';
+// If set, /session/start will return an absolute wsUrl like `${PUBLIC_WS_BASE}/realtime/ws?...`
+const PUBLIC_WS_BASE = process.env.PUBLIC_WS_BASE || '';
 const IPINFO_TOKEN = process.env.IPINFO_TOKEN || '';
 
 // Azure OpenAI envs
@@ -2945,7 +2947,10 @@ app.post('/session/start', async (req, res) => {
   }
   const sessObj = { plan: String(effectivePlan), createdAt, minutesUsedDaily, minutesUsedMonthly, limits, userId: uid, prefs, userLevel };
   sessions.set(sessionId, sessObj);
-  return res.json({ sessionId, wsUrl: `/realtime/ws?sessionId=${sessionId}`.replace('http','ws'), plan: String(effectivePlan), minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, minutesUsedDaily, minutesUsedMonthly });
+  const wsPath = `/realtime/ws?sessionId=${sessionId}`;
+  const base = PUBLIC_WS_BASE ? String(PUBLIC_WS_BASE).replace(/\/$/, '') : '';
+  const wsUrl = base ? `${base}${wsPath}` : wsPath;
+  return res.json({ sessionId, wsUrl, plan: String(effectivePlan), minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, minutesUsedDaily, minutesUsedMonthly });
 });
 
 // Close session
@@ -3100,6 +3105,12 @@ wss.on('connection', (clientWs, request) => {
   }
 
   // Establish connection to Realtime API
+  if (!USE_AZURE && !OPENAI_API_KEY) {
+    try { clientWs.send(JSON.stringify({ type: 'error', code: 'server_not_configured', message: 'OPENAI_API_KEY missing' })); } catch {}
+    try { clientWs.send(JSON.stringify({ type: 'debug', src: 'server', event: 'missing_openai_api_key' })); } catch {}
+    try { clientWs.close(1011, 'OPENAI not configured'); } catch {}
+    return;
+  }
   const headers = USE_AZURE
     ? { 'api-key': AZURE_OPENAI_API_KEY }
     : { Authorization: `Bearer ${OPENAI_API_KEY}`, 'OpenAI-Beta': 'realtime=v1' };
@@ -3108,6 +3119,7 @@ wss.on('connection', (clientWs, request) => {
 
   openaiWs.on('open', () => {
     console.log(`[proxy] Connection to ${USE_AZURE ? 'Azure OpenAI' : 'OpenAI'} established.`);
+    try { clientWs.send(JSON.stringify({ type: 'debug', src: 'openai', event: 'open' })); } catch {}
     // For OpenAI (non-Azure), send initial config as before.
     if (!USE_AZURE) {
       // Configure OpenAI Realtime session using Realtime v1 schema

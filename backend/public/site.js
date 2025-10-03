@@ -355,27 +355,7 @@ async function initGoogleSignin(){
               const jj = await rr.json();
               if (!rr.ok){ alert(jj?.error || 'Google ile giriş başarısız'); return; }
               setToken(jj.token); updateHeader();
-              const dest = consumePostLoginRedirect();
-              if (dest){
-                // Kullanıcı planına göre doğru sayfaya yönlendir
-                try {
-                  const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${jj.token}` } });
-                  if (r.ok) {
-                    const me = await r.json();
-                    const userPlan = me.user?.plan || 'free';
-                    if (userPlan === 'economic') {
-                      window.location.href = '/ekonomik.html';
-                    } else {
-                      window.location.href = dest;
-                    }
-                  } else {
-                    window.location.href = dest;
-                  }
-                } catch (error) {
-                  window.location.href = dest;
-                }
-                return;
-              }
+              const dest = consumePostLoginRedirect(); if (dest){ window.location.href = dest; return; }
               closeAuth();
             } catch (e){ alert('Google ile giriş bağlantı hatası'); }
           }
@@ -667,26 +647,7 @@ if (formLogin){
       setToken(j.token); updateHeader();
       // post-login redirect if requested
       const dest = consumePostLoginRedirect();
-      if (dest){
-        // Kullanıcı planına göre doğru sayfaya yönlendir
-        try {
-          const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${j.token}` } });
-          if (r.ok) {
-            const me = await r.json();
-            const userPlan = me.user?.plan || 'free';
-            if (userPlan === 'economic') {
-              window.location.href = '/ekonomik.html';
-            } else {
-              window.location.href = dest;
-            }
-          } else {
-            window.location.href = dest;
-          }
-        } catch (error) {
-          window.location.href = dest;
-        }
-        return;
-      }
+      if (dest){ window.location.href = dest; return; }
       closeAuth();
     } catch (e){ authMsg.textContent = 'Bağlantı hatası'; }
   });
@@ -710,87 +671,14 @@ if (formRegister){
   });
 }
 
-// Hemen Başla CTA butonları
-const btnStart1 = document.getElementById('btnStart');
-const btnStart2 = document.getElementById('btnStart2');
-
-if (btnStart1){
-  btnStart1.addEventListener('click', async (ev) => {
+// Hemen Başla CTA
+const btnStart = document.getElementById('btnStart');
+if (btnStart){
+  btnStart.addEventListener('click', (ev) => {
     ev.preventDefault();
     const token = getToken();
     if (!token){ setPostLoginRedirect('/realtime.html'); openAuth(); showLogin(); return; }
-
-    // Sadece ana sayfada plan kontrolü yap
-    if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
-      if(window.location.pathname !== '/realtime.html'){
-        window.location.href = '/realtime.html';
-        }
-      return;
-    }
-
-    // Kullanıcı planını kontrol et ve uygun sayfaya yönlendir
-    try {
-      const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
-      if (r.ok) {
-        const me = await r.json();
-        const userPlan = me.user?.plan || 'free';
-        if (userPlan === 'economic') {
-          window.location.href = '/ekonomik.html';
-        } else {
-          if(window.location.pathname !== '/realtime.html'){
-            window.location.href = '/realtime.html';
-            }
-        }
-      } else {
-        if(window.location.pathname !== '/realtime.html'){
-          window.location.href = '/realtime.html';
-          }
-      }
-    } catch (error) {
-      if(window.location.pathname !== '/realtime.html'){
-        window.location.href = '/realtime.html';
-        }
-    }
-  });
-}
-
-if (btnStart2){
-  btnStart2.addEventListener('click', async (ev) => {
-    ev.preventDefault();
-    const token = getToken();
-    if (!token){ setPostLoginRedirect('/realtime.html'); openAuth(); showLogin(); return; }
-
-    // Sadece ana sayfada plan kontrolü yap
-    if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
-      if(window.location.pathname !== '/realtime.html'){
-        window.location.href = '/realtime.html';
-        }
-      return;
-    }
-
-    // Kullanıcı planını kontrol et ve uygun sayfaya yönlendir
-    try {
-      const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
-      if (r.ok) {
-        const me = await r.json();
-        const userPlan = me.user?.plan || 'free';
-        if (userPlan === 'economic') {
-          window.location.href = '/ekonomik.html';
-        } else {
-          if(window.location.pathname !== '/realtime.html'){
-            window.location.href = '/realtime.html';
-            }
-        }
-      } else {
-        if(window.location.pathname !== '/realtime.html'){
-          window.location.href = '/realtime.html';
-          }
-      }
-    } catch (error) {
-      if(window.location.pathname !== '/realtime.html'){
-        window.location.href = '/realtime.html';
-        }
-    }
+    window.location.href = '/realtime.html';
   });
 }
 
@@ -910,40 +798,7 @@ try{
     // Auth buttons in mobile menu
     if (mmLogin){ mmLogin.addEventListener('click', () => { close(); openAuth(); showLogin(); }); }
     if (mmAccount){ mmAccount.addEventListener('click', () => { close(); window.location.href = '/account.html'; }); }
-    if (mmStart){ mmStart.addEventListener('click', async (ev) => {
-      ev.preventDefault();
-      close();
-      const t = getToken();
-      if (!t){ setPostLoginRedirect('/realtime.html'); openAuth(); showLogin(); return; }
-
-      // Sadece ana sayfada plan kontrolü yap
-      if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
-        if(window.location.pathname !== '/realtime.html'){
-          window.location.href = '/realtime.html';
-          }
-        return;
-      }
-
-      // Kullanıcı planını kontrol et ve uygun sayfaya yönlendir
-      try {
-        const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${t}` } });
-        if (r.ok) {
-          const me = await r.json();
-          const userPlan = me.user?.plan || 'free';
-          if (userPlan === 'economic') {
-            window.location.href = '/ekonomik.html';
-          }
-        } else {
-          if(window.location.pathname !== '/realtime.html'){
-          window.location.href = '/realtime.html';
-          }
-        }
-      } catch (error) {
-        if(window.location.pathname !== '/realtime.html'){
-          window.location.href = '/realtime.html';
-          }
-      }
-    }); }
+    if (mmStart){ mmStart.addEventListener('click', (ev) => { ev.preventDefault(); close(); const t = getToken(); if (!t){ setPostLoginRedirect('/realtime.html'); openAuth(); showLogin(); } else { window.location.href = '/realtime.html'; } }); }
     // Show correct auth buttons
     if (token){ if (mmLogin) mmLogin.style.display = 'none'; if (mmAccount) mmAccount.style.display = 'inline-flex'; }
   }
@@ -1019,32 +874,3 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.addEventListener('click', onPlanClick);
     });
 });
-
-// /konus URL'sine erişim kontrolü - sadece ana sayfa için
-if (window.location.pathname === '/konus' && window.location.hash !== '#debug') {
-  (async () => {
-    const token = getToken();
-    if (token) {
-      try {
-        const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
-        if (r.ok) {
-          const me = await r.json();
-          const userPlan = me.user?.plan || 'free';
-          if (userPlan === 'economic') {
-            if(window.location.pathname !== '/realtime.html'){
-              window.location.href = '/realtime.html';
-              }
-          } 
-        } else {
-          if(window.location.pathname !== '/realtime.html'){
-            window.location.href = '/realtime.html';
-            }
-        }
-      } catch (error) {
-        if(window.location.pathname !== '/realtime.html'){
-          window.location.href = '/realtime.html';
-          }
-      }
-    }
-  })();
-}

@@ -3,8 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>KonusKonusabilirsen – Sesli Koç</title>
-  <script src="/config.js"></script>
+  <title>KonusKonusabilirsen – Ekonomik Sesli Koç</title>
   <script>
     try {
       const token = localStorage.getItem('hk_token');
@@ -37,7 +36,6 @@
             // Plan kontrolü - sadece ekonomik plan kullanıcıları erişebilir
             if (me.user?.plan !== 'economic') {
               console.log('[ekonomik] kullanıcı ekonomik plan sahibi değil, ana sayfaya yönlendiriliyor...');
-              alert('Bu sayfaya erişim için ekonomik paket gereklidir.');
               window.location.replace('/');
               return;
             }
@@ -58,18 +56,32 @@
       } catch {}
     } catch {}
   </script>
-  <script src="/config.js"></script>
   <link rel="stylesheet" href="/styles.css?v=2" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    .subtle{ color: var(--muted); }
+    .stack{ display:flex; flex-direction:column; gap:10px; }
+    .row{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    #logs{ white-space:pre-wrap; height:220px; overflow:auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:13px; color:#c7d2fe; }
+    code.inline{ background:#121933; padding:2px 6px; border-radius:6px; border:1px solid #1b2442; }
+    .pill{ font-size:12px; color:#aab4c3; padding:4px 8px; border:1px solid #243055; border-radius:999px; }
+    .card h3{ margin:0 0 8px; }
+    .section-title{ margin:0 0 8px; color:#c7d2fe; }
+    .economic-badge { background: linear-gradient(135deg, #ff6b6b, #ee5a24); color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  </style>
   </head>
 <body>
   <script src="/header.js"></script>
 
   <main class="container" style="padding:28px 0 40px;">
     <div class="stack" style="margin-bottom:14px;">
-      <h1 style="margin:0;">Sesli Koç ile Pratiğe Başlayın</h1>
+      <h1 style="margin:0;">Ekonomik Sesli Koç ile Uygun Fiyata Pratiğe Başlayın</h1>
+      <div class="row">
+        <span class="economic-badge">EKONOMİK PAKET</span>
+        <p class="subtle" style="margin: 8px 0 0;">Daha uygun maliyetli konuşma pratiği - ses girişi metne çevrilerek işlenir</p>
+      </div>
     </div>
 
     <div class="grid grid-rt" style="grid-template-columns: 1.1fr 1fr; gap:16px;">
@@ -77,7 +89,7 @@
       <div class="stack">
         <div class="card" style="padding:22px;">
           <h3 class="section-title">Konuşmayı Başlat</h3>
-          <p class="subtle" style="margin:0 0 10px;">Mikrofona izin verin ve konuşmaya başlayın.</p>
+          <p class="subtle" style="margin:0 0 10px;">Mikrofona izin verin ve konuşmaya başlayın. Ses girişiniz metne çevrilecek ve daha uygun maliyetli işlenecek.</p>
           <div class="row" style="margin:8px 0 10px;">
             <button id="btnStartTalk" class="btn btn-primary" style="padding:12px 18px; font-size:16px;">Konuşmayı Başlat</button>
             <button id="btnStopTalk" class="btn" style="padding:12px 18px;" disabled>Durdur</button>
@@ -214,6 +226,7 @@
 
   <script src="/footer.js"></script>
 
+  <script src="/config.js"></script>
   <script>
     try{ if ('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{}); } }catch{}
   </script>

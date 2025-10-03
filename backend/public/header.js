@@ -58,32 +58,7 @@
           window.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
           if (mmLogin){ mmLogin.addEventListener('click', () => { close(); try{ window.openAuth && window.openAuth(); window.showLogin && window.showLogin(); }catch{} }); }
           if (mmAccount){ mmAccount.addEventListener('click', () => { close(); window.location.href = '/account.html'; }); }
-          if (mmStart){ mmStart.addEventListener('click', async (ev) => {
-            ev.preventDefault(); close();
-            const t = localStorage.getItem('hk_token');
-            if (!t){
-              try{ window.setPostLoginRedirect && window.setPostLoginRedirect('/realtime.html'); window.openAuth && window.openAuth(); window.showLogin && window.showLogin(); }catch{}
-            } else {
-              // Kullanıcı planını kontrol et ve uygun sayfaya yönlendir
-              try {
-                const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : window.location.origin;
-                const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${t}` } });
-                if (r.ok) {
-                  const me = await r.json();
-                  const userPlan = me.user?.plan || 'free';
-                  if (userPlan === 'economic') {
-                    window.location.href = '/ekonomik.html';
-                  } else {
-                    window.location.href = '/realtime.html';
-                  }
-                } else {
-                  window.location.href = '/realtime.html';
-                }
-              } catch (error) {
-                window.location.href = '/realtime.html';
-              }
-            }
-          }); }
+          if (mmStart){ mmStart.addEventListener('click', (ev) => { ev.preventDefault(); close(); const t = localStorage.getItem('hk_token'); if (!t){ try{ window.setPostLoginRedirect && window.setPostLoginRedirect('/realtime.html'); window.openAuth && window.openAuth(); window.showLogin && window.showLogin(); }catch{} } else { window.location.href = '/realtime.html'; } }); }
           // mmOcr linki artık herkese açık, sayfa içinde buton seviyesinde login kontrolü yapılacak
         }
       }catch{}
@@ -113,32 +88,11 @@
         }
         const btnStart = document.getElementById('btnStart');
         if (btnStart){
-          btnStart.addEventListener('click', async (ev) => {
+          btnStart.addEventListener('click', (ev) => {
             ev.preventDefault();
             const token = localStorage.getItem('hk_token');
-            if (!token){
-              try{ window.setPostLoginRedirect && window.setPostLoginRedirect('/realtime.html'); window.openAuth && window.openAuth(); window.showLogin && window.showLogin(); }catch{};
-              return;
-            }
-
-            // Kullanıcı planını kontrol et ve uygun sayfaya yönlendir
-            try {
-              const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : window.location.origin;
-              const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
-              if (r.ok) {
-                const me = await r.json();
-                const userPlan = me.user?.plan || 'free';
-                if (userPlan === 'economic') {
-                  window.location.href = '/ekonomik.html';
-                } else {
-                  window.location.href = '/realtime.html';
-                }
-              } else {
-                window.location.href = '/realtime.html';
-              }
-            } catch (error) {
-              window.location.href = '/realtime.html';
-            }
+            if (!token){ try{ window.setPostLoginRedirect && window.setPostLoginRedirect('/realtime.html'); window.openAuth && window.openAuth(); window.showLogin && window.showLogin(); }catch{}; return; }
+            window.location.href = '/realtime.html';
           });
         }
       }catch{}

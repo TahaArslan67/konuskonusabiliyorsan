@@ -4,7 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>KonusKonusabilirsen – Canlı Sesli Koç</title>
-  <script src="/config.js"></script>
   <script>
     try {
       const token = localStorage.getItem('hk_token');
@@ -30,17 +29,9 @@
               const redirect = encodeURIComponent('/realtime.html');
               window.location.replace(`/placement.html?redirect=${redirect}`);
               return;
+            } else {
+              console.log('[realtime] placementLevel var, realtime sayfası açık kalıyor:', me.user?.placementLevel);
             }
-
-            // Plan kontrolü - ekonomik paket sahipleri otomatik olarak ekonomik sayfaya yönlendirilsin
-            const userPlan = me.user?.plan || 'free';
-            if (userPlan === 'economic') {
-              console.log('[realtime] ekonomik paket kullanıcısı tespit edildi, ekonomik sayfaya yönlendiriliyor...');
-              window.location.replace('/ekonomik.html');
-              return;
-            }
-
-            console.log('[realtime] plan kontrolü geçildi, sayfa açık kalıyor:', userPlan);
           } else {
             console.log('[realtime] /me çağrısı başarısız:', r.status);
           }
@@ -49,7 +40,7 @@
         }
       })();
       // Update the URL to show /konus but PRESERVE query/hash (scenario, langs)
-      try {
+      try { 
         if (window.location.pathname !== '/konus') {
           const search = window.location.search || '';
           const hash = window.location.hash || '';
@@ -58,7 +49,6 @@
       } catch {}
     } catch {}
   </script>
-  <script src="/config.js"></script>
   <link rel="stylesheet" href="/styles.css?v=2" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

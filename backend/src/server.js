@@ -2881,8 +2881,8 @@ app.post('/session/start', async (req, res) => {
     const u = await User.findById(uid).lean();
     if (u && u.plan) effectivePlan = String(u.plan);
   } catch {}
-  // minute limits per plan
-  const limits = {
+  // minute limits default to plan; may be overridden by user-specific quotas later
+  let limits = {
     daily: getPlanLimit(String(effectivePlan), 'daily'),
     monthly: getPlanLimit(String(effectivePlan), 'monthly')
   };
@@ -2934,6 +2934,13 @@ app.post('/session/start', async (req, res) => {
         }
 
         console.log(`[DEBUG] /me usage'den yüklenen değerler - daily: ${minutesUsedDaily}, monthly: ${minutesUsedMonthly}`);
+        // Override limits with user-specific quotas if defined
+        try {
+          const dLim = Number(user.usage.dailyLimit);
+          const mLim = Number(user.usage.monthlyLimit);
+          if (Number.isFinite(dLim) && dLim > 0) limits.daily = dLim;
+          if (Number.isFinite(mLim) && mLim > 0) limits.monthly = mLim;
+        } catch {}
       }
     }
   } catch (e) {

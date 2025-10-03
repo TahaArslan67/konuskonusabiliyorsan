@@ -39,6 +39,40 @@ function setPlan(text){ try{ statusPlan.textContent = `Plan: ${text||'-'}`; }cat
 function setMinutes(used, limit){ try{ pillMinutes.textContent = `Günlük: ${Number(used||0).toFixed(1)}/${limit} dk`; }catch{} }
 function setRec(on){ try{ recDot.classList.toggle('on', !!on); }catch{} }
 
+// Simple modal to prompt upgrade when quota is over
+function showQuotaModal(usage){
+  try{
+    let modal = document.getElementById('quotaModal');
+    if (!modal){
+      modal = document.createElement('div');
+      modal.id = 'quotaModal';
+      modal.style.cssText = `position:fixed; inset:0; background:rgba(0,0,0,.5); backdrop-filter: blur(6px); z-index:50; display:flex; align-items:center; justify-content:center;`;
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.cssText = 'max-width:520px; width:90%; margin:20px; padding:28px; text-align:center;';
+      const h3 = document.createElement('h3'); h3.textContent = 'Kota Bitti'; h3.style.margin = '0 0 10px';
+      const msg = document.createElement('div'); msg.className = 'subtle'; msg.style.marginBottom = '14px';
+      msg.id = 'quotaMsg';
+      const row = document.createElement('div'); row.className = 'row'; row.style.gap = '10px'; row.style.justifyContent = 'center';
+      const btnPlans = document.createElement('a'); btnPlans.className = 'btn btn-primary'; btnPlans.textContent = 'Planları Göster'; btnPlans.style.minWidth = '140px'; btnPlans.href = '/#pricing';
+      const btnAccount = document.createElement('a'); btnAccount.className = 'btn btn-secondary'; btnAccount.textContent = 'Hesabım'; btnAccount.style.minWidth = '120px'; btnAccount.href = '/account.html';
+      const btnClose = document.createElement('button'); btnClose.className = 'btn'; btnClose.textContent = 'Kapat'; btnClose.style.minWidth = '100px';
+      btnClose.addEventListener('click', () => { modal.style.display = 'none'; });
+      row.appendChild(btnPlans); row.appendChild(btnAccount); row.appendChild(btnClose);
+      card.appendChild(h3); card.appendChild(msg); card.appendChild(row); modal.appendChild(card);
+      modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
+      document.body.appendChild(modal);
+    }
+    const m = document.getElementById('quotaMsg');
+    if (m){
+      const used = Number(usage?.usedDaily||0).toFixed(1);
+      const lim = usage?.limits?.daily ?? '-';
+      m.textContent = `Günlük kullanımınız doldu (${used}/${lim} dk). Devam etmek için planları inceleyin.`;
+    }
+    modal.style.display = 'flex';
+  }catch{}
+}
+
 let micCapturing = false;
 
 function updateMainButton(){
@@ -235,6 +269,16 @@ async function connect(autostart = false){
         window.location.replace(`/placement.html?redirect=${redirect}`);
         return;
       }
+      if (r.status === 403 && j?.error === 'limit_reached'){
+        // Show quota modal and disable main button
+        try{
+          const usage = { usedDaily: j.minutesUsedDaily ?? j.usage?.dailyUsed, usedMonthly: j.minutesUsedMonthly ?? j.usage?.monthlyUsed, limits: j.limits };
+          if (typeof usage.usedDaily === 'number' && usage.limits?.daily){ setMinutes(usage.usedDaily||0, usage.limits.daily ?? '-'); }
+          showQuotaModal(usage);
+        }catch{}
+        if (btnMain) btnMain.disabled = true; updateMainButton();
+        return;
+      }
       alert(j?.error || `Bağlantı başlatılamadı (${r.status})`);
       if (btnMain) btnMain.disabled = false; updateMainButton(); return;
     }
@@ -275,6 +319,7 @@ async function connect(autostart = false){
           }
           if (obj.type === 'limit_reached'){
             if (btnMain) btnMain.disabled = true;
+            try{ showQuotaModal(obj.usage); }catch{}
           }
           if (obj.type === 'bot_speaking'){
             wsAudioChunks = [];

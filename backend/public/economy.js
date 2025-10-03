@@ -25,6 +25,11 @@ let wsAudioChunks = [];
 let wsPlaybackCtx = null;
 let wsPlaybackSource = null;
 let lastResponseBuffer = null;
+// Streaming playback state
+let wsPlayhead = 0;          // scheduled playback time (AudioContext seconds)
+let wsGainNode = null;       // shared gain node for streaming
+let wsScheduledNodes = [];   // list of scheduled BufferSource nodes for current bot turn
+const STREAM_PLAYBACK = true; // enable low-latency streaming playback
 // Streaming mic state (STT kaldırıldı; Realtime'a PCM akışı)
 let audioCtx = null;
 let micStream = null;
@@ -91,13 +96,52 @@ function wsEnsurePlaybackCtx(){
   if (wsPlaybackCtx.state === 'suspended') wsPlaybackCtx.resume();
 }
 
+function wsEnsureStreamGraph(){
+  wsEnsurePlaybackCtx();
+  if (!wsGainNode){
+    try{
+      wsGainNode = wsPlaybackCtx.createGain();
+      wsGainNode.gain.value = 1.25;
+      wsGainNode.connect(wsPlaybackCtx.destination);
+    }catch{}
+  }
+}
+
+function wsStopScheduled(){
+  try{
+    wsScheduledNodes.forEach(src => { try { src.stop(); } catch {} });
+  }catch{}
+  wsScheduledNodes = [];
+}
+
+function wsScheduleChunkPcm(arrayBuffer){
+  try{
+    if (!STREAM_PLAYBACK) return;
+    wsEnsureStreamGraph();
+    const pcm16 = new Int16Array(arrayBuffer);
+    const len = pcm16.length;
+    if (len === 0) return;
+    const audioBuffer = wsPlaybackCtx.createBuffer(1, len, 24000);
+    const ch0 = audioBuffer.getChannelData(0);
+    for (let i=0;i<len;i++){ ch0[i] = Math.max(-1, Math.min(1, pcm16[i] / 32768)); }
+    const src = wsPlaybackCtx.createBufferSource();
+    src.buffer = audioBuffer;
+    src.connect(wsGainNode);
+    const now = wsPlaybackCtx.currentTime;
+    const startAt = Math.max(wsPlayhead || (now + 0.05), now + 0.02);
+    try { src.start(startAt); } catch {}
+    wsScheduledNodes.push(src);
+    wsPlayhead = startAt + (len / 24000);
+  }catch(e){ try{ console.log('[economy] schedule error', e?.message||e); }catch{} }
+}
+
 function wsPlayPcm(arrayBuffer){
   try{
     wsEnsurePlaybackCtx();
     const pcm16 = new Int16Array(arrayBuffer);
     const len = pcm16.length;
     if (len === 0) return;
-    const padSamples = Math.floor(24000 * 0.30);
+    const padSamples = Math.floor(24000 * 0.12);
     const totalLen = len + padSamples;
     const audioBuffer = wsPlaybackCtx.createBuffer(1, totalLen, 24000);
     const ch0 = audioBuffer.getChannelData(0);
@@ -204,7 +248,7 @@ function populateLanguageSelects(){
       selectEl.appendChild(opt);
     });
   }
-  fill(learnLangSelect, 'tr');
+  fill(learnLangSelect, 'en');
   fill(nativeLangSelect, 'tr');
 }
 
@@ -228,7 +272,7 @@ function sendPrefsToWs(){
   try{
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     const voice = voiceSelect && voiceSelect.value ? voiceSelect.value : 'alloy';
-    const learnLang = learnLangSelect && learnLangSelect.value ? learnLangSelect.value : 'tr';
+    const learnLang = learnLangSelect && learnLangSelect.value ? learnLangSelect.value : 'en';
     const nativeLang = nativeLangSelect && nativeLangSelect.value ? nativeLangSelect.value : 'tr';
     const correction = corrSelect && corrSelect.value ? corrSelect.value : 'gentle';
     const scenarioId = scenarioSelect && scenarioSelect.value ? scenarioSelect.value : '';
@@ -327,6 +371,8 @@ async function connect(autostart = false){
             // Bot konuşmaya başlarsa kullanıcı akışını sonlandır
             try { if (micStreaming && ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'audio_stop' })); } catch {}
             micStreaming = false;
+            // Prepare streaming scheduler
+            try { wsEnsureStreamGraph(); wsStopScheduled(); wsPlayhead = (wsPlaybackCtx?.currentTime || 0) + 0.05; } catch {}
           }
           if (obj.type === 'debug'){
             try { console.log('[economy][debug]', obj); } catch {}
@@ -363,24 +409,34 @@ async function connect(autostart = false){
             lastResponseBuffer = merged.buffer;
             try { console.debug('[economy] audio_end totalBytes=', total); } catch {}
             if (btnReplay) btnReplay.disabled = false;
-            if (total > 0){
-              wsPlayPcm(lastResponseBuffer);
-            } else {
+            if (total <= 0){
               // Sessiz yanıt; sadece bot konuşma durumunu sıfırla
               isBotSpeaking = false;
+            } else if (STREAM_PLAYBACK) {
+              // Streaming modunda: planlanan son chunk zamanına göre bitişi işaretle
+              try {
+                const now = wsPlaybackCtx ? wsPlaybackCtx.currentTime : 0;
+                const remainingMs = Math.max(0, (wsPlayhead - now) * 1000);
+                setTimeout(() => {
+                  try { isBotSpeaking = false; } catch {}
+                }, Math.min(2500, remainingMs + 80));
+              } catch {}
+            } else {
+              // Fallback: tüm yanıtı tek parça olarak çal
+              wsPlayPcm(lastResponseBuffer);
             }
             wsAudioChunks = [];
           }
         }catch{}
       } else {
         // binary PCM
+        try { if (STREAM_PLAYBACK) wsScheduleChunkPcm(ev.data); } catch {}
         wsAudioChunks.push(ev.data);
-      }
+        }
     };
   }catch(e){
     alert('Bağlantı hatası');
     if (btnMain) btnMain.disabled = false;
-    updateMainButton();
   }
 }
 
@@ -429,7 +485,7 @@ async function startCapture(){
     audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
   } catch(e){ try{ micStream.getTracks().forEach(t=>t.stop()); }catch{} alert('AudioContext açılamadı'); return; }
   micSource = audioCtx.createMediaStreamSource(micStream);
-  micProcessor = audioCtx.createScriptProcessor(4096, 1, 1);
+  micProcessor = audioCtx.createScriptProcessor(2048, 1, 1);
   const speakThreshold = 0.02;
   micProcessor.onaudioprocess = (ev) => {
     try{
@@ -459,7 +515,7 @@ async function startCapture(){
           vadSilenceMs = 0;
         } else {
           vadSilenceMs += ms;
-          if (vadSilenceMs >= 350) {
+          if (vadSilenceMs >= 300) {
             if (bytesSinceStart >= 4800) { try { ws.send(JSON.stringify({ type: 'audio_stop' })); } catch {} }
             micStreaming = false; setRec(false); vadSilenceMs = 0; bytesSinceStart = 0;
           }

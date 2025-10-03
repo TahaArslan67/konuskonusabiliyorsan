@@ -146,6 +146,7 @@ h6{ font-size:.875rem; }
 .price-tier{ color:#c7d2fe; font-weight:700; margin-bottom:8px; }
 .price-value{ font-size:28px; font-weight:700; margin-bottom:8px; }
 .price-was{ display:inline-block; color:#8a93a8; text-decoration: line-through; font-weight:600; margin-right:8px; }
+.price-promo{ display:inline-flex; align-items:center; gap:6px; color:#c7d2fe; font-weight:700; font-size:12px; padding:4px 8px; border:1px solid #2c3a6a; border-radius:999px; background:#0e1430cc; margin-bottom:8px; }
 .price-badge-limited{ display:inline-block; padding:2px 6px; font-size:12px; border-radius:999px; border:1px solid #3a4a7a; color:#c7d2fe; margin-left:8px; }
 .price-features{ list-style:none; padding:0; margin:0 0 12px; color:var(--muted); }
 .price-features li{ margin:6px 0; }
@@ -423,6 +424,7 @@ h6{ font-size:.875rem; }
   border-top: 1px solid rgba(124,58,237,.15);
   border-bottom: 1px solid rgba(124,58,237,.15);
   padding: 12px 0;
+  margin-bottom: 36px;
   background: linear-gradient(180deg, rgba(14,20,48,.35), rgba(14,20,48,.25));
   position: relative;
 }

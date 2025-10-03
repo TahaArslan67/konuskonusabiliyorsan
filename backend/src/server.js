@@ -408,7 +408,7 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
     c === 'strict' ? 'Dil hatalarını tespit et ve nazik ama net şekilde düzelt. Önce kısa yanıt ver, ardından bir cümle içinde düzeltmeyi açıkla ve bir örnek ver. Örnek formatı: "Şöyle de diyebilirsin: …".' :
     'Gerekirse hataları nazikçe düzelt. Kısa yanıt ver; en fazla bir cümlelik açıklama ve küçük bir örnek ekle. Örnek formatı: "Şöyle de diyebilirsin: …".'
   );
-  const safety = 'Konudan sapma; sadece kullanıcının söylediğine yanıt ver. Anlamazsan kibarca tekrar iste.';
+  const safety = 'Senaryo seçildiyse senaryodan sapma; sadece kullanıcının söylediğine ve senaryo bağlamına yanıt ver. Anlamazsan kibarca tekrar iste.';
   const tone = 'Sıcak, motive edici ve saygılı bir dil koçu gibi konuş.';
   const convo = 'Her turda: 1 kısa doğal yanıt + kullanıcıyı konuşturan tek bir kısa soru.';
   // Dil politikası: daima hedef dilde; ana dil sadece gerekirse 1 çok kısa ipucu için
@@ -419,7 +419,7 @@ function buildPersonaInstruction(learnLang = 'tr', nativeLang = 'tr', correction
   const lengthPolicy = 'UZUNLUK: Varsayılan 1-3 kısa cümle. Gerekçe varsa 4-5 cümleye çıkabilirsin ama çoğu turda 1-3 cümlede kal.';
   const closingRules = 'SONLANDIRMA: Başladığın cümleyi daima nokta ile tamamla. Asla iki nokta üst üste (:) ile bitirme. Tırnak içinde örnek başlattıysan mutlaka tırnağı kapat ve en az 4-5 kelimelik tam bir örnek ver.';
   const gentleLimits = 'Gentle modda: Anlam bozulmuyorsa düzeltme yapma. Düzeltirsen: hatayı çok kısa belirt + ana dilde 1 cümlelik ipucu + hedef dilde tek örnek.';
-  const scenarioPart = scenarioText ? ` Senaryo bağlamı: ${scenarioText}` : '';
+  const scenarioPart = scenarioText ? ` Senaryo bağlamı: ${scenarioText} Senaryodan sapma; rolünü koru; sorular ve örnekler senaryo ölçütlerine hizmet etsin.` : '';
   const pacing = 'Konuşma hızını biraz yavaş tut. 1-2 kısa cümleyle konuş. Kullanıcıyı konuşturan kısa sorular sor.';
   const levelInstruction = userLevel ? ` Kullanıcının dil seviyesi: ${userLevel}. Bu seviyeye uygun kelimeler, dilbilgisi yapıları ve konuşma hızı kullan.` : '';
   return `Markaya özel dil koçu asistan ("konuskonusabilirsen"). Kullanıcının ana dili: ${nativeName}. Öğrenilen dil: ${learnName}. ${tone} ${convo} ${langPolicy} ${mixing} ${lengthPolicy} ${closingRules} ${format} ${fixStyle} ${gentleLimits} ${safety} ${pacing}${scenarioPart}${levelInstruction}`;
@@ -3343,6 +3343,7 @@ wss.on('connection', (clientWs, request) => {
       if (t === 'set_prefs' && obj?.prefs) {
         try {
           const p = obj.prefs || {};
+          const prevScenarioId = (sess && sess.prefs) ? (sess.prefs.scenarioId || null) : null;
           // Update in-memory prefs
           if (sess && sess.prefs) {
             if (typeof p.learnLang === 'string') sess.prefs.learnLang = String(p.learnLang).toLowerCase();
@@ -3364,7 +3365,7 @@ wss.on('connection', (clientWs, request) => {
           // ECONOMY dahil tüm planlar için aynı persona; sıcaklık ekonomi için düşük kalır
           let temp = 0.8;
           if (sess?.plan === 'economy') temp = 0.6;
-          const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel) + "\n\nKURAL: Sadece Türkçe cevap ver. Başka dil kullanma.";
+          const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel);
           // Push updated session settings (voice/language hints) and a fresh system message
           openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, instructions: persona, temperature: temp, max_response_output_tokens: 480 } }));
           // Persona'yı güçlü uygulamak için sistem mesajı olarak ekle (ayrıca tekil langNotice kaldırıldı)
@@ -3376,6 +3377,18 @@ wss.on('connection', (clientWs, request) => {
               content: [{ type: 'input_text', text: persona }]
             }
           }));
+          // If scenario changed, trigger a short scenario-specific greeting so the user sees the new role immediately
+          try {
+            if (typeof p.scenarioId === 'string' && p.scenarioId && p.scenarioId !== prevScenarioId) {
+              openaiWs.send(JSON.stringify({
+                type: 'response.create',
+                response: {
+                  modalities: ['audio','text'],
+                  instructions: 'Senaryo güncellendi. Yeni senaryo rolünde kısa bir karşılama yap ve bağlama uygun 1 kısa soru sor.'
+                }
+              }));
+            }
+          } catch {}
           console.log('[proxy] updated prefs via set_prefs');
         } catch (e) {
           console.error('[proxy] set_prefs error:', e);

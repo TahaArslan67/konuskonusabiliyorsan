@@ -617,11 +617,6 @@ async function connect(){
   try {
     // 1) ephemeral token
     const r = await fetch(`${backendBase}/realtime/ephemeral`, { method: 'POST', headers: { 'Content-Type': 'application/json' }});
-    // For economic plan, use economic endpoint
-    if (window.location.pathname.includes('/ekonomik')) {
-      // Economic plan uses cheaper speech-to-text processing
-      // Here we would implement speech-to-text logic instead of direct WebRTC
-    }
     if (!r.ok) throw new Error(`ephemeral failed: ${r.status}`);
     const { client_secret: token, model } = await r.json();
     if (!token) throw new Error('empty token');

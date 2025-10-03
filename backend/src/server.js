@@ -599,17 +599,6 @@ app.get(['/realtime', '/realtime/'], (_req, res) => {
 // Redirect legacy .html path to pretty URL
 app.get('/realtime.html', (_req, res) => res.redirect(301, '/realtime'));
 
-// Pretty URL for economic realtime (hide .html in address bar)
-app.get(['/ekonomik', '/ekonomik/'], (_req, res) => {
-  try {
-    return res.sendFile(path.join(publicDir, 'ekonomik.html'));
-  } catch {
-    return res.status(404).end();
-  }
-});
-// Redirect legacy .html path to pretty URL
-app.get('/ekonomik.html', (_req, res) => res.redirect(301, '/ekonomik'));
-
 // Pretty URL for OCR page (now at /ceviri)
 app.get(['/ceviri', '/ceviri/'], (_req, res) => {
   try {
@@ -697,7 +686,6 @@ function authRequired(req, res, next){
 function getPlanLimit(plan, type) {
   const limits = {
     free: { daily: 3, monthly: 10 },
-    economic: { daily: 10, monthly: 300 },
     starter: { daily: 15, monthly: 450 },
     pro: { daily: 60, monthly: 1800 },
     enterprise: { daily: 1000, monthly: 30000 }
@@ -713,7 +701,7 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
   try {
     const { plan } = req.body || {};
     
-    if (!['free', 'economic', 'starter', 'pro', 'enterprise'].includes(plan)) {
+    if (!['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
       await session.abortTransaction();
       return res.status(400).json({ error: 'Geçersiz plan seçimi' });
     }
@@ -796,7 +784,7 @@ app.post('/api/admin/update-user-plan', authRequired, async (req, res) => {
       return res.status(403).json({ error: 'Bu işlem için yetkiniz yok' });
     }
     
-    if (!userId || !['free', 'economic', 'starter', 'pro', 'enterprise'].includes(newPlan)) {
+    if (!userId || !['free', 'starter', 'pro', 'enterprise'].includes(newPlan)) {
       return res.status(400).json({ error: 'Geçersiz istek' });
     }
     
@@ -2665,71 +2653,6 @@ app.patch('/gamification/goal', authRequired, async (req, res) => {
   }
 });
 
-// Ephemeral token for OpenAI Realtime WebRTC (Economic Plan)
-// Creates a short-lived client token that can be used by the client to connect directly to OpenAI via WebRTC.
-// Economic plan uses cheaper speech-to-text input instead of direct audio processing.
-app.post('/realtime/economic/ephemeral', async (req, res) => {
-  try {
-    if (!OPENAI_API_KEY) {
-      return res.status(500).json({ error: 'missing_openai_api_key' });
-    }
-    // Prefer native fetch (Node 18+). Fallback to node-fetch only if necessary.
-    let fetchFn = globalThis.fetch;
-    if (typeof fetchFn !== 'function') {
-      try {
-        fetchFn = (await import('node-fetch')).default;
-      } catch (e) {
-        console.error('[ephemeral] fetch unavailable and node-fetch not installed');
-        return res.status(500).json({ error: 'fetch_unavailable', hint: 'Use Node 18+ or install node-fetch' });
-      }
-    }
-    const model = req.body?.model || process.env.OPENAI_REALTIME_MODEL || 'gpt-4o-realtime-preview';
-    // Optionally accept language/correction hints from body for anonymous demos
-    const learnLang = (req.body?.preferredLearningLanguage || req.body?.preferredLanguage || 'tr').toLowerCase();
-    const nativeLang = (req.body?.preferredNativeLanguage || 'tr').toLowerCase();
-    const corr = (req.body?.preferredCorrectionMode || 'gentle').toLowerCase();
-    const persona = buildPersonaInstruction(learnLang, nativeLang, corr);
-    const r = await fetchFn('https://api.openai.com/v1/realtime/sessions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-        'OpenAI-Beta': 'realtime=v1',
-      },
-      body: JSON.stringify({
-        model,
-        modalities: ['audio','text'],
-        voice: 'alloy',
-        instructions: persona,
-        max_response_output_tokens: 480,
-        turn_detection: {
-          type: 'server_vad',
-          threshold: 0.25,
-          prefix_padding_ms: 200,
-          silence_duration_ms: 400,
-          create_response: true,
-          interrupt_response: true
-        }
-      })
-    });
-    if (!r.ok) {
-      const txt = await r.text();
-      console.error('[ephemeral] OpenAI error:', txt);
-      return res.status(500).json({ error: 'openai_error', detail: txt });
-    }
-    const json = await r.json();
-    // Return only what's needed by the client
-    return res.json({
-      model,
-      client_secret: json?.client_secret?.value || null,
-      expires_at: json?.client_secret?.expires_at || null,
-    });
-  } catch (e) {
-    console.error('[ephemeral] error:', e);
-    return res.status(500).json({ error: 'server_error' });
-  }
-});
-
 // Ephemeral token for OpenAI Realtime WebRTC
 // Creates a short-lived client token that can be used by the client to connect directly to OpenAI via WebRTC.
 app.post('/realtime/ephemeral', async (req, res) => {
@@ -2802,105 +2725,6 @@ const sessions = new Map();
 const OPENAI_REALTIME_URL = USE_AZURE
   ? `${AZURE_OPENAI_ENDPOINT.replace(/^http/, 'ws')}/openai/realtime?api-version=${AZURE_OPENAI_API_VERSION}&deployment=${AZURE_OPENAI_DEPLOYMENT}`
   : `wss://api.openai.com/v1/realtime?model=${encodeURIComponent(REALTIME_MODEL)}`;
-
-// Start session (Economic Plan)
-app.post('/session/economic/start', async (req, res) => {
-  const { plan = 'economic' } = req.body || {};
-  // Optional auth: extract uid/email if Authorization provided
-  let uid = null, email = null;
-  try {
-    const h = req.headers['authorization'] || '';
-    const m = /^Bearer\s+(.+)/i.exec(h);
-    if (m) {
-      const payload = jwt.verify(m[1], JWT_SECRET);
-      uid = String(payload.uid);
-      email = payload.email || null;
-    }
-  } catch {}
-  // Enforce auth for realtime sessions (free demo dahil):
-  if (!uid) {
-    return res.status(401).json({ error: 'auth_required', message: 'Lütfen giriş yapın ve tekrar deneyin.' });
-  }
-  // Enforce placement completion before allowing realtime session
-  try {
-    const userDoc = await User.findById(uid).lean();
-    if (!userDoc) return res.status(401).json({ error: 'auth_required' });
-    if (!userDoc.placementLevel) {
-      return res.status(403).json({ error: 'placement_required', message: 'Lütfen seviye belirleme testini tamamlayın.' });
-    }
-    // Check if user has economic plan
-    if (userDoc.plan !== 'economic') {
-      return res.status(403).json({ error: 'plan_required', message: 'Bu özellik sadece ekonomik paket kullanıcıları için geçerlidir.' });
-    }
-  } catch {}
-  const sessionId = uuidv4();
-  const createdAt = Date.now();
-  // minute limits per plan (daily / monthly) - getPlanLimit fonksiyonunu kullan
-  const limits = {
-    daily: getPlanLimit(String(plan), 'daily'),
-    monthly: getPlanLimit(String(plan), 'monthly')
-  };
-  // Load user prefs if available
-  let prefs = { learnLang: 'tr', nativeLang: 'tr', voice: 'alloy', correction: 'gentle', scenarioId: null };
-  let userLevel = null;
-  try {
-    if (uid) {
-      const u = await User.findById(uid).lean();
-      if (u) {
-        if (u.preferredLearningLanguage) prefs.learnLang = String(u.preferredLearningLanguage).toLowerCase();
-        if (u.preferredNativeLanguage) prefs.nativeLang = String(u.preferredNativeLanguage).toLowerCase();
-        if (u.preferredVoice) prefs.voice = String(u.preferredVoice);
-        if (u.preferredCorrectionMode) prefs.correction = String(u.preferredCorrectionMode).toLowerCase();
-        if (u.placementLevel) userLevel = String(u.placementLevel);
-      }
-    }
-  } catch {}
-  // Kullanım verilerini /me endpoint'inden al
-  let minutesUsedDaily = 0;
-  let minutesUsedMonthly = 0;
-  try {
-    // ...
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (token) {
-      const user = await User.findById(uid);
-      if (user && user.usage) {
-        // Günlük kullanımı sıfırla (eğer yeni bir gün başladıysa)
-        const now = new Date();
-        const lastReset = new Date(user.usage.lastReset);
-        if (now.toDateString() !== lastReset.toDateString()) {
-          user.usage.dailyUsed = 0;
-          user.usage.lastReset = now;
-          await user.save();
-          minutesUsedDaily = 0;
-        } else {
-          minutesUsedDaily = user.usage.dailyUsed || 0;
-        }
-
-        // Aylık kullanımı sıfırla (eğer yeni bir ay başladıysa)
-        const monthlyReset = new Date(user.usage.monthlyResetAt);
-        if (now > monthlyReset) {
-          user.usage.monthlyUsed = 0;
-          user.usage.monthlyResetAt = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-          await user.save();
-          minutesUsedMonthly = 0;
-        } else {
-          minutesUsedMonthly = user.usage.monthlyUsed || 0;
-        }
-
-        console.log(`[DEBUG] /me usage'den yüklenen değerler - daily: ${minutesUsedDaily}, monthly: ${minutesUsedMonthly}`);
-      }
-    }
-  } catch (e) {
-    console.warn('[session] usage load error:', e?.message || e);
-  }
-  // If over limit, block session start
-  if (minutesUsedDaily >= limits.daily || minutesUsedMonthly >= limits.monthly) {
-    return res.status(403).json({ error: 'limit_reached', message: 'Kullanım limitiniz doldu.', minutesUsedDaily, minutesUsedMonthly, minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, limits, plan: String(plan) });
-  }
-  const sessObj = { plan: String(plan), createdAt, minutesUsedDaily, minutesUsedMonthly, limits, userId: uid, prefs, userLevel };
-  sessions.set(sessionId, sessObj);
-  return res.json({ sessionId, wsUrl: `/realtime/economic/ws?sessionId=${sessionId}`.replace('http','ws'), plan: String(plan), minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, minutesUsedDaily, minutesUsedMonthly });
-});
 
 // Start session
 app.post('/session/start', async (req, res) => {
@@ -3007,101 +2831,6 @@ app.post('/session/close', (req, res) => {
   sessions.delete(sessionId);
   console.log('[session/close]', { sessionId, plan: s?.plan, usedDaily: s?.minutesUsedDaily, usedMonthly: s?.minutesUsedMonthly });
   res.json({ closed: true, usage: s });
-});
-
-// WebSocket proxy to OpenAI Realtime (Economic Plan)
-const wssEconomic = new WebSocketServer({ server, path: '/realtime/economic/ws' });
-
-wssEconomic.on('connection', (clientWs, request) => {
-  const url = new URL(request.url, `http://${request.headers.host}`);
-  const sessionId = url.searchParams.get('sessionId');
-
-  if (!sessionId || !sessions.has(sessionId)) {
-    console.log('[ws-economic] invalid session:', sessionId);
-    clientWs.close(1008, 'invalid session');
-    return;
-  }
-
-  const sess = sessions.get(sessionId);
-  if (sess.plan !== 'economic') {
-    console.log('[ws-economic] session not economic plan:', sess.plan);
-    clientWs.close(1008, 'plan mismatch');
-    return;
-  }
-
-  console.log('[ws-economic] client connected, session:', sessionId, 'plan:', sess.plan);
-
-  let openaiWs = null;
-  let isResponding = false;
-  let suppressUntilTs = 0;
-  let speechStartTs = null;
-  let realtimeTimer = null;
-  let realtimeStartedAt = null;
-
-  // Establish connection to Realtime API
-  const headers = USE_AZURE
-    ? { 'api-key': AZURE_OPENAI_API_KEY, 'Content-Type': 'application/json' }
-    : { Authorization: `Bearer ${OPENAI_API_KEY}`, 'OpenAI-Beta': 'realtime=v1' };
-  const protocols = ['realtime'];
-  const openaiWs = new WebSocket(OPENAI_REALTIME_URL, protocols, { headers });
-
-  openaiWs.on('open', () => {
-    console.log('[ws-economic] connected to OpenAI Realtime');
-  });
-
-  openaiWs.on('message', (data) => {
-    try {
-      const msg = JSON.parse(data.toString());
-      // Forward to client (same as regular realtime)
-      if (clientWs.readyState === WebSocket.OPEN) {
-        clientWs.send(JSON.stringify(msg));
-      }
-    } catch (e) {
-      console.error('[ws-economic] failed to parse OpenAI message:', e);
-    }
-  });
-
-  openaiWs.on('error', (error) => {
-    console.error('[ws-economic] OpenAI WebSocket error:', error);
-  });
-
-  openaiWs.on('close', (code, reason) => {
-    console.log('[ws-economic] OpenAI connection closed:', code, reason?.toString());
-    if (clientWs.readyState === WebSocket.OPEN) {
-      clientWs.close(code, reason);
-    }
-  });
-
-  clientWs.on('message', (data) => {
-    try {
-      const msg = JSON.parse(data.toString());
-      // For economic plan, we need to handle audio differently
-      // Convert audio input to text using cheaper speech-to-text service
-      if (msg.type === 'input_audio_buffer.append' && !isResponding) {
-        // Here we would integrate with a cheaper speech-to-text service
-        // For now, just forward as-is but log that this is where optimization would happen
-        console.log('[ws-economic] audio input received, would convert to text for economic plan');
-      }
-
-      // Forward messages to OpenAI (same as regular realtime)
-      if (openaiWs.readyState === WebSocket.OPEN) {
-        openaiWs.send(JSON.stringify(msg));
-      }
-    } catch (e) {
-      console.error('[ws-economic] failed to parse client message:', e);
-    }
-  });
-
-  clientWs.on('close', (code, reason) => {
-    console.log('[ws-economic] client disconnected:', code, reason?.toString());
-    if (openaiWs && openaiWs.readyState === WebSocket.OPEN) {
-      openaiWs.close();
-    }
-  });
-
-  clientWs.on('error', (error) => {
-    console.error('[ws-economic] client WebSocket error:', error);
-  });
 });
 
 // WebSocket proxy to OpenAI Realtime

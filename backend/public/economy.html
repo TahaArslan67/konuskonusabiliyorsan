@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ekonomik Plan • KonusKonusabilirsen</title>
+  <link rel="stylesheet" href="/styles.css?v=2" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="/config.js"></script>
+  <script>
+    // Zorunlu: giriş yoksa auth modala yönlendir
+    try {
+      const token = localStorage.getItem('hk_token');
+      if (!token) {
+        const redirect = encodeURIComponent('/ekonomi');
+        window.location.replace(`/?auth=1&redirect=${redirect}`);
+      }
+    } catch {}
+  </script>
+  <style>
+    .subtle{ color: var(--muted); }
+    .stack{ display:flex; flex-direction:column; gap:10px; }
+    .row{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .pill{ font-size:12px; color:#aab4c3; padding:4px 8px; border:1px solid #243055; border-radius:999px; }
+    .rec-dot{ width:10px; height:10px; border-radius:50%; background:#ef4444; display:inline-block; margin-left:6px; opacity:.2; transition:opacity .2s; }
+    .rec-dot.on{ opacity:1; }
+    #transcript{ white-space:pre-wrap; background:#0b1022; border:1px solid #1b2442; min-height:80px; padding:10px; border-radius:10px; color:var(--text); }
+  </style>
+</head>
+<body>
+  <script src="/header.js"></script>
+  <main class="container" style="padding:28px 0 40px;">
+    <div class="stack" style="margin-bottom:14px;">
+      <h1 style="margin:0;">Ekonomik Plan: STT + Sesli Yanıt</h1>
+      <div class="subtle">Mikrofondan kısa bir cümle söyleyin. Whisper ile yazıya çevirelim; Realtime model metne göre sesli yanıt versin.</div>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 1.1fr 1fr; gap:16px;">
+      <!-- Sol: Kontroller -->
+      <div class="stack">
+        <div class="card" style="padding:22px;">
+          <h3 style="margin:0 0 8px;">Akış</h3>
+          <div class="row">
+            <span class="pill" id="statusConn">Bağlantı: Kapalı</span>
+            <span class="pill" id="statusPlan">Plan: -</span>
+            <span class="pill" id="pillStt">STT: -/-</span>
+            <span class="pill" id="pillMinutes">Günlük: -/- dk</span>
+          </div>
+          <div class="row" style="margin:10px 0;">
+            <button id="btnConnect" class="btn btn-primary">Bağlan</button>
+            <button id="btnDisconnect" class="btn" disabled>Bağlantıyı Kes</button>
+          </div>
+          <div class="row" style="margin-top:4px;">
+            <button id="btnRec" class="btn" disabled>Kaydı Başlat</button>
+            <span class="subtle">Kayıt <span class="rec-dot" id="recDot"></span></span>
+            <button id="btnReplay" class="btn" disabled>Son Yanıtı Tekrar Çal</button>
+          </div>
+          <div class="stack" style="margin-top:10px;">
+            <label class="subtle">Transkript</label>
+            <div id="transcript" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Sağ: Ses oynatıcı -->
+      <div class="stack">
+        <div class="card demo-card" style="min-height:260px; align-items:flex-end; justify-content:space-between;">
+          <div class="demo-wave" aria-hidden="true"></div>
+          <div class="demo-text" style="position:relative;">“Hazırım”</div>
+          <audio id="remoteAudio" autoplay style="position:relative; width:100%;"></audio>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script src="/footer.js"></script>
+  <script src="/site.js" type="module"></script>
+  <script src="/economy.js" type="module"></script>
+</body>
+</html>

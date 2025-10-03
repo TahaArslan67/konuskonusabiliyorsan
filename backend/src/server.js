@@ -1,4 +1,4 @@
-﻿import 'dotenv/config';
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { toASCII } from 'punycode';
@@ -156,7 +156,7 @@ app.post('/api/ocr-translate', authRequired, express.json({ limit: '25mb' }), as
     const userDoc = await User.findById(uid);
     if (!userDoc) return res.status(401).json({ error: 'unauthorized' });
     const plan = userDoc.plan || 'free';
-    const ocrDailyLimit = plan === 'pro' ? 30 : (plan === 'starter' ? 10 : 1);
+    const ocrDailyLimit = plan === 'pro' ? 30 : (plan === 'starter' ? 10 : (plan === 'economy' ? 5 : 1));
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     userDoc.ocrUsage = userDoc.ocrUsage || { day: today, count: 0 };
     if (userDoc.ocrUsage.day !== today) { userDoc.ocrUsage.day = today; userDoc.ocrUsage.count = 0; }
@@ -227,6 +227,76 @@ app.post('/api/ocr-translate', authRequired, express.json({ limit: '25mb' }), as
     return res.json({ pages: results, text_tr: combinedTR, text_en: combinedEN, quota: { dailyUsed: userDoc.ocrUsage.count, dailyLimit: ocrDailyLimit } });
   } catch (e) {
     console.error('[ocr-translate] error:', e);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// STT — Whisper ile ses -> metin (JSON data URL kabul eder)
+app.post('/api/stt', authRequired, express.json({ limit: '20mb' }), async (req, res) => {
+  try {
+    const apiKey = process.env.OPENAI_API_KEY || '';
+    if (!apiKey) return res.status(500).json({ error: 'server_not_configured', hint: 'OPENAI_API_KEY missing' });
+
+    const { audio, language = 'tr' } = req.body || {};
+    if (typeof audio !== 'string' || audio.length < 50) {
+      return res.status(400).json({ error: 'invalid_audio', hint: 'Send data URL (base64) in body.audio' });
+    }
+    // data:audio/<mime>;base64,<payload>
+    const m = /^data:\s*audio\/(?:[a-zA-Z0-9+.-]+);base64,([A-Za-z0-9+/=]+)$/i.exec(audio);
+    const mimeMatch = /^data:\s*(audio\/[a-zA-Z0-9+.-]+);base64,/i.exec(audio);
+    if (!m || !mimeMatch) {
+      return res.status(400).json({ error: 'invalid_audio_format' });
+    }
+    const b64 = m[1];
+    const mime = mimeMatch[1] || 'audio/webm';
+
+    // Kota kontrolü (günlük adet)
+    const uid = req.auth?.uid;
+    const userDoc = await User.findById(uid);
+    if (!userDoc) return res.status(401).json({ error: 'unauthorized' });
+    const plan = userDoc.plan || 'free';
+    const sttDailyLimit = plan === 'pro' ? 30 : plan === 'starter' ? 10 : (plan === 'economy' ? 5 : 1);
+    const today = new Date().toISOString().slice(0, 10);
+    userDoc.sttUsage = userDoc.sttUsage || { day: today, count: 0 };
+    if (userDoc.sttUsage.day !== today) { userDoc.sttUsage.day = today; userDoc.sttUsage.count = 0; }
+    if ((userDoc.sttUsage.count || 0) >= sttDailyLimit) {
+      return res.status(403).json({ error: 'limit_reached', dailyUsed: userDoc.sttUsage.count, dailyLimit: sttDailyLimit });
+    }
+
+    // OpenAI Whisper çağrısı (multipart/form-data)
+    let fetchFn = globalThis.fetch;
+    if (typeof fetchFn !== 'function') fetchFn = (await import('node-fetch')).default;
+    if (typeof globalThis.FormData !== 'function' || typeof globalThis.Blob !== 'function'){
+      return res.status(500).json({ error: 'server_not_configured', hint: 'Node 18+ is required for FormData/Blob' });
+    }
+    const form = new FormData();
+    const bin = Buffer.from(b64, 'base64');
+    const blob = new Blob([bin], { type: mime });
+    form.append('model', 'whisper-1');
+    if (language) form.append('language', String(language));
+    form.append('file', blob, 'audio.webm');
+
+    const r = await fetchFn('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form
+    });
+    if (!r.ok) {
+      const txt = await r.text().catch(()=> '');
+      return res.status(502).json({ error: 'openai_error', status: r.status, detail: txt });
+    }
+    const j = await r.json();
+    const text = typeof j?.text === 'string' ? j.text : '';
+
+    // Sayaç artır
+    try {
+      userDoc.sttUsage.count = (userDoc.sttUsage.count || 0) + 1;
+      await userDoc.save();
+    } catch(e) { console.warn('[stt] quota increment failed:', e?.message || e); }
+
+    return res.json({ text, quota: { dailyUsed: userDoc.sttUsage.count, dailyLimit: sttDailyLimit } });
+  } catch (e) {
+    console.error('[stt] error:', e);
     return res.status(500).json({ error: 'server_error' });
   }
 });
@@ -686,6 +756,7 @@ function authRequired(req, res, next){
 function getPlanLimit(plan, type) {
   const limits = {
     free: { daily: 3, monthly: 10 },
+    economy: { daily: 10, monthly: 300 },
     starter: { daily: 15, monthly: 450 },
     pro: { daily: 60, monthly: 1800 },
     enterprise: { daily: 1000, monthly: 30000 }
@@ -701,7 +772,7 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
   try {
     const { plan } = req.body || {};
     
-    if (!['free', 'starter', 'pro', 'enterprise'].includes(plan)) {
+    if (!['free', 'economy', 'starter', 'pro', 'enterprise'].includes(plan)) {
       await session.abortTransaction();
       return res.status(400).json({ error: 'Geçersiz plan seçimi' });
     }
@@ -1262,6 +1333,11 @@ try {
   });
   // Redirect legacy .html path to pretty URL
   app.get('/realtime.html', (_req, res) => res.redirect(301, '/realtime'));
+  // Pretty URL for economy page
+  app.get(['/ekonomi', '/ekonomi/'], (_req, res) => {
+    return res.sendFile(path.join(publicDir, 'economy.html'));
+  });
+  app.get('/economy.html', (_req, res) => res.redirect(301, '/ekonomi'));
 } catch {}
 // Static with Cache-Control
 app.use(express.static(publicDir, {
@@ -1919,7 +1995,7 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
     }
     const { plan = 'starter' } = req.body || {};
     // Prices (TRY) -> PayTR wants kuruş (integer)
-    const priceMap = { starter: 399.00, pro: 999.00, enterprise: 9999.00 };
+    const priceMap = { economy: 199.00, starter: 399.00, pro: 999.00, enterprise: 9999.00 };
     const price = priceMap[String(plan)] ?? priceMap.starter;
     const payment_amount = Math.round(price * 100); // kuruş
 
@@ -2728,7 +2804,7 @@ const OPENAI_REALTIME_URL = USE_AZURE
 
 // Start session
 app.post('/session/start', async (req, res) => {
-  const { plan = 'free' } = req.body || {};
+  const { plan: _ignoredPlan = 'free' } = req.body || {};
   // Optional auth: extract uid/email if Authorization provided
   let uid = null, email = null;
   try {
@@ -2754,10 +2830,16 @@ app.post('/session/start', async (req, res) => {
   } catch {}
   const sessionId = uuidv4();
   const createdAt = Date.now();
-  // minute limits per plan (daily / monthly) - getPlanLimit fonksiyonunu kullan
+  // Determine effective plan from user profile (do NOT trust client body)
+  let effectivePlan = 'free';
+  try {
+    const u = await User.findById(uid).lean();
+    if (u && u.plan) effectivePlan = String(u.plan);
+  } catch {}
+  // minute limits per plan
   const limits = {
-    daily: getPlanLimit(String(plan), 'daily'),
-    monthly: getPlanLimit(String(plan), 'monthly')
+    daily: getPlanLimit(String(effectivePlan), 'daily'),
+    monthly: getPlanLimit(String(effectivePlan), 'monthly')
   };
   // Load user prefs if available
   let prefs = { learnLang: 'tr', nativeLang: 'tr', voice: 'alloy', correction: 'gentle', scenarioId: null };
@@ -2816,9 +2898,9 @@ app.post('/session/start', async (req, res) => {
   if (minutesUsedDaily >= limits.daily || minutesUsedMonthly >= limits.monthly) {
     return res.status(403).json({ error: 'limit_reached', message: 'Kullanım limitiniz doldu.', minutesUsedDaily, minutesUsedMonthly, minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, limits, plan: String(plan) });
   }
-  const sessObj = { plan: String(plan), createdAt, minutesUsedDaily, minutesUsedMonthly, limits, userId: uid, prefs, userLevel };
+  const sessObj = { plan: String(effectivePlan), createdAt, minutesUsedDaily, minutesUsedMonthly, limits, userId: uid, prefs, userLevel };
   sessions.set(sessionId, sessObj);
-  return res.json({ sessionId, wsUrl: `/realtime/ws?sessionId=${sessionId}`.replace('http','ws'), plan: String(plan), minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, minutesUsedDaily, minutesUsedMonthly });
+  return res.json({ sessionId, wsUrl: `/realtime/ws?sessionId=${sessionId}`.replace('http','ws'), plan: String(effectivePlan), minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, minutesUsedDaily, minutesUsedMonthly });
 });
 
 // Close session

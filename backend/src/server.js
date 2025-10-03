@@ -3417,9 +3417,9 @@ wss.on('connection', (clientWs, request) => {
           // Clean up and close the connection
           cleanup();
           return;
-        } else if (!hasAppendedAudio || appendedBytes < 4800) {
-          // For audio_stop, only commit if we have sufficient audio
-          console.log('[proxy] audio_stop ignored (insufficient audio)');
+        } else if (!hasAppendedAudio) {
+          // No audio appended in this turn; ignore
+          console.log('[proxy] audio_stop ignored (no audio appended)');
           return;
         }
         // Commit and request a response when user stops talking
@@ -3445,6 +3445,28 @@ wss.on('connection', (clientWs, request) => {
           hasAppendedAudio = false; appendedBytes = 0;
           return;
         }
+        // Fallback: if model does not auto-create a response after commit, trigger one after a short delay
+        try {
+          if (pendingResponseTimer) { try { clearTimeout(pendingResponseTimer); } catch {} pendingResponseTimer = null; }
+          pendingResponseTimer = setTimeout(() => {
+            try {
+              if (Date.now() < suppressUntilTs) { suppressUntilTs = 0; return; }
+              if (!STRICT_REALTIME && !isResponding) {
+                const create = {
+                  type: 'response.create',
+                  response: { modalities: ['audio','text'], max_output_tokens: 220 }
+                };
+                openaiWs.send(JSON.stringify(create));
+                console.log('[proxy] sent response.create (fallback after commit)');
+                isResponding = true;
+              }
+            } catch (e) {
+              console.error('[proxy] fallback response.create error:', e);
+            } finally {
+              pendingResponseTimer = null;
+            }
+          }, 700);
+        } catch {}
         // Rely on model auto-response creation; do not send our own response.create
         if (!AUTO_CREATE_RESPONSE) {
           // Build response.create payload

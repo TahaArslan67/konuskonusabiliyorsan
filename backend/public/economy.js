@@ -39,6 +39,8 @@ let micStreaming = false;   // currently streaming within a turn
 let vadSilenceMs = 0;
 let bytesSinceStart = 0;
 let isBotSpeaking = false;
+const MAX_TURN_MS = 4500;   // hard limit for a single user turn before forcing commit
+let turnElapsedMs = 0;
 function setConn(open){ try{ statusConn.textContent = `Bağlantı: ${open ? 'Açık' : 'Kapalı'}`; }catch{} }
 function setPlan(text){ try{ statusPlan.textContent = `Plan: ${text||'-'}`; }catch{} }
 function setMinutes(used, limit){ try{ pillMinutes.textContent = `Günlük: ${Number(used||0).toFixed(1)}/${limit} dk`; }catch{} }
@@ -504,21 +506,28 @@ async function startCapture(){
       if (!micStreaming && rms > speakThreshold) {
         // Yeni tur başlat
         try { ws.send(JSON.stringify({ type: 'audio_start', format: 'pcm16', sampleRate: 24000, channels: 1 })); } catch {}
-        micStreaming = true; bytesSinceStart = 0; vadSilenceMs = 0; setRec(true);
+        micStreaming = true; bytesSinceStart = 0; vadSilenceMs = 0; turnElapsedMs = 0; setRec(true);
       }
 
       if (micStreaming) {
         const buf = floatTo16BitPCM(ch);
         try { ws.send(buf); } catch {}
         bytesSinceStart += buf.byteLength;
+        turnElapsedMs += ms;
         if (rms > speakThreshold) {
           vadSilenceMs = 0;
         } else {
           vadSilenceMs += ms;
           if (vadSilenceMs >= 300) {
             if (bytesSinceStart >= 4800) { try { ws.send(JSON.stringify({ type: 'audio_stop' })); } catch {} }
-            micStreaming = false; setRec(false); vadSilenceMs = 0; bytesSinceStart = 0;
+            micStreaming = false; setRec(false); vadSilenceMs = 0; bytesSinceStart = 0; turnElapsedMs = 0;
           }
+        }
+
+        // Force-stop fallback: if user keeps streaming (noise) and silence never triggers
+        if (turnElapsedMs >= MAX_TURN_MS) {
+          if (bytesSinceStart >= 4800) { try { ws.send(JSON.stringify({ type: 'audio_stop' })); } catch {} }
+          micStreaming = false; setRec(false); vadSilenceMs = 0; bytesSinceStart = 0; turnElapsedMs = 0;
         }
       }
     }catch{}

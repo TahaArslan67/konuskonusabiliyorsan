@@ -15,6 +15,11 @@
     { "src": "/ocr", "dest": "/backend/public/ocr.html" },
     { "src": "/ekonomi", "dest": "/backend/public/economy.html" },
     { 
+      "src": "/realtime.html", 
+      "status": 301, 
+      "headers": { "Location": "/konus" }
+    },
+    { 
       "src": "/success.html", 
       "status": 301, 
       "headers": { "Location": "https://konuskonusabilirsen.com/konus" }

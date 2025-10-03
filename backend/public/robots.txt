@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+
+# Disallow utility/admin pages
+Disallow: /admin
+Disallow: /admin.html
+Disallow: /admin-analytics.html
+Disallow: /account.html
+Disallow: /reset.html
+Disallow: /verify.html
+Disallow: /success.html
+Disallow: /debug.html
+Disallow: /placement.html
+Disallow: /ocr.html
+
+# Canonical pages are provided for duplicates
+# Prefer /konus over /realtime.html
+# Prefer /ceviri/ over /ocr.html
+
+Sitemap: https://konuskonusabilirsen.com/sitemap.xml

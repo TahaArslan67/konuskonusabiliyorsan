@@ -86,6 +86,7 @@ h6{ font-size:.875rem; }
 /* Header */
 .header{ display:flex; align-items:center; justify-content:space-between; padding:18px 0; position:sticky; top:0; background:linear-gradient(to bottom, rgba(8,11,20,.9), rgba(8,11,20,.55) 60%, transparent); backdrop-filter: blur(10px); z-index:10; border-bottom:1px solid rgba(124,58,237,.15); }
 .brand{ display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.2px; }
+.header .brand img{ height:36px; width:auto; }
 .nav{ display:flex; gap:14px; align-items:center; }
 .nav a{ color:var(--muted); font-weight:500; transition:.2s; }
 .nav a:hover{ color:var(--text); }

@@ -1,16 +1,15 @@
-<!doctype html>
 <html lang="tr">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Çeviri (EN → TR) • KonusKonusabilirsen</title>
-  <meta name="description" content="PDF ve görsellerden metin çıkarma ve çeviri yapın. En fazla 10 sayfa desteği, hızlı OCR ve güvenli işleme ile TR/EN dahil çoklu dil desteği." />
+  <link rel="preconnect" href="https://api.konuskonusabilirsen.com" crossorigin>
   <link rel="stylesheet" href="/styles.css" />
+  <meta name="description" content="PDF ve görsellerden metin çıkarma ve çeviri yapın. En fazla 10 sayfa desteği, hızlı OCR ve güvenli işleme ile TR/EN dahil çoklu dil desteği." />
   <style>
     /* Layout: make page fill viewport between global header and footer */
     .ocr-page{ min-height:100vh; display:flex; flex-direction:column; }
     .ocr-container { max-width: 980px; margin: 24px auto; padding: 0 16px; flex:1 0 auto; }
-    .card { background: #0e1430; border-radius: 12px; padding: 16px; box-shadow: 0 8px 18px rgba(0,0,0,0.3); color: #e8ecff; }
     h1 { font-size: 22px; margin: 0 0 8px; }
     .subtle { color: #9aa4c7; font-size: 13px; }
     .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
@@ -35,7 +34,7 @@
   </style>
 </head>
 <body class="ocr-page">
-  <script src="/header.js"></script>
+  <script src="/header.js" defer></script>
   <div class="ocr-container">
     <div class="card">
       <!-- Global navbar already injected by header.js; local nav removed -->
@@ -88,8 +87,8 @@
   </div>
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-  <script src="/config.js"></script>
+  <script>window.__BACKEND_BASE__='https://api.konuskonusabilirsen.com';</script>
   <script src="/ocr.js"></script>
-  <script src="/footer.js"></script>
+  <script src="/footer.js" defer></script>
 </body>
 </html>

@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>KonusKonusabilirsen – Gerçek Zamanlı Sesli Asistan</title>
   <meta name="description" content="KonusKonusabilirsen, gerçek zamanlı Türkçe konuşan yapay zekâ asistanıdır. Koçluk, günlük görevler, çeviri ve kişiselleştirilebilir ses özellikleriyle dil pratiğinizi hızlandırın." />
+  <!-- Critical headings to avoid UA default sizes before CSS loads (deprecations) -->
+  <style id="critical-headings">
+    h1,h2,h3,h4,h5,h6{ margin:0 0 8px; line-height:1.2; font-weight:700; font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+    h1{ font-size:2rem; }
+    h2{ font-size:1.5rem; }
+    h3{ font-size:1.25rem; }
+    h4{ font-size:1.125rem; }
+    h5{ font-size:1rem; }
+    h6{ font-size:.875rem; }
+    /* Homepage hero final size to avoid CLS */
+    .hero__content h1{ font-size:40px; }
+  </style>
   <link rel="preload" href="/styles.css?v=2" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="/styles.css?v=2"></noscript>
   <link rel="preconnect" href="https://fonts.googleapis.com">

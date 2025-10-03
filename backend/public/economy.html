@@ -33,8 +33,8 @@
   <script src="/header.js"></script>
   <main class="container" style="padding:28px 0 40px;">
     <div class="stack" style="margin-bottom:14px;">
-      <h1 style="margin:0;">Ekonomik Plan: STT + Sesli Yanıt</h1>
-      <div class="subtle">Mikrofondan kısa bir cümle söyleyin. Whisper ile yazıya çevirelim; Realtime model metne göre sesli yanıt versin.</div>
+      <h1 style="margin:0;">Ekonomik Plan: Sesli Görüşme</h1>
+      <div class="subtle">Gerçek zamanlı: Mikrofon → Realtime → Sesli yanıt. Oto-tur varsayılan olarak açık.</div>
     </div>
 
     <div class="grid" style="grid-template-columns: 1.1fr 1fr; gap:16px;">
@@ -57,6 +57,37 @@
           <div class="stack" style="margin-top:10px;">
             <label class="subtle">Transkript</label>
             <div id="transcript" aria-live="polite"></div>
+          </div>
+        </div>
+        <div class="card" style="padding:22px;">
+          <h3 style="margin:0 0 8px;">Gelişmiş Seçenekler</h3>
+          <div class="stack">
+            <div class="row">
+              <label class="subtle">Öğrenilen Dil</label>
+              <select id="learnLangSelect" class="input" style="min-width:220px;"></select>
+              <label class="subtle" style="margin-left:12px;">Ana Dil</label>
+              <select id="nativeLangSelect" class="input" style="min-width:220px;"></select>
+            </div>
+            <div class="row">
+              <label class="subtle">Ses</label>
+              <select id="voiceSelect" class="input" style="min-width:220px;">
+                <option value="alloy">Alloy</option>
+                <option value="verse">Verse</option>
+                <option value="aria">Aria</option>
+              </select>
+              <label class="subtle" style="margin-left:12px;">Düzeltme</label>
+              <select id="corrSelect" class="input" style="min-width:220px;">
+                <option value="gentle" selected>Yumuşak</option>
+                <option value="direct">Doğrudan</option>
+                <option value="off">Kapalı</option>
+              </select>
+            </div>
+            <div class="row">
+              <label class="subtle">Senaryo</label>
+              <select id="scenarioSelect" class="input" style="min-width:460px;">
+                <option value="">(Seçimi isteğe bağlı)</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>

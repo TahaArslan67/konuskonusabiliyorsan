@@ -13,6 +13,12 @@ const btnReplay = $('#btnReplay');
 const recDot = $('#recDot');
 const transcriptEl = $('#transcript');
 const remoteAudio = $('#remoteAudio');
+// Advanced controls (same ids as realtime)
+const voiceSelect = document.getElementById('voiceSelect');
+const scenarioSelect = document.getElementById('scenarioSelect');
+const learnLangSelect = document.getElementById('learnLangSelect');
+const nativeLangSelect = document.getElementById('nativeLangSelect');
+const corrSelect = document.getElementById('corrSelect');
 
 let ws = null;
 let wsAudioChunks = [];
@@ -95,6 +101,113 @@ async function updateMePills(){
     setPlan(plan);
     const usage = me?.user?.usage || me?.usage;
     if (usage){ setMinutes(usage.dailyUsed||0, usage.dailyLimit ?? '-'); }
+    // Prefill selects from user preferences if present
+    try{
+      if (learnLangSelect && me.user?.preferredLearningLanguage){ learnLangSelect.value = me.user.preferredLearningLanguage; }
+      if (nativeLangSelect && me.user?.preferredNativeLanguage){ nativeLangSelect.value = me.user.preferredNativeLanguage; }
+      if (voiceSelect && me.user?.preferredVoice){ voiceSelect.value = me.user.preferredVoice; }
+      if (corrSelect && me.user?.preferredCorrectionMode){ corrSelect.value = me.user.preferredCorrectionMode; }
+    }catch{}
+  }catch{}
+}
+
+// Populate language selects with curated list (copy from realtime)
+function populateLanguageSelects(){
+  const langs = [
+    { code: 'tr', name: 'Türkçe' },
+    { code: 'en', name: 'İngilizce' },
+    { code: 'de', name: 'Almanca' },
+    { code: 'fr', name: 'Fransızca' },
+    { code: 'es', name: 'İspanyolca' },
+    { code: 'it', name: 'İtalyanca' },
+    { code: 'pt', name: 'Portekizce' },
+    { code: 'pt-BR', name: 'Portekizce (Brezilya)' },
+    { code: 'ru', name: 'Rusça' },
+    { code: 'ar', name: 'Arapça' },
+    { code: 'fa', name: 'Farsça' },
+    { code: 'hi', name: 'Hintçe' },
+    { code: 'bn', name: 'Bengalce' },
+    { code: 'ur', name: 'Urduca' },
+    { code: 'id', name: 'Endonezce' },
+    { code: 'ms', name: 'Malayca' },
+    { code: 'vi', name: 'Vietnamca' },
+    { code: 'th', name: 'Tayca' },
+    { code: 'zh-CN', name: 'Çince (Basitleştirilmiş)' },
+    { code: 'zh-TW', name: 'Çince (Geleneksel)' },
+    { code: 'ja', name: 'Japonca' },
+    { code: 'ko', name: 'Korece' },
+    { code: 'nl', name: 'Felemenkçe' },
+    { code: 'sv', name: 'İsveççe' },
+    { code: 'no', name: 'Norveççe' },
+    { code: 'da', name: 'Danca' },
+    { code: 'fi', name: 'Fince' },
+    { code: 'pl', name: 'Lehçe' },
+    { code: 'cs', name: 'Çekçe' },
+    { code: 'sk', name: 'Slovakça' },
+    { code: 'ro', name: 'Romence' },
+    { code: 'el', name: 'Yunanca' },
+    { code: 'uk', name: 'Ukraynaca' },
+    { code: 'he', name: 'İbranice' },
+    { code: 'hu', name: 'Macarca' },
+    { code: 'bg', name: 'Bulgarca' },
+    { code: 'sr', name: 'Sırpça' },
+    { code: 'hr', name: 'Hırvatça' },
+    { code: 'sl', name: 'Slovence' },
+    { code: 'lt', name: 'Litvanca' },
+    { code: 'lv', name: 'Letonca' },
+    { code: 'et', name: 'Estonca' },
+    { code: 'fil', name: 'Filipince' },
+  ];
+  function fill(selectEl, defaultCode){
+    if (!selectEl) return;
+    // Avoid duplicate filling
+    if (selectEl.options && selectEl.options.length > 5) return;
+    selectEl.innerHTML = '';
+    langs.forEach((l) => {
+      const opt = document.createElement('option');
+      opt.value = l.code; opt.textContent = `${l.name} (${l.code})`;
+      if (l.code === defaultCode) opt.selected = true;
+      selectEl.appendChild(opt);
+    });
+  }
+  fill(learnLangSelect, 'tr');
+  fill(nativeLangSelect, 'tr');
+}
+
+async function populateScenarios(){
+  try{
+    if (!scenarioSelect) return;
+    const r = await fetch(`${backendBase}/scenarios`);
+    if (!r.ok) return;
+    const j = await r.json();
+    const items = Array.isArray(j.items) ? j.items : [];
+    while (scenarioSelect.options.length > 1) scenarioSelect.remove(1);
+    items.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id; opt.textContent = `${s.title} ${s.level ? '('+s.level+')' : ''}`;
+      scenarioSelect.appendChild(opt);
+    });
+  } catch {}
+}
+
+function sendPrefsToWs(){
+  try{
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const voice = voiceSelect && voiceSelect.value ? voiceSelect.value : 'alloy';
+    const learnLang = learnLangSelect && learnLangSelect.value ? learnLangSelect.value : 'tr';
+    const nativeLang = nativeLangSelect && nativeLangSelect.value ? nativeLangSelect.value : 'tr';
+    const correction = corrSelect && corrSelect.value ? corrSelect.value : 'gentle';
+    const scenarioId = scenarioSelect && scenarioSelect.value ? scenarioSelect.value : '';
+    ws.send(JSON.stringify({ type:'set_prefs', prefs:{ voice, learnLang, nativeLang, correction, scenarioId } }));
+  } catch {}
+}
+
+async function persistPrefs(partial){
+  try{
+    const token = localStorage.getItem('hk_token');
+    if (token){
+      await fetch(`${backendBase}/me/preferences`, { method:'PATCH', headers:{ 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(partial) });
+    }
   }catch{}
 }
 
@@ -133,9 +246,11 @@ async function connect(autostart = false){
     ws.onopen = () => {
       setConn(true);
       updateMePills();
-      // Ek güvence: Türkçe kısa yanıt için oturum ayarını client'tan da gönder
+      // Realtime ile aynı: prefs'i WS'e aktar, voice'i session.update ile bildir
+      try { sendPrefsToWs(); } catch {}
       try {
-        ws.send(JSON.stringify({ type: 'session.update', session: { instructions: 'Sadece Türkçe ve kısa yanıt ver. 1-2 doğal cümle kullan. Cümleyi mutlaka nokta veya soru işaretiyle bitir. Sorudan sapma.' } }));
+        const voice = voiceSelect && voiceSelect.value ? voiceSelect.value : 'alloy';
+        ws.send(JSON.stringify({ type:'session.update', session:{ voice } }));
       } catch {}
       if (autostart) {
         setTimeout(() => { try { if (!micCapturing) startCapture(); } catch {} }, 150);
@@ -223,6 +338,21 @@ async function connect(autostart = false){
     updateMainButton();
   }
 }
+
+// Wire UI events -> prefs
+try{
+  if (voiceSelect){
+    voiceSelect.addEventListener('change', async () => {
+      try{ if (ws && ws.readyState === WebSocket.OPEN){ ws.send(JSON.stringify({ type:'session.update', session:{ voice: voiceSelect.value||'alloy' } })); } }catch{}
+      try{ sendPrefsToWs(); }catch{}
+      try{ await persistPrefs({ preferredVoice: voiceSelect.value||'alloy' }); }catch{}
+    });
+  }
+  if (learnLangSelect){ learnLangSelect.addEventListener('change', async () => { try{ sendPrefsToWs(); }catch{} try{ await persistPrefs({ preferredLearningLanguage: learnLangSelect.value }); }catch{} }); }
+  if (nativeLangSelect){ nativeLangSelect.addEventListener('change', async () => { try{ sendPrefsToWs(); }catch{} try{ await persistPrefs({ preferredNativeLanguage: nativeLangSelect.value }); }catch{} }); }
+  if (corrSelect){ corrSelect.addEventListener('change', async () => { try{ sendPrefsToWs(); }catch{} try{ await persistPrefs({ preferredCorrectionMode: corrSelect.value }); }catch{} }); }
+  if (scenarioSelect){ scenarioSelect.addEventListener('change', () => { try{ sendPrefsToWs(); }catch{} }); }
+}catch{}
 
 function disconnect(){
   try{ if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) ws.close(1000,'bye'); }catch{}
@@ -319,5 +449,7 @@ if (btnMain) btnMain.addEventListener('click', async () => {
 });
 if (btnReplay) btnReplay.addEventListener('click', () => { try{ if (lastResponseBuffer) wsPlayPcm(lastResponseBuffer); }catch{} });
 
-// Prefetch pills on load
+// Prefetch pills and populate controls on load
+try { populateLanguageSelects(); } catch {}
+try { populateScenarios(); } catch {}
 updateMePills().catch(()=>{});

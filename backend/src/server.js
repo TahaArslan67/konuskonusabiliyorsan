@@ -3121,19 +3121,8 @@ wss.on('connection', (clientWs, request) => {
         const crit = Array.isArray(sc.successCriteria) ? sc.successCriteria.join('; ') : '';
         scenarioText = `Bağlam: ${sc.title}. Rol: ${sc.personaPrompt}. Başarı ölçütleri: ${crit}`;
       }
-          // Economy plan: Türkçe-only kısa ve konuya odaklı persona
-          let persona;
-          if (sess?.plan === 'economy') {
-            persona = [
-              'Sadece Türkçe konuş. Başka dil KULLANMA.',
-              '1-2 kısa ve doğal cümleyle cevap ver.',
-              'Kullanıcının söylediğine DOĞRUDAN cevap ver; konuyu değiştirme.',
-              'Her cümleyi nokta veya soru işareti ile bitir.',
-              'Örnek verirsen tek bir örnekle yetin ve Türkçe açıkla.'
-            ].join(' ');
-          } else {
-            persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel) + `\n\nKurallar:\n- Cümleyi tamamlamadan asla durma.\n- Kullanıcı susarsa kısa bir beklemeden sonra cümleyi bitir.\n- Gereksiz yere konuyu değiştirme; soruya doğrudan cevap ver.\n- Soru cümleleri '?' ile bitmeli; cümleler nokta ile tamamlanmalı.\n- Uzun yanıt verirken tek nefeste bitiremediysen kısa bir nefes payı bırakıp cümleyi tamamla.`;
-          }
+      // ECONOMY dahil tüm planlar için realtime ile aynı persona inşası
+      const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel) + `\n\nKurallar:\n- Cümleyi tamamlamadan asla durma.\n- Kullanıcı susarsa kısa bir beklemeden sonra cümleyi bitir.\n- Gereksiz yere konuyu değiştirme; soruya doğrudan cevap ver.\n- Soru cümleleri '?' ile bitmeli; cümleler nokta ile tamamlanmalı.\n- Uzun yanıt verirken tek nefeste bitiremediysen kısa bir nefes payı bırakıp cümleyi tamamla.`;
       const sessionUpdate = {
         type: 'session.update',
         session: {
@@ -3365,21 +3354,10 @@ wss.on('connection', (clientWs, request) => {
             const crit = Array.isArray(sc.successCriteria) ? sc.successCriteria.join('; ') : '';
             scenarioText = `Bağlam: ${sc.title}. Rol: ${sc.personaPrompt}. Başarı ölçütleri: ${crit}`;
           }
-          // Economy plan: Türkçe-only persona ve daha düşük sıcaklık
-          let persona;
+          // ECONOMY dahil tüm planlar için aynı persona; sıcaklık ekonomi için düşük kalır
           let temp = 0.8;
-          if (sess?.plan === 'economy') {
-            persona = [
-              'Sadece Türkçe konuş. Başka dil KULLANMA.',
-              '1-2 kısa ve doğal cümleyle cevap ver.',
-              'Kullanıcının söylediğine DOĞRUDAN cevap ver; konuyu değiştirme.',
-              'Her cümleyi nokta veya soru işareti ile bitir.',
-              'Örnek verirsen tek bir örnekle yetin ve Türkçe açıkla.'
-            ].join(' ');
-            temp = 0.6;
-          } else {
-            persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel) + "\n\nKURAL: Sadece Türkçe cevap ver. Başka dil kullanma.";
-          }
+          if (sess?.plan === 'economy') temp = 0.6;
+          const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel) + "\n\nKURAL: Sadece Türkçe cevap ver. Başka dil kullanma.";
           // Push updated session settings (voice/language hints) and a fresh system message
           openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, instructions: persona, temperature: temp, max_response_output_tokens: 480 } }));
           // Persona'yı güçlü uygulamak için sistem mesajı olarak ekle (ayrıca tekil langNotice kaldırıldı)

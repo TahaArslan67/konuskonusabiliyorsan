@@ -29,6 +29,11 @@
       "status": 301, 
       "headers": { "Location": "/ekonomi" }
     },
+    {
+      "src": "/favicon.ico",
+      "status": 301,
+      "headers": { "Location": "/favicon.png" }
+    },
     { "src": "/(.*)", "dest": "/backend/public/$1" }
   ]
 }

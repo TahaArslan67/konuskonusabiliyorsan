@@ -1,5 +1,5 @@
 // Economy plan page logic: Whisper STT -> Realtime (text -> audio)
-console.log('[economy] script loaded v3');
+console.log('[economy] script loaded v4');
 // This file intentionally does NOT modify the existing realtime app logic.
 
 const $ = (s) => document.querySelector(s);
@@ -9,9 +9,7 @@ const statusConn = $('#statusConn');
 const statusPlan = $('#statusPlan');
 const pillStt = $('#pillStt');
 const pillMinutes = $('#pillMinutes');
-const btnConnect = $('#btnConnect');
-const btnDisconnect = $('#btnDisconnect');
-const btnRec = $('#btnRec');
+const btnMain = $('#btnMain');
 const btnReplay = $('#btnReplay');
 const recDot = $('#recDot');
 const transcriptEl = $('#transcript');
@@ -35,6 +33,14 @@ function setPlan(text){ try{ statusPlan.textContent = `Plan: ${text||'-'}`; }cat
 function setSttQuota(used, limit){ try{ pillStt.textContent = `STT: ${used}/${limit}`; }catch{} }
 function setMinutes(used, limit){ try{ pillMinutes.textContent = `Günlük: ${Number(used||0).toFixed(1)}/${limit} dk`; }catch{} }
 function setRec(on){ try{ recDot.classList.toggle('on', !!on); }catch{} }
+
+function updateMainButton(){
+  try {
+    if (!btnMain) return;
+    btnMain.textContent = isRecording ? 'Durdur' : 'Başla';
+    btnMain.disabled = false;
+  } catch {}
+}
 
 function wsEnsurePlaybackCtx(){
   const AC = window.AudioContext || window.webkitAudioContext;
@@ -93,9 +99,12 @@ async function updateMePills(){
   }catch{}
 }
 
-async function connect(){
-  if (ws && ws.readyState === WebSocket.OPEN) return;
-  btnConnect.disabled = true;
+async function connect(autostart = false){
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    if (autostart && !isRecording) toggleRec();
+    return;
+  }
+  if (btnMain) btnMain.disabled = true;
   try{
     const token = localStorage.getItem('hk_token');
     if (!token){ window.location.replace(`/?auth=1&redirect=${encodeURIComponent('/ekonomi')}`); return; }
@@ -115,7 +124,7 @@ async function connect(){
         return;
       }
       alert(j?.error || `Bağlantı başlatılamadı (${r.status})`);
-      btnConnect.disabled = false; return;
+      if (btnMain) btnMain.disabled = false; updateMainButton(); return;
     }
     const s = await r.json();
     const url = s.wsUrl.startsWith('ws') ? s.wsUrl : `${backendBase.replace('http','ws')}${s.wsUrl}`;
@@ -124,19 +133,22 @@ async function connect(){
     try { window._ekWs = ws; console.log('[economy] WS connecting to', url); } catch {}
     ws.onopen = () => {
       setConn(true);
-      btnDisconnect.disabled = false;
-      btnRec.disabled = false;
       updateMePills();
       // Ek güvence: Türkçe kısa yanıt için oturum ayarını client'tan da gönder
       try {
         ws.send(JSON.stringify({ type: 'session.update', session: { instructions: 'Sadece Türkçe ve kısa yanıt ver. 1-2 doğal cümle kullan. Cümleyi mutlaka nokta veya soru işaretiyle bitir. Sorudan sapma.' } }));
       } catch {}
+      if (autostart) {
+        setTimeout(() => { try { if (!isRecording) toggleRec(); } catch {} }, 150);
+      } else {
+        updateMainButton();
+      }
     };
     ws.onclose = () => {
       setConn(false);
-      btnConnect.disabled = false;
-      btnDisconnect.disabled = true;
-      btnRec.disabled = true;
+      isRecording = false;
+      setRec(false);
+      updateMainButton();
     };
     ws.onerror = () => {};
     ws.onmessage = (ev) => {
@@ -147,7 +159,7 @@ async function connect(){
             setMinutes(obj.usage.usedDaily||0, obj.usage.limits?.daily ?? '-');
           }
           if (obj.type === 'limit_reached'){
-            btnRec.disabled = true;
+            if (btnMain) btnMain.disabled = true;
           }
           if (obj.type === 'bot_speaking'){
             wsAudioChunks = [];
@@ -210,7 +222,8 @@ async function connect(){
     };
   }catch(e){
     alert('Bağlantı hatası');
-    btnConnect.disabled = false;
+    if (btnMain) btnMain.disabled = false;
+    updateMainButton();
   }
 }
 
@@ -218,9 +231,9 @@ function disconnect(){
   try{ if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) ws.close(1000,'bye'); }catch{}
   ws = null;
   setConn(false);
-  btnConnect.disabled = false;
-  btnDisconnect.disabled = true;
-  btnRec.disabled = true;
+  isRecording = false;
+  setRec(false);
+  updateMainButton();
 }
 
 // Record toggle and STT
@@ -252,12 +265,12 @@ async function toggleRec(){
       } catch (e){ console.log('[economy] STT error', e?.message||e); }
       try{ stream.getTracks().forEach(t=>t.stop()); }catch{}
       isRecording = false;
-      btnRec.textContent = 'Kaydı Başlat';
+      updateMainButton();
     };
     recorder.start();
     recStartAt = Date.now();
     isRecording = true;
-    btnRec.textContent = 'Kaydı Durdur';
+    updateMainButton();
     setRec(true);
     // Otomatik olarak 7 sn sonra durdur (kısa cümleler için)
     setTimeout(() => { try{ isRecording && recorder && recorder.state === 'recording' && recorder.stop(); }catch{} }, 7000);
@@ -303,9 +316,15 @@ async function doSTT(dataUrl, durationMs){
   }catch(e){ alert('Bağlantı hatası'); return ''; }
 }
 
-if (btnConnect) btnConnect.addEventListener('click', connect);
-if (btnDisconnect) btnDisconnect.addEventListener('click', disconnect);
-if (btnRec) btnRec.addEventListener('click', toggleRec);
+if (btnMain) btnMain.addEventListener('click', async () => {
+  try {
+    if (!ws || (ws.readyState !== WebSocket.OPEN)) {
+      await connect(true); // bağlan ve kaydı başlat
+    } else {
+      await toggleRec(); // başlat/durdur
+    }
+  } catch {}
+});
 if (btnReplay) btnReplay.addEventListener('click', () => { try{ if (lastResponseBuffer) wsPlayPcm(lastResponseBuffer); }catch{} });
 
 // Prefetch pills on load

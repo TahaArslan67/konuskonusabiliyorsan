@@ -124,14 +124,14 @@ async function onPlanClick(e){
 
   // Plan değişikliği mantığı - Pro'dan alt planlara geçerken onay al
   console.log('📊 [site.js] Plan karşılaştırması yapılıyor...');
-  const planHierarchy = { free: 0, economic: 1, starter: 2, pro: 3, enterprise: 4 };
+  const planHierarchy = { free: 0, starter: 1, pro: 2, enterprise: 3 };
   const currentLevel = planHierarchy[currentPlan] || 0;
   const newLevel = planHierarchy[plan] || 0;
   console.log('📊 [site.js] Plan seviyeleri:', { current: currentLevel, new: newLevel, isDowngrade: newLevel < currentLevel });
 
   // Pro'dan alt planlara geçerken onay al
   if (currentPlan === 'pro' && newLevel < currentLevel) {
-    const planNames = { 'free': 'Ücretsiz', 'economic': 'Ekonomik', 'starter': 'Starter', 'pro': 'Pro' };
+    const planNames = { 'free': 'Ücretsiz', 'starter': 'Starter', 'pro': 'Pro' };
     console.log(`⚠️ [site.js] PRO -> ${plan.toUpperCase()} DOWNGRADE - Özel modal gösteriliyor`);
     const confirmed = await showPlanChangeModal(currentPlan, plan);
     console.log('✅ [site.js] Kullanıcı seçimi:', confirmed ? 'EVET' : 'HAYIR');

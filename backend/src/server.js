@@ -156,7 +156,7 @@ app.post('/api/ocr-translate', authRequired, express.json({ limit: '25mb' }), as
     const userDoc = await User.findById(uid);
     if (!userDoc) return res.status(401).json({ error: 'unauthorized' });
     const plan = userDoc.plan || 'free';
-    const ocrDailyLimit = plan === 'pro' ? 30 : (plan === 'starter' ? 10 : (plan === 'economic' ? 5 : 1));
+    const ocrDailyLimit = plan === 'pro' ? 30 : (plan === 'starter' ? 10 : 1);
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     userDoc.ocrUsage = userDoc.ocrUsage || { day: today, count: 0 };
     if (userDoc.ocrUsage.day !== today) { userDoc.ocrUsage.day = today; userDoc.ocrUsage.count = 0; }
@@ -1931,7 +1931,7 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
     }
     const { plan = 'starter' } = req.body || {};
     // Prices (TRY) -> PayTR wants kuruş (integer)
-    const priceMap = { economic: 199.00, starter: 399.00, pro: 999.00, enterprise: 9999.00 };
+    const priceMap = { starter: 399.00, pro: 999.00, enterprise: 9999.00 };
     const price = priceMap[String(plan)] ?? priceMap.starter;
     const payment_amount = Math.round(price * 100); // kuruş
 
@@ -2343,7 +2343,7 @@ app.post('/api/iyzico/checkout', authRequired, async (req, res) => {
     if (!iyz) return res.status(500).json({ error: 'iyzico_not_configured' });
     const { plan = 'pro' } = req.body || {};
     // Minimal pricing for sandbox (starter: 1 TL test)
-    const priceMap = { economic: '199.00', starter: '399.00', pro: '999.00', enterprise: '9999.00' };
+    const priceMap = { starter: '399.00', pro: '999.00', enterprise: '9999.00' };
     const price = priceMap[String(plan)] || priceMap.pro;
 
     // Callback URL (Iyzico will POST here after payment; we will redirect user to success/cancel pages)

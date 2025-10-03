@@ -3171,6 +3171,23 @@ wss.on('connection', (clientWs, request) => {
       console.log('[proxy] Sent session.update to OpenAI.');
       // Persona is already set in session.instructions; avoid extra system item to reduce tokens
       console.log('[proxy] Session instructions set for OpenAI.');
+      // Flush any client text that arrived before upstream became OPEN
+      try {
+        if (bufferedText.length > 0) {
+          const batched = bufferedText.splice(0, bufferedText.length);
+          for (const userText of batched) {
+            try { clientWs.send(JSON.stringify({ type: 'debug', src: 'server', event: 'flush_queued_text', len: userText.length })); } catch {}
+            openaiWs.send(JSON.stringify({
+              type: 'conversation.item.create',
+              item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: userText }] }
+            }));
+            openaiWs.send(JSON.stringify({
+              type: 'response.create',
+              response: { modalities: ['audio','text'], temperature: 0.8, max_output_tokens: 160 }
+            }));
+          }
+        }
+      } catch (e) { console.warn('[proxy] failed to flush bufferedText:', e?.message || e); }
     } else {
       // Azure: declare audio formats explicitly as strings to ensure PCM16 output (avoid schema error)
       const lang = (sess?.prefs?.language || 'tr').toLowerCase();
@@ -3216,6 +3233,8 @@ wss.on('connection', (clientWs, request) => {
   let lastResponseId = null;
   let lastAudioBytes = 0;
   let streamMode = null; // 'buffer' | 'delta'
+  // Buffer for text messages arriving before upstream OpenAI WS is OPEN
+  const bufferedText = [];
   // We configure the model with turn_detection.create_response=true,
   // so DO NOT send our own response.create after commit to avoid duplicates.
   const AUTO_CREATE_RESPONSE = true;
@@ -3249,7 +3268,21 @@ wss.on('connection', (clientWs, request) => {
     }, 1500);
   };
   clientWs.on('message', (data, isBinary) => {
-    if (openaiWs.readyState !== WebSocket.OPEN) return;
+    // If upstream is not open yet, queue TEXT messages, drop binary mic frames
+    if (openaiWs.readyState !== WebSocket.OPEN) {
+      if (!isBinary) {
+        try {
+          const text = data.toString();
+          let obj; try { obj = JSON.parse(text); } catch { obj = null; }
+          const t = obj?.type;
+          if (t === 'text' && obj?.text) {
+            bufferedText.push(String(obj.text));
+            try { clientWs.send(JSON.stringify({ type: 'debug', src: 'server', event: 'queued_text_before_upstream_open', len: String(obj.text||'').length })); } catch {}
+          }
+        } catch {}
+      }
+      return;
+    }
 
     try {
       if (isBinary) {
@@ -3476,6 +3509,7 @@ wss.on('connection', (clientWs, request) => {
       if (t === 'text' && obj?.text) {
         // Proper Realtime text flow: add a user message, then ask for a response
         const userText = String(obj.text || '');
+        try { clientWs.send(JSON.stringify({ type: 'debug', src: 'server', event: 'recv_text', len: userText.length })); } catch {}
         try {
           openaiWs.send(JSON.stringify({
             type: 'conversation.item.create',

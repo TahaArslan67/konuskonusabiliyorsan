@@ -3043,7 +3043,7 @@ wssEconomic.on('connection', (clientWs, request) => {
     ? { 'api-key': AZURE_OPENAI_API_KEY, 'Content-Type': 'application/json' }
     : { Authorization: `Bearer ${OPENAI_API_KEY}`, 'OpenAI-Beta': 'realtime=v1' };
   const protocols = ['realtime'];
-  openaiWs = new WebSocket(OPENAI_REALTIME_URL, protocols, { headers });
+  const openaiWs = new WebSocket(OPENAI_REALTIME_URL, protocols, { headers });
 
   openaiWs.on('open', () => {
     console.log('[ws-economic] connected to OpenAI Realtime');
@@ -3244,12 +3244,11 @@ wss.on('connection', (clientWs, request) => {
   }
 
   // Establish connection to Realtime API
-  let openaiWs = null;
   const headers = USE_AZURE
     ? { 'api-key': AZURE_OPENAI_API_KEY }
     : { Authorization: `Bearer ${OPENAI_API_KEY}`, 'OpenAI-Beta': 'realtime=v1' };
   const protocols = ['realtime'];
-  openaiWs = new WebSocket(OPENAI_REALTIME_URL, protocols, { headers });
+  const openaiWs = new WebSocket(OPENAI_REALTIME_URL, protocols, { headers });
 
   openaiWs.on('open', () => {
     console.log(`[proxy] Connection to ${USE_AZURE ? 'Azure OpenAI' : 'OpenAI'} established.`);

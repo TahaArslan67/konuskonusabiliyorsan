@@ -107,6 +107,7 @@ async function connect(){
     const url = s.wsUrl.startsWith('ws') ? s.wsUrl : `${backendBase.replace('http','ws')}${s.wsUrl}`;
     ws = new WebSocket(url);
     ws.binaryType = 'arraybuffer';
+    try { window._ekWs = ws; console.log('[economy] WS connecting to', url); } catch {}
     ws.onopen = () => {
       setConn(true);
       btnDisconnect.disabled = false;
@@ -132,6 +133,20 @@ async function connect(){
           }
           if (obj.type === 'bot_speaking'){
             wsAudioChunks = [];
+          }
+          if (obj.type === 'debug'){
+            try { console.debug('[economy][debug]', obj); } catch {}
+          }
+          if (obj.type === 'error'){
+            try { console.error('[economy][ws error]', obj.error || obj); } catch {}
+            try { alert(`Sunucu hata döndürdü: ${obj?.error?.message || obj?.error?.code || 'unknown'}`); } catch {}
+          }
+          if (obj.type === 'transcript'){
+            try {
+              const prev = transcriptEl.textContent || '';
+              const prefix = obj.final ? '[BOT] ' : '[BOT•] ';
+              transcriptEl.textContent = prev ? `${prev}\n${prefix}${String(obj.text||'')}` : `${prefix}${String(obj.text||'')}`;
+            } catch {}
           }
           if (obj.type === 'audio_end'){
             const total = wsAudioChunks.reduce((s,a)=> s + a.byteLength, 0);

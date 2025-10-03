@@ -758,8 +758,7 @@ function getPlanLimit(plan, type) {
     free: { daily: 3, monthly: 10 },
     economy: { daily: 10, monthly: 300 },
     starter: { daily: 15, monthly: 450 },
-    pro: { daily: 60, monthly: 1800 },
-    enterprise: { daily: 1000, monthly: 30000 }
+    pro: { daily: 60, monthly: 1800 }
   };
   return (limits[plan] && limits[plan][type]) || limits.free[type];
 }
@@ -772,7 +771,7 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
   try {
     const { plan } = req.body || {};
     
-    if (!['free', 'economy', 'starter', 'pro', 'enterprise'].includes(plan)) {
+    if (!['free', 'economy', 'starter', 'pro'].includes(plan)) {
       await session.abortTransaction();
       return res.status(400).json({ error: 'Geçersiz plan seçimi' });
     }
@@ -855,7 +854,7 @@ app.post('/api/admin/update-user-plan', authRequired, async (req, res) => {
       return res.status(403).json({ error: 'Bu işlem için yetkiniz yok' });
     }
     
-    if (!userId || !['free', 'starter', 'pro', 'enterprise'].includes(newPlan)) {
+    if (!userId || !['free', 'economy', 'starter', 'pro'].includes(newPlan)) {
       return res.status(400).json({ error: 'Geçersiz istek' });
     }
     
@@ -1995,7 +1994,7 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
     }
     const { plan = 'starter' } = req.body || {};
     // Prices (TRY) -> PayTR wants kuruş (integer)
-    const priceMap = { economy: 199.00, starter: 399.00, pro: 999.00, enterprise: 9999.00 };
+    const priceMap = { economy: 199.00, starter: 399.00, pro: 999.00 };
     const price = priceMap[String(plan)] ?? priceMap.starter;
     const payment_amount = Math.round(price * 100); // kuruş
 
@@ -2406,8 +2405,8 @@ app.post('/api/iyzico/checkout', authRequired, async (req, res) => {
     const iyz = getIyzico();
     if (!iyz) return res.status(500).json({ error: 'iyzico_not_configured' });
     const { plan = 'pro' } = req.body || {};
-    // Minimal pricing for sandbox (starter: 1 TL test)
-    const priceMap = { starter: '399.00', pro: '999.00', enterprise: '9999.00' };
+    // Minimal pricing for sandbox
+    const priceMap = { economy: '199.00', starter: '399.00', pro: '999.00' };
     const price = priceMap[String(plan)] || priceMap.pro;
 
     // Callback URL (Iyzico will POST here after payment; we will redirect user to success/cancel pages)
@@ -2896,7 +2895,7 @@ app.post('/session/start', async (req, res) => {
   }
   // If over limit, block session start
   if (minutesUsedDaily >= limits.daily || minutesUsedMonthly >= limits.monthly) {
-    return res.status(403).json({ error: 'limit_reached', message: 'Kullanım limitiniz doldu.', minutesUsedDaily, minutesUsedMonthly, minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, limits, plan: String(plan) });
+    return res.status(403).json({ error: 'limit_reached', message: 'Kullanım limitiniz doldu.', minutesUsedDaily, minutesUsedMonthly, minutesLimitDaily: limits.daily, minutesLimitMonthly: limits.monthly, limits, plan: String(effectivePlan) });
   }
   const sessObj = { plan: String(effectivePlan), createdAt, minutesUsedDaily, minutesUsedMonthly, limits, userId: uid, prefs, userLevel };
   sessions.set(sessionId, sessObj);

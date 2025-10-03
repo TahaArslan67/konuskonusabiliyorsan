@@ -17,6 +17,9 @@
         try{
           const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : window.location.origin;
           console.log('[realtime] /me çağrısı başlatılıyor...');
+          console.log('[realtime] mevcut URL:', window.location.href);
+          console.log('[realtime] mevcut pathname:', window.location.pathname);
+
           const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }});
           console.log('[realtime] /me yanıtı:', r.status, r.ok);
           if (r.ok){
@@ -34,13 +37,19 @@
 
             // Plan kontrolü - ekonomik paket sahipleri otomatik olarak ekonomik sayfaya yönlendirilsin
             const userPlan = me.user?.plan || 'free';
+            console.log('[realtime] kullanıcı planı:', userPlan);
+            console.log('[realtime] kullanıcı plan kontrolü başlıyor...');
+
             if (userPlan === 'economic') {
-              console.log('[realtime] ekonomik paket kullanıcısı tespit edildi, ekonomik sayfaya yönlendiriliyor...');
+              console.log('[realtime] ✅ ekonomik paket kullanıcısı tespit edildi, ekonomik sayfaya yönlendiriliyor...');
+              console.log('[realtime] yönlendirme: /ekonomik.html');
               window.location.replace('/ekonomik.html');
               return;
             }
 
-            console.log('[realtime] plan kontrolü geçildi, sayfa açık kalıyor:', userPlan);
+            console.log('[realtime] ✅ plan kontrolü geçildi, sayfa açık kalıyor:', userPlan);
+            console.log('[realtime] kullanıcı realtime sayfasında kalabilir, plan:', userPlan);
+            console.log('[realtime] Kullanıcı ekonomik plan dışındaysa normal realtime modunda kalacak');
           } else {
             console.log('[realtime] /me çağrısı başarısız:', r.status);
           }

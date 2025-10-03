@@ -699,7 +699,8 @@ function getPlanLimit(plan, type) {
     free: { daily: 3, monthly: 10 },
     economic: { daily: 10, monthly: 300 },
     starter: { daily: 15, monthly: 450 },
-    pro: { daily: 60, monthly: 1800 }
+    pro: { daily: 60, monthly: 1800 },
+    enterprise: { daily: 1000, monthly: 30000 }
   };
   return (limits[plan] && limits[plan][type]) || limits.free[type];
 }
@@ -712,7 +713,7 @@ app.post('/api/update-plan', authRequired, async (req, res) => {
   try {
     const { plan } = req.body || {};
     
-    if (!['free', 'economic', 'starter', 'pro'].includes(plan)) {
+    if (!['free', 'economic', 'starter', 'pro', 'enterprise'].includes(plan)) {
       await session.abortTransaction();
       return res.status(400).json({ error: 'Geçersiz plan seçimi' });
     }
@@ -795,7 +796,7 @@ app.post('/api/admin/update-user-plan', authRequired, async (req, res) => {
       return res.status(403).json({ error: 'Bu işlem için yetkiniz yok' });
     }
     
-    if (!userId || !['free', 'economic', 'starter', 'pro'].includes(newPlan)) {
+    if (!userId || !['free', 'economic', 'starter', 'pro', 'enterprise'].includes(newPlan)) {
       return res.status(400).json({ error: 'Geçersiz istek' });
     }
     
@@ -1930,7 +1931,7 @@ app.post('/api/paytr/checkout', authRequired, async (req, res) => {
     }
     const { plan = 'starter' } = req.body || {};
     // Prices (TRY) -> PayTR wants kuruş (integer)
-    const priceMap = { economic: 199.00, starter: 399.00, pro: 999.00 };
+    const priceMap = { economic: 199.00, starter: 399.00, pro: 999.00, enterprise: 9999.00 };
     const price = priceMap[String(plan)] ?? priceMap.starter;
     const payment_amount = Math.round(price * 100); // kuruş
 
@@ -2342,7 +2343,7 @@ app.post('/api/iyzico/checkout', authRequired, async (req, res) => {
     if (!iyz) return res.status(500).json({ error: 'iyzico_not_configured' });
     const { plan = 'pro' } = req.body || {};
     // Minimal pricing for sandbox (starter: 1 TL test)
-    const priceMap = { economic: '199.00', starter: '399.00', pro: '999.00' };
+    const priceMap = { economic: '199.00', starter: '399.00', pro: '999.00', enterprise: '9999.00' };
     const price = priceMap[String(plan)] || priceMap.pro;
 
     // Callback URL (Iyzico will POST here after payment; we will redirect user to success/cancel pages)

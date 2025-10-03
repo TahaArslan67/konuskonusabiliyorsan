@@ -124,7 +124,7 @@ async function onPlanClick(e){
 
   // Plan değişikliği mantığı - Pro'dan alt planlara geçerken onay al
   console.log('📊 [site.js] Plan karşılaştırması yapılıyor...');
-  const planHierarchy = { free: 0, economic: 1, starter: 2, pro: 3 };
+  const planHierarchy = { free: 0, economic: 1, starter: 2, pro: 3, enterprise: 4 };
   const currentLevel = planHierarchy[currentPlan] || 0;
   const newLevel = planHierarchy[plan] || 0;
   console.log('📊 [site.js] Plan seviyeleri:', { current: currentLevel, new: newLevel, isDowngrade: newLevel < currentLevel });

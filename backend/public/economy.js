@@ -28,6 +28,7 @@ let micStreaming = false;   // currently streaming within a turn
 let vadSilenceMs = 0;
 let bytesSinceStart = 0;
 let isBotSpeaking = false;
+function setConn(open){ try{ statusConn.textContent = `Bağlantı: ${open ? 'Açık' : 'Kapalı'}`; }catch{} }
 function setPlan(text){ try{ statusPlan.textContent = `Plan: ${text||'-'}`; }catch{} }
 function setMinutes(used, limit){ try{ pillMinutes.textContent = `Günlük: ${Number(used||0).toFixed(1)}/${limit} dk`; }catch{} }
 function setRec(on){ try{ recDot.classList.toggle('on', !!on); }catch{} }

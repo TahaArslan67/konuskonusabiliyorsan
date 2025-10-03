@@ -163,9 +163,23 @@ async function connect(){
           }
           if (obj.type === 'transcript'){
             try {
-              const prev = transcriptEl.textContent || '';
-              const prefix = obj.final ? '[BOT] ' : '[BOT•] ';
-              transcriptEl.textContent = prev ? `${prev}\n${prefix}${String(obj.text||'')}` : `${prefix}${String(obj.text||'')}`;
+              const text = String(obj.text||'');
+              const lines = (transcriptEl.textContent || '').split('\n');
+              const lastIdx = lines.length - 1;
+              if (!obj.final){
+                if (lastIdx >= 0 && lines[lastIdx].startsWith('[BOT')){
+                  lines[lastIdx] = `[BOT•] ${text}`;
+                } else {
+                  lines.push(`[BOT•] ${text}`);
+                }
+              } else {
+                if (lastIdx >= 0 && lines[lastIdx].startsWith('[BOT•] ')){
+                  lines[lastIdx] = `[BOT] ${text}`;
+                } else {
+                  lines.push(`[BOT] ${text}`);
+                }
+              }
+              transcriptEl.textContent = lines.filter(l => l !== '').join('\n');
             } catch {}
           }
           if (obj.type === 'audio_end'){

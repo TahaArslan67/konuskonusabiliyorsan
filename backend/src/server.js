@@ -3121,13 +3121,26 @@ wss.on('connection', (clientWs, request) => {
         const crit = Array.isArray(sc.successCriteria) ? sc.successCriteria.join('; ') : '';
         scenarioText = `Bağlam: ${sc.title}. Rol: ${sc.personaPrompt}. Başarı ölçütleri: ${crit}`;
       }
-          const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel) + `\n\nKurallar:\n- Cümleyi tamamlamadan asla durma.\n- Kullanıcı susarsa kısa bir beklemeden sonra cümleyi bitir.\n- Gereksiz yere konuyu değiştirme; soruya doğrudan cevap ver.\n- Soru cümleleri '?' ile bitmeli; cümleler nokta ile tamamlanmalı.\n- Uzun yanıt verirken tek nefeste bitiremediysen kısa bir nefes payı bırakıp cümleyi tamamla.`;
+          // Economy plan: Türkçe-only kısa ve konuya odaklı persona
+          let persona;
+          if (sess?.plan === 'economy') {
+            persona = [
+              'Sadece Türkçe konuş. Başka dil KULLANMA.',
+              '1-2 kısa ve doğal cümleyle cevap ver.',
+              'Kullanıcının söylediğine DOĞRUDAN cevap ver; konuyu değiştirme.',
+              'Her cümleyi nokta veya soru işareti ile bitir.',
+              'Örnek verirsen tek bir örnekle yetin ve Türkçe açıkla.'
+            ].join(' ');
+          } else {
+            persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel) + `\n\nKurallar:\n- Cümleyi tamamlamadan asla durma.\n- Kullanıcı susarsa kısa bir beklemeden sonra cümleyi bitir.\n- Gereksiz yere konuyu değiştirme; soruya doğrudan cevap ver.\n- Soru cümleleri '?' ile bitmeli; cümleler nokta ile tamamlanmalı.\n- Uzun yanıt verirken tek nefeste bitiremediysen kısa bir nefes payı bırakıp cümleyi tamamla.`;
+          }
       const sessionUpdate = {
         type: 'session.update',
         session: {
           modalities: ['audio','text'],
           input_audio_format: 'pcm16',
           output_audio_format: 'pcm16',
+          input_audio_transcription: { language: lang },
           voice: voicePref,
           temperature: 0.8,
           // Let Realtime model handle audio directly; no separate ASR model
@@ -3140,7 +3153,7 @@ wss.on('connection', (clientWs, request) => {
             create_response: true,
             interrupt_response: true,
           },
-          instructions: persona + "\n\nKURAL: Cevap dili SADECE Türkçe. İngilizce ya da başka dil kullanma. Cümleyi nokta veya soru işaretiyle bitir."
+          instructions: persona
         },
       };
       openaiWs.send(JSON.stringify(sessionUpdate));
@@ -3152,7 +3165,7 @@ wss.on('connection', (clientWs, request) => {
           item: {
             type: 'message',
             role: 'system',
-            content: [{ type: 'input_text', text: persona + "\n\nKURAL: Sadece Türkçe cevap ver. Başka dil kullanma." }]
+            content: [{ type: 'input_text', text: persona }]
           }
         }));
       } catch {}
@@ -3352,9 +3365,23 @@ wss.on('connection', (clientWs, request) => {
             const crit = Array.isArray(sc.successCriteria) ? sc.successCriteria.join('; ') : '';
             scenarioText = `Bağlam: ${sc.title}. Rol: ${sc.personaPrompt}. Başarı ölçütleri: ${crit}`;
           }
-          const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel) + "\n\nKURAL: Sadece Türkçe cevap ver. Başka dil kullanma.";
+          // Economy plan: Türkçe-only persona ve daha düşük sıcaklık
+          let persona;
+          let temp = 0.8;
+          if (sess?.plan === 'economy') {
+            persona = [
+              'Sadece Türkçe konuş. Başka dil KULLANMA.',
+              '1-2 kısa ve doğal cümleyle cevap ver.',
+              'Kullanıcının söylediğine DOĞRUDAN cevap ver; konuyu değiştirme.',
+              'Her cümleyi nokta veya soru işareti ile bitir.',
+              'Örnek verirsen tek bir örnekle yetin ve Türkçe açıkla.'
+            ].join(' ');
+            temp = 0.4;
+          } else {
+            persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel) + "\n\nKURAL: Sadece Türkçe cevap ver. Başka dil kullanma.";
+          }
           // Push updated session settings (voice/language hints) and a fresh system message
-          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, instructions: persona, temperature: 0.8, max_response_output_tokens: 480 } }));
+          openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, instructions: persona, temperature: temp, max_response_output_tokens: 480 } }));
           // Persona'yı güçlü uygulamak için sistem mesajı olarak ekle (ayrıca tekil langNotice kaldırıldı)
           openaiWs.send(JSON.stringify({
             type: 'conversation.item.create',
@@ -3479,8 +3506,9 @@ wss.on('connection', (clientWs, request) => {
           type: 'response.create',
           response: {
             modalities: ['audio','text'],
-            temperature: 0.8,
+            temperature: (sess?.plan === 'economy' ? 0.4 : 0.8),
             max_output_tokens: 160,
+            ...(sess?.plan === 'economy' ? { instructions: 'Sadece Türkçe konuş. Başka dil kullanma. 1-2 kısa ve doğal cümleyle cevap ver. Cümleyi nokta veya soru işaretiyle bitir.' } : {})
           }
         };
         if (STRICT_REALTIME || !isResponding) {

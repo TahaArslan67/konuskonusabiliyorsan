@@ -3376,7 +3376,7 @@ wss.on('connection', (clientWs, request) => {
               'Her cümleyi nokta veya soru işareti ile bitir.',
               'Örnek verirsen tek bir örnekle yetin ve Türkçe açıkla.'
             ].join(' ');
-            temp = 0.4;
+            temp = 0.6;
           } else {
             persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel) + "\n\nKURAL: Sadece Türkçe cevap ver. Başka dil kullanma.";
           }
@@ -3506,7 +3506,7 @@ wss.on('connection', (clientWs, request) => {
           type: 'response.create',
           response: {
             modalities: ['audio','text'],
-            temperature: (sess?.plan === 'economy' ? 0.4 : 0.8),
+            temperature: (sess?.plan === 'economy' ? 0.6 : 0.8),
             max_output_tokens: 160,
             ...(sess?.plan === 'economy' ? { instructions: 'Sadece Türkçe konuş. Başka dil kullanma. 1-2 kısa ve doğal cümleyle cevap ver. Cümleyi nokta veya soru işaretiyle bitir.' } : {})
           }

@@ -26,7 +26,11 @@
 
   <div class="footer-main">
     <div class="brand">
-      <img src="/logo.png" alt="KonusKonusabilirsen"/>
+      <picture>
+        <source type="image/avif" srcset="/logo-36.avif 1x, /logo-72.avif 2x" />
+        <source type="image/webp" srcset="/logo-36.webp 1x, /logo-72.webp 2x" />
+        <img src="/logo-36.png" srcset="/logo-36.png 1x, /logo-72.png 2x" alt="KonusKonusabilirsen" decoding="async" />
+      </picture>
       <div class="year">© <span id="year"></span></div>
       <div class="social">
         <a aria-label="YouTube" href="https://www.youtube.com/@KonusKonusabilirsen" target="_blank" rel="noopener" class="ic">

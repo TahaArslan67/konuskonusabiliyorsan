@@ -2,7 +2,7 @@
   async function inject(){
     try{
       const el = document.createElement('div');
-      const r = await fetch('/header.html');
+      const r = await fetch('/header.html?v=2');
       el.innerHTML = await r.text();
       const hdr = el.firstElementChild; const mm = el.lastElementChild;
       const body = document.body; if (!body) return;

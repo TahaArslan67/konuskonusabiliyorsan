@@ -1,8 +1,12 @@
 <header class="container header">
   <a class="brand" href="/" aria-label="KonusKonusabilirsen anasayfa">
     <picture>
-      <source media="(max-width: 640px)" srcset="/logo-icon.png" />
-      <img src="/logo.png" alt="KonusKonusabilirsen" style="display:block;" loading="lazy" decoding="async" />
+      <source type="image/avif" media="(max-width: 640px)" srcset="/logo-icon-26.avif 1x, /logo-icon-52.avif 2x" />
+      <source type="image/webp" media="(max-width: 640px)" srcset="/logo-icon-26.webp 1x, /logo-icon-52.webp 2x" />
+      <source media="(max-width: 640px)" srcset="/logo-icon-26.png 1x, /logo-icon-52.png 2x" />
+      <source type="image/avif" srcset="/logo-36.avif 1x, /logo-72.avif 2x" />
+      <source type="image/webp" srcset="/logo-36.webp 1x, /logo-72.webp 2x" />
+      <img src="/logo.png" srcset="/logo-36.png 1x, /logo-72.png 2x" alt="KonusKonusabilirsen" style="display:block;" decoding="async" fetchpriority="high" />
     </picture>
     <span style="font-weight:700;">KonusKonusabilirsen</span>
   </a>

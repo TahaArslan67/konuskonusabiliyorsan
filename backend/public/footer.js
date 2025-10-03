@@ -1,7 +1,7 @@
 (function(){
   function inject(){
     try{
-      fetch('/footer.html')
+      fetch('/footer.html?v=2')
         .then(r => r.text())
         .then(html => {
           const wrap = document.createElement('div');

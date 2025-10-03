@@ -60,35 +60,43 @@
           </div>
         </div>
         <div class="card" style="padding:22px;">
-          <h3 style="margin:0 0 8px;">Gelişmiş Seçenekler</h3>
-          <div class="stack">
-            <div class="row">
-              <label class="subtle">Öğrenilen Dil</label>
-              <select id="learnLangSelect" class="input" style="min-width:220px;"></select>
-              <label class="subtle" style="margin-left:12px;">Ana Dil</label>
-              <select id="nativeLangSelect" class="input" style="min-width:220px;"></select>
-            </div>
-            <div class="row">
-              <label class="subtle">Ses</label>
-              <select id="voiceSelect" class="input" style="min-width:220px;">
-                <option value="alloy">Alloy</option>
-                <option value="verse">Verse</option>
-                <option value="aria">Aria</option>
+          <details id="advControls" style="margin-top:0;">
+            <summary class="subtle">Gelişmiş Kontroller</summary>
+            <div class="stack" style="margin-top:10px; gap:10px;">
+              <label for="scenarioSelect" class="subtle">Senaryo</label>
+              <select id="scenarioSelect" style="max-width:420px; padding:10px 12px; border-radius:10px; background:#0b1022; border:1px solid #1b2442; color:var(--text);">
+                <option value="">(Seçim yok)</option>
               </select>
-              <label class="subtle" style="margin-left:12px;">Düzeltme</label>
-              <select id="corrSelect" class="input" style="min-width:220px;">
-                <option value="gentle" selected>Yumuşak</option>
-                <option value="direct">Doğrudan</option>
+              <small class="subtle">Hedef bağlam seçin (ör. Restoran, Havaalanı, İş Görüşmesi). Koç, seçilen bağlama göre yönlendirme yapar.</small>
+
+              <label for="learnLangSelect" class="subtle">Öğrenilen Dil</label>
+              <select id="learnLangSelect" style="max-width:420px; padding:10px 12px; border-radius:10px; background:#0b1022; border:1px solid #1b2442; color:var(--text);"></select>
+              <small class="subtle">Modelin konuşacağı/öğretmeye çalışacağı hedef dil.</small>
+
+              <label for="nativeLangSelect" class="subtle">Kendi Dilin</label>
+              <select id="nativeLangSelect" style="max-width:420px; padding:10px 12px; border-radius:10px; background:#0b1022; border:1px solid #1b2442; color:var(--text);"></select>
+              <small class="subtle">Açıklama gerektiğinde kısa destek cümlesi için kullanılacak ana dil.</small>
+
+              <label for="corrSelect" class="subtle">Düzeltme Modu</label>
+              <select id="corrSelect" style="max-width:300px; padding:10px 12px; border-radius:10px; background:#0b1022; border:1px solid #1b2442; color:var(--text);">
+                <option value="gentle" selected>Yumuşak (önerili)</option>
+                <option value="strict">Katı</option>
                 <option value="off">Kapalı</option>
               </select>
-            </div>
-            <div class="row">
-              <label class="subtle">Senaryo</label>
-              <select id="scenarioSelect" class="input" style="min-width:460px;">
-                <option value="">(Seçimi isteğe bağlı)</option>
+              <small class="subtle">Hataları ne kadar nazikçe/katı düzelteceğini belirler.</small>
+
+              <label for="voiceSelect" class="subtle">Ses Tonu</label>
+              <select id="voiceSelect" style="max-width:300px; padding:10px 12px; border-radius:10px; background:#0b1022; border:1px solid #1b2442; color:var(--text);">
+                <option value="alloy" selected>Alloy (doğal, varsayılan)</option>
+                <option value="verse">Verse (akıcı)</option>
+                <option value="aria">Aria (yumuşak)</option>
+                <option value="alto">Alto (derin)</option>
+                <option value="soprano">Soprano (ince)</option>
+                <option value="coral">Coral (nötr)</option>
               </select>
+              <small class="subtle">Seçtiğiniz ses tonu yeni yanıtlar için geçerli olur.</small>
             </div>
-          </div>
+          </details>
         </div>
       </div>
       <!-- Sağ: Ses oynatıcı -->

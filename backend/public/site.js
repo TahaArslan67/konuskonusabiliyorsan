@@ -722,7 +722,9 @@ if (btnStart1){
 
     // Sadece ana sayfada plan kontrolü yap
     if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
-      window.location.href = '/realtime.html';
+      if(window.location.pathname !== '/realtime.html'){
+        window.location.href = '/realtime.html';
+        }
       return;
     }
 
@@ -735,13 +737,19 @@ if (btnStart1){
         if (userPlan === 'economic') {
           window.location.href = '/ekonomik.html';
         } else {
-          window.location.href = '/realtime.html';
+          if(window.location.pathname !== '/realtime.html'){
+            window.location.href = '/realtime.html';
+            }
         }
       } else {
-        window.location.href = '/realtime.html';
+        if(window.location.pathname !== '/realtime.html'){
+          window.location.href = '/realtime.html';
+          }
       }
     } catch (error) {
-      window.location.href = '/realtime.html';
+      if(window.location.pathname !== '/realtime.html'){
+        window.location.href = '/realtime.html';
+        }
     }
   });
 }
@@ -754,7 +762,9 @@ if (btnStart2){
 
     // Sadece ana sayfada plan kontrolü yap
     if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
-      window.location.href = '/realtime.html';
+      if(window.location.pathname !== '/realtime.html'){
+        window.location.href = '/realtime.html';
+        }
       return;
     }
 
@@ -767,13 +777,19 @@ if (btnStart2){
         if (userPlan === 'economic') {
           window.location.href = '/ekonomik.html';
         } else {
-          window.location.href = '/realtime.html';
+          if(window.location.pathname !== '/realtime.html'){
+            window.location.href = '/realtime.html';
+            }
         }
       } else {
-        window.location.href = '/realtime.html';
+        if(window.location.pathname !== '/realtime.html'){
+          window.location.href = '/realtime.html';
+          }
       }
     } catch (error) {
-      window.location.href = '/realtime.html';
+      if(window.location.pathname !== '/realtime.html'){
+        window.location.href = '/realtime.html';
+        }
     }
   });
 }
@@ -902,7 +918,9 @@ try{
 
       // Sadece ana sayfada plan kontrolü yap
       if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
-        window.location.href = '/realtime.html';
+        if(window.location.pathname !== '/realtime.html'){
+          window.location.href = '/realtime.html';
+          }
         return;
       }
 
@@ -914,14 +932,16 @@ try{
           const userPlan = me.user?.plan || 'free';
           if (userPlan === 'economic') {
             window.location.href = '/ekonomik.html';
-          } else {
-            window.location.href = '/realtime.html';
           }
         } else {
+          if(window.location.pathname !== '/realtime.html'){
           window.location.href = '/realtime.html';
+          }
         }
       } catch (error) {
-        window.location.href = '/realtime.html';
+        if(window.location.pathname !== '/realtime.html'){
+          window.location.href = '/realtime.html';
+          }
       }
     }); }
     // Show correct auth buttons
@@ -1011,13 +1031,19 @@ if (window.location.pathname === '/konus' && window.location.hash !== '#debug') 
           const me = await r.json();
           const userPlan = me.user?.plan || 'free';
           if (userPlan === 'economic') {
-            window.location.href = '/ekonomik.html';
+            if(window.location.pathname !== '/realtime.html'){
+              window.location.href = '/realtime.html';
+              }
           } 
         } else {
-          window.location.href = '/realtime.html';
+          if(window.location.pathname !== '/realtime.html'){
+            window.location.href = '/realtime.html';
+            }
         }
       } catch (error) {
-        window.location.href = '/realtime.html';
+        if(window.location.pathname !== '/realtime.html'){
+          window.location.href = '/realtime.html';
+          }
       }
     }
   })();

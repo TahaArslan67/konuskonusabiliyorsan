@@ -13,10 +13,16 @@
     { "src": "/contact", "dest": "/backend/public/contact.html" },
     { "src": "/konus", "dest": "/backend/public/realtime.html" },
     { "src": "/ocr", "dest": "/backend/public/ocr.html" },
+    { "src": "/ekonomi", "dest": "/backend/public/economy.html" },
     { 
       "src": "/success.html", 
       "status": 301, 
       "headers": { "Location": "https://konuskonusabilirsen.com/konus" }
+    },
+    { 
+      "src": "/ekonomi.html", 
+      "status": 301, 
+      "headers": { "Location": "/ekonomi" }
     },
     { "src": "/(.*)", "dest": "/backend/public/$1" }
   ]

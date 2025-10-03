@@ -15,6 +15,7 @@ const btnReplay = $('#btnReplay');
 const recDot = $('#recDot');
 const transcriptEl = $('#transcript');
 const remoteAudio = $('#remoteAudio');
+const autoTurnEl = document.querySelector('#autoTurn');
 
 let ws = null;
 let wsAudioChunks = [];
@@ -63,6 +64,17 @@ function wsPlayPcm(arrayBuffer){
     gain.connect(wsPlaybackCtx.destination);
     wsPlaybackSource = src;
     src.start();
+    // Oynatma bittiğinde oto-tur açık ise kısa gecikme ile yeni kayda başla
+    try {
+      src.onended = () => {
+        try {
+          const auto = !!(autoTurnEl && autoTurnEl.checked);
+          if (auto && ws && ws.readyState === WebSocket.OPEN && !isRecording){
+            setTimeout(() => { try { if (!isRecording) toggleRec(); } catch {} }, 300);
+          }
+        } catch {}
+      };
+    } catch {}
   }catch(e){ console.log('[economy] play error', e?.message||e); }
 }
 

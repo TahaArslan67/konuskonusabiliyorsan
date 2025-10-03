@@ -3140,7 +3140,7 @@ wss.on('connection', (clientWs, request) => {
             create_response: true,
             interrupt_response: true,
           },
-          instructions: persona
+          instructions: persona + "\n\nKURAL: Cevap dili SADECE Türkçe. İngilizce ya da başka dil kullanma. Cümleyi nokta veya soru işaretiyle bitir."
         },
       };
       openaiWs.send(JSON.stringify(sessionUpdate));
@@ -3473,8 +3473,8 @@ wss.on('connection', (clientWs, request) => {
           type: 'response.create',
           response: {
             modalities: ['audio','text'],
-            instructions: `Target language: ${lang}. Native: ${nlang}. Asla başka dile kayma. Kullanıcı: ${String(obj.text)}\n1-2 kısaltma öneri ver (hedef dilde), yeni satırda ${nlang} tek cümle 'Tip:' ekle.`,
-            max_output_tokens: 60,
+            instructions: `Sadece Türkçe ve kısa yanıt ver. 1-2 doğal cümle kullan. Cümleyi mutlaka nokta veya soru işaretiyle bitir. Kullanıcı: ${String(obj.text)}`,
+            max_output_tokens: 160,
           }
         };
         if (STRICT_REALTIME || !isResponding) {
@@ -3643,7 +3643,12 @@ wss.on('connection', (clientWs, request) => {
           }
           // Ensure client resumes mic even for text-only completions
           if (!STRICT_REALTIME) isResponding = false;
-          try { clientWs.send(JSON.stringify({ type: 'audio_end' })); } catch {}
+          try {
+            // Eğer bu turda audio akışı olduysa ve audio_end bekleniyorsa burada bitiş sinyali göndermeyelim.
+            if (!openaiWs._waitingAudioEnd) {
+              clientWs.send(JSON.stringify({ type: 'audio_end' }));
+            }
+          } catch {}
           openaiWs._audioStreamMode = null;
           break;
         }

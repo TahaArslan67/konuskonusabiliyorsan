@@ -3146,13 +3146,13 @@ wss.on('connection', (clientWs, request) => {
       openaiWs.send(JSON.stringify(sessionUpdate));
       // Ek güvence: konuşma başında persona ve dil politikasını sistem mesajı olarak ekle
       try {
-        // Persona'yı (senaryo + iki dilli politika) sistem mesajı olarak ekle
+        // Persona'yı (senaryo vs.) sistem mesajı olarak ekle + Türkçe-only kuralını güçlendir
         openaiWs.send(JSON.stringify({
           type: 'conversation.item.create',
           item: {
             type: 'message',
             role: 'system',
-            content: [{ type: 'input_text', text: persona }]
+            content: [{ type: 'input_text', text: persona + "\n\nKURAL: Sadece Türkçe cevap ver. Başka dil kullanma." }]
           }
         }));
       } catch {}
@@ -3352,7 +3352,7 @@ wss.on('connection', (clientWs, request) => {
             const crit = Array.isArray(sc.successCriteria) ? sc.successCriteria.join('; ') : '';
             scenarioText = `Bağlam: ${sc.title}. Rol: ${sc.personaPrompt}. Başarı ölçütleri: ${crit}`;
           }
-          const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel);
+          const persona = buildPersonaInstruction(lang, nlang, corr, scenarioText, sess.userLevel) + "\n\nKURAL: Sadece Türkçe cevap ver. Başka dil kullanma.";
           // Push updated session settings (voice/language hints) and a fresh system message
           openaiWs.send(JSON.stringify({ type: 'session.update', session: { voice: voicePref, instructions: persona, temperature: 0.8, max_response_output_tokens: 480 } }));
           // Persona'yı güçlü uygulamak için sistem mesajı olarak ekle (ayrıca tekil langNotice kaldırıldı)
@@ -3462,24 +3462,31 @@ wss.on('connection', (clientWs, request) => {
         return;
       }
       if (t === 'text' && obj?.text) {
-        // Convert text to response.create; OpenAI path must NOT include response.modalities
-        const lang = (sess?.prefs?.learnLang || 'tr').toLowerCase();
-        const nlang = (sess?.prefs?.nativeLang || 'tr').toLowerCase();
-        const corr = (sess?.prefs?.correction || 'gentle').toLowerCase();
-        const persona = buildPersonaInstruction(lang, nlang, corr, '', sess.userLevel);
-        // Detect if user asked for explanation in text prompt to allow longer answer
-        const wantsExplain = /\b(açıkla|neden|detay|ayrıntı|örnek ver|teach|explain|why)\b/i.test(String(obj.text || ''));
+        // Proper Realtime text flow: add a user message, then ask for a response
+        const userText = String(obj.text || '');
+        try {
+          openaiWs.send(JSON.stringify({
+            type: 'conversation.item.create',
+            item: {
+              type: 'message',
+              role: 'user',
+              content: [{ type: 'input_text', text: userText }]
+            }
+          }));
+        } catch (e) { console.error('[proxy] failed to append user text item:', e); }
+
         const create = {
           type: 'response.create',
           response: {
             modalities: ['audio','text'],
-            instructions: `Sadece Türkçe ve kısa yanıt ver. 1-2 doğal cümle kullan. Cümleyi mutlaka nokta veya soru işaretiyle bitir. Kullanıcı: ${String(obj.text)}`,
+            temperature: 0.8,
             max_output_tokens: 160,
           }
         };
         if (STRICT_REALTIME || !isResponding) {
+          try { clientWs.send(JSON.stringify({ type: 'debug', src: 'server', event: 'response.create(for user text)', len: userText.length })); } catch {}
           openaiWs.send(JSON.stringify(create));
-          console.log('[proxy] sent response.create (text prompt)');
+          console.log('[proxy] sent response.create (for user text)');
           if (!STRICT_REALTIME) isResponding = true;
         } else {
           console.log('[proxy] response.create (text) suppressed (already responding)');
@@ -3512,6 +3519,14 @@ wss.on('connection', (clientWs, request) => {
         openaiWs._audioStreamMode = null;
       }
       switch (t) {
+        case 'response.created': {
+          if (!STRICT_REALTIME) isResponding = true;
+          try { clientWs.send(JSON.stringify({ type: 'bot_speaking' })); } catch {}
+          if (pendingResponseTimer) { try { clearTimeout(pendingResponseTimer); } catch {} pendingResponseTimer = null; }
+          // Reset stream mode at start of response
+          openaiWs._audioStreamMode = null;
+          break;
+        }
         case 'output_audio_buffer.append': {
           // Mark start of bot speaking on first audio chunk (buffer mode)
           if (openaiWs._audioStreamMode === null) {
@@ -3586,7 +3601,7 @@ wss.on('connection', (clientWs, request) => {
           const missingTerminal = !/[.!?]["'""]?\s*$/.test(tr);
           const unfinished = /(What do you|How do you|Can you|Could you|Would you|Let's|Let's|Şöyle de diyebilirsin)[:\s]*$/i.test(tr);
           
-          // Kısa yanıtları da geçerli say (6 kelimeden az olan yanıtlar için terminal punctuation zorunlu değil)
+          // Kısa yanıtları da takip et
           const wordCount = tr.trim().split(/\s+/).length;
           const isShortResponse = wordCount <= 6;
 
@@ -3594,8 +3609,8 @@ wss.on('connection', (clientWs, request) => {
           const isQuestion = /[?]/.test(tr) || /^(What|How|Can|Could|Would|Do you|Are you|Is it|Will you|Can we|Ne|Nasıl|Neden|Kaç|Kim|Nerede|Hangisi)/i.test(tr);
           const isCompleteShortResponse = isShortResponse && (isQuestion || /[.!?]["'""]?\s*$/.test(tr));
 
-          // Sadece gerçekten eksik olan yanıtlar için follow-up iste
-          const needsExample = !isCompleteShortResponse && !isShortResponse && (badPunct || openQuote || unfinished || trailingConnectorTR || (/Şöyle bir cümle/i.test(tr)) || (missingTerminal && wordCount > 8));
+          // Eksik bitmiş gibi görünen yanıtlar için follow-up iste (kısa olsa bile)
+          const needsExample = (!isCompleteShortResponse) && (badPunct || openQuote || unfinished || trailingConnectorTR || (/Şöyle bir cümle/i.test(tr)) || missingTerminal);
           
           if (needsExample) {
             try {
@@ -3627,7 +3642,8 @@ wss.on('connection', (clientWs, request) => {
         case 'response.delta':
         case 'response.transcript.delta':
         case 'response.text.delta':
-        case 'response.output_text.delta': {
+        case 'response.output_text.delta':
+        case 'response.audio_transcript.delta': {
           const text = obj?.delta ?? obj?.text ?? '';
           if (text) clientWs.send(JSON.stringify({ type: 'transcript', text: String(text), final: false }));
           break;

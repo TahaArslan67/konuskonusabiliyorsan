@@ -126,6 +126,10 @@ async function connect(){
       btnDisconnect.disabled = false;
       btnRec.disabled = false;
       updateMePills();
+      // Ek güvence: Türkçe kısa yanıt için oturum ayarını client'tan da gönder
+      try {
+        ws.send(JSON.stringify({ type: 'session.update', session: { instructions: 'Sadece Türkçe ve kısa yanıt ver. 1-2 doğal cümle kullan. Cümleyi mutlaka nokta veya soru işaretiyle bitir. Sorudan sapma.' } }));
+      } catch {}
     };
     ws.onclose = () => {
       setConn(false);
@@ -166,6 +170,7 @@ async function connect(){
             const merged = new Uint8Array(total);
             let off = 0; for (const c of wsAudioChunks){ merged.set(new Uint8Array(c), off); off += c.byteLength; }
             lastResponseBuffer = merged.buffer;
+            try { console.debug('[economy] audio_end totalBytes=', total); } catch {}
             if (btnReplay) btnReplay.disabled = false;
             wsPlayPcm(lastResponseBuffer);
             wsAudioChunks = [];

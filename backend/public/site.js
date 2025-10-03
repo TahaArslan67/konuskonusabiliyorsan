@@ -720,6 +720,12 @@ if (btnStart1){
     const token = getToken();
     if (!token){ setPostLoginRedirect('/realtime.html'); openAuth(); showLogin(); return; }
 
+    // Sadece ana sayfada plan kontrolü yap
+    if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
+      window.location.href = '/realtime.html';
+      return;
+    }
+
     // Kullanıcı planını kontrol et ve uygun sayfaya yönlendir
     try {
       const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` } });
@@ -745,6 +751,12 @@ if (btnStart2){
     ev.preventDefault();
     const token = getToken();
     if (!token){ setPostLoginRedirect('/realtime.html'); openAuth(); showLogin(); return; }
+
+    // Sadece ana sayfada plan kontrolü yap
+    if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
+      window.location.href = '/realtime.html';
+      return;
+    }
 
     // Kullanıcı planını kontrol et ve uygun sayfaya yönlendir
     try {
@@ -882,7 +894,36 @@ try{
     // Auth buttons in mobile menu
     if (mmLogin){ mmLogin.addEventListener('click', () => { close(); openAuth(); showLogin(); }); }
     if (mmAccount){ mmAccount.addEventListener('click', () => { close(); window.location.href = '/account.html'; }); }
-    if (mmStart){ mmStart.addEventListener('click', (ev) => { ev.preventDefault(); close(); const t = getToken(); if (!t){ setPostLoginRedirect('/realtime.html'); openAuth(); showLogin(); } else { window.location.href = '/realtime.html'; } }); }
+    if (mmStart){ mmStart.addEventListener('click', async (ev) => {
+      ev.preventDefault();
+      close();
+      const t = getToken();
+      if (!t){ setPostLoginRedirect('/realtime.html'); openAuth(); showLogin(); return; }
+
+      // Sadece ana sayfada plan kontrolü yap
+      if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
+        window.location.href = '/realtime.html';
+        return;
+      }
+
+      // Kullanıcı planını kontrol et ve uygun sayfaya yönlendir
+      try {
+        const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${t}` } });
+        if (r.ok) {
+          const me = await r.json();
+          const userPlan = me.user?.plan || 'free';
+          if (userPlan === 'economic') {
+            window.location.href = '/ekonomik.html';
+          } else {
+            window.location.href = '/realtime.html';
+          }
+        } else {
+          window.location.href = '/realtime.html';
+        }
+      } catch (error) {
+        window.location.href = '/realtime.html';
+      }
+    }); }
     // Show correct auth buttons
     if (token){ if (mmLogin) mmLogin.style.display = 'none'; if (mmAccount) mmAccount.style.display = 'inline-flex'; }
   }
@@ -959,8 +1000,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// /konus URL'sine erişim kontrolü
-if (window.location.pathname === '/konus') {
+// /konus URL'sine erişim kontrolü - sadece ana sayfa için
+if (window.location.pathname === '/konus' && window.location.hash !== '#debug') {
   (async () => {
     const token = getToken();
     if (token) {

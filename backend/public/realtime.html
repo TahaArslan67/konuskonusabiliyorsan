@@ -17,9 +17,6 @@
         try{
           const backendBase = (typeof window !== 'undefined' && window.__BACKEND_BASE__) ? window.__BACKEND_BASE__ : window.location.origin;
           console.log('[realtime] /me çağrısı başlatılıyor...');
-          console.log('[realtime] mevcut URL:', window.location.href);
-          console.log('[realtime] mevcut pathname:', window.location.pathname);
-
           const r = await fetch(`${backendBase}/me`, { headers: { Authorization: `Bearer ${token}` }});
           console.log('[realtime] /me yanıtı:', r.status, r.ok);
           if (r.ok){
@@ -37,49 +34,13 @@
 
             // Plan kontrolü - ekonomik paket sahipleri otomatik olarak ekonomik sayfaya yönlendirilsin
             const userPlan = me.user?.plan || 'free';
-            console.log('[realtime] kullanıcı planı:', userPlan);
-            console.log('[realtime] kullanıcı plan kontrolü başlıyor...');
-            console.log('[realtime] mevcut URL:', window.location.href);
-            console.log('[realtime] mevcut pathname:', window.location.pathname);
-
-            // Plan kontrolü - free, pro, starter planları normal realtime sayfasında kalmalı
-            if (userPlan === 'free' || userPlan === 'pro' || userPlan === 'starter') {
-              console.log('[realtime] ✅ Kullanıcı normal planında (free/pro/starter), realtime sayfasında kalacak');
-              console.log('[realtime] Kullanıcı planı:', userPlan, '- ekonomik sayfaya yönlendirilmeyecek');
-            } else if (userPlan === 'economic') {
-              console.log('[realtime] ✅ ekonomik paket kullanıcısı tespit edildi, ekonomik sayfaya yönlendiriliyor...');
-              console.log('[realtime] yönlendirme: /ekonomik.html');
+            if (userPlan === 'economic') {
+              console.log('[realtime] ekonomik paket kullanıcısı tespit edildi, ekonomik sayfaya yönlendiriliyor...');
               window.location.replace('/ekonomik.html');
               return;
-            } else {
-              console.log('[realtime] ℹ️ Bilinmeyen plan kullanıcısı:', userPlan, '- normal realtime sayfasında kalacak');
             }
 
-            console.log('[realtime] ✅ plan kontrolü geçildi, sayfa açık kalıyor:', userPlan);
-            console.log('[realtime] kullanıcı realtime sayfasında kalabilir, plan:', userPlan);
-
-            // Sayfa yenileme kontrolü - eğer kullanıcı bu sayfada zaten varsa ve plan değişmediyse sorun olabilir
-            console.log('[realtime] Sayfa durumu kontrolü:');
-            console.log('[realtime] - Sayfa zaten yüklendi mi?', document.readyState);
-            console.log('[realtime] - DOM yükleme tamamlandı mı?', document.readyState === 'complete');
-            console.log('[realtime] - Sayfa yükleme sayısı kontrolü');
-
-            // Sayfa yükleme döngüsü kontrolü
-            if (typeof window.realtimePageLoadCount === 'undefined') {
-              window.realtimePageLoadCount = 0;
-            }
-            window.realtimePageLoadCount++;
-
-            if (window.realtimePageLoadCount > 1) {
-              console.warn('[realtime] ⚠️ Sayfa birden fazla yüklendi! Yenileme döngüsü tespit edildi!');
-              console.warn('[realtime] Yükleme sayısı:', window.realtimePageLoadCount);
-            } else {
-              console.log('[realtime] İlk sayfa yüklemesi');
-            }
-
-            if (document.readyState === 'complete') {
-              console.warn('[realtime] ⚠️ Sayfa zaten tamamen yüklendi! Bu normal değil!');
-            }
+            console.log('[realtime] plan kontrolü geçildi, sayfa açık kalıyor:', userPlan);
           } else {
             console.log('[realtime] /me çağrısı başarısız:', r.status);
           }
@@ -87,54 +48,14 @@
           console.error('[realtime] /me çağrısı hatası:', error);
         }
       })();
-      // Sayfa yenileme döngüsü kontrolü - bu kodun çalışıp çalışmadığını kontrol edelim
-      console.log('[realtime] 🔄 Sayfa yenileme kontrolü başlıyor...');
-
-      // Eğer bu kod birden fazla çalışıyorsa sorun var
-      if (typeof window.realtimeInitCount === 'undefined') {
-        window.realtimeInitCount = 0;
-      }
-      window.realtimeInitCount++;
-
-      console.log('[realtime] Sayfa init sayısı:', window.realtimeInitCount);
-      console.log('[realtime] Sayfa durumu:', document.readyState);
-
-      if (window.realtimeInitCount > 1) {
-        console.error('[realtime] 🚨 Sayfa birden fazla kez initialize edildi! Bu normal değil!');
-        console.error('[realtime] Sayfa yenileme döngüsü tespit edildi!');
-        console.error('[realtime] Bu noktada sayfa zorla durdurulacak!');
-
-        // Acil durum - sayfayı zorla durdur
-        throw new Error('Sayfa yenileme döngüsü tespit edildi, sayfa yüklemesi durduruldu');
-      }
-
-      // URL güncelleme kontrolü - ÇOK ÖNEMLİ: Bu kodu daha güvenli hale getirelim
+      // Update the URL to show /konus but PRESERVE query/hash (scenario, langs)
       try {
-        console.log('[realtime] URL güncelleme kontrolü başlıyor...');
-        console.log('[realtime] mevcut pathname:', window.location.pathname);
-        console.log('[realtime] mevcut search:', window.location.search);
-        console.log('[realtime] mevcut hash:', window.location.hash);
-
-        // Eğer pathname zaten /konus ise hiçbir şey yapma!
-        if (window.location.pathname === '/konus') {
-          console.log('[realtime] ✅ URL zaten /konus, hiçbir değişiklik yapılmayacak');
-        } else {
+        if (window.location.pathname !== '/konus') {
           const search = window.location.search || '';
           const hash = window.location.hash || '';
-          const newUrl = `/konus${search}${hash}`;
-          console.log('[realtime] URL güncelleniyor:', window.location.href, '→', newUrl);
-
-          // Sadece pathname farklı ise güncelle
-          if (window.location.pathname !== '/konus') {
-            history.replaceState(null, '', newUrl);
-            console.log('[realtime] URL güncellendi');
-          } else {
-            console.log('[realtime] URL zaten doğru, güncelleme yapılmadı');
-          }
+          history.replaceState(null, '', `/konus${search}${hash}`);
         }
-      } catch (e) {
-        console.error('[realtime] URL güncelleme hatası:', e);
-      }
+      } catch {}
     } catch {}
   </script>
   <script src="/config.js"></script>

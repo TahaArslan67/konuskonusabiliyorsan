@@ -35,7 +35,7 @@
   </style>
 </head>
 <body class="ocr-page">
-  <script src="/header.js"></script>
+  <script src="/header.js" defer></script>
   <div class="ocr-container">
     <div class="card">
       <!-- Global navbar already injected by header.js; local nav removed -->
@@ -88,8 +88,8 @@
   </div>
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-  <script src="/config.js"></script>
+  <script>window.__BACKEND_BASE__='https://api.konuskonusabilirsen.com';</script>
   <script src="/ocr.js"></script>
-  <script src="/footer.js"></script>
+  <script src="/footer.js" defer></script>
 </body>
 </html>

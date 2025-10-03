@@ -17,7 +17,7 @@
   </script>
 </head>
 <body>
-  <script src="/header.js"></script>
+  <script src="/header.js" defer></script>
 
   <main class="container" style="padding:24px 0 40px; max-width:900px;">
     <div id="toast" class="toast">Seri +1! Tebrikler 🎉</div>
@@ -117,9 +117,9 @@
     </div>
   </main>
 
-  <script src="/config.js"></script>
+  <script>window.__BACKEND_BASE__='https://api.konuskonusabilirsen.com';</script>
   <script src="/site.js" type="module"></script>
-  <script src="/footer.js"></script>
+  <script src="/footer.js" defer></script>
   <script>
     // After site.js populates scenario & level, check completion and wire complete button + fill summary/tip/calendar/journal
     (async () => {

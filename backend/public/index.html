@@ -4,11 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>KonusKonusabilirsen – Gerçek Zamanlı Sesli Asistan</title>
-  <meta name="description" content="KonusKonusabilirsen, gerçek zamanlı Türkçe konuşan yapay zekâ asistanıdır. Tek satır entegrasyonla web sitenize veya uygulamanıza düşük gecikmeli sesli asistan ekleyin. Koçluk, günlük görevler, çeviri ve kişiselleştirilebilir ses özellikleriyle dil pratiğinizi hızlandırın." />
-  <link rel="stylesheet" href="/styles.css?v=2" />
+  <meta name="description" content="KonusKonusabilirsen, gerçek zamanlı Türkçe konuşan yapay zekâ asistanıdır. Koçluk, günlük görevler, çeviri ve kişiselleştirilebilir ses özellikleriyle dil pratiğinizi hızlandırın." />
+  <link rel="preload" href="/styles.css?v=2" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/styles.css?v=2"></noscript>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
   <link rel="icon" href="/favicon.png" type="image/png" />
   <!-- Critical mobile overrides to defeat stale cache -->
   <style>
@@ -23,7 +25,7 @@
   </style>
 </head>
 <body>
-  <script src="/header.js"></script>
+  <script src="/header.js" defer></script>
 
   <main>
     <section class="hero container" data-reveal>
@@ -226,10 +228,9 @@
     </section>
   </main>
 
-  <script src="/footer.js"></script>
+  <script src="/footer.js" defer></script>
 
-  
-
+  <script>window.__BACKEND_BASE__='https://api.konuskonusabilirsen.com';</script>
   <section class="container" style="padding:0 0 40px;" data-reveal>
     <h2>SSS</h2>
     <div class="grid" style="grid-template-columns: 1fr 1fr; gap:16px;">
@@ -309,7 +310,6 @@
     </div>
   </div>
 
-  <script src="/config.js"></script>
   <script>
     try{ if ('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{}); } }catch{}
   </script>

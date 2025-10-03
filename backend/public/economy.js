@@ -24,6 +24,7 @@ let lastResponseBuffer = null;
 let recorder = null;
 let recChunks = [];
 let isRecording = false;
+let recStartAt = 0;
 
 function setConn(open){
   try{ statusConn.textContent = `Bağlantı: ${open ? 'Açık' : 'Kapalı'}`; }catch{}
@@ -194,7 +195,8 @@ async function toggleRec(){
       try{ 
         const blob = new Blob(recChunks, { type: 'audio/webm' });
         const b64 = await blobToDataURL(blob);
-        const text = await doSTT(b64);
+        const durationMs = recStartAt ? (Date.now() - recStartAt) : 0;
+        const text = await doSTT(b64, durationMs);
         if (typeof text === 'string' && text.trim().length > 0){
           transcriptEl.textContent = text;
           if (ws && ws.readyState === WebSocket.OPEN){
@@ -207,6 +209,7 @@ async function toggleRec(){
       btnRec.textContent = 'Kaydı Başlat';
     };
     recorder.start();
+    recStartAt = Date.now();
     isRecording = true;
     btnRec.textContent = 'Kaydı Durdur';
     setRec(true);
@@ -226,20 +229,22 @@ async function blobToDataURL(blob){
   });
 }
 
-async function doSTT(dataUrl){
+async function doSTT(dataUrl, durationMs){
   try{
     const token = localStorage.getItem('hk_token');
     if (!token){ alert('Giriş yapın'); return ''; }
     const r = await fetch(`${backendBase}/api/stt`, {
       method: 'POST',
       headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ audio: dataUrl, language: 'tr' })
+      body: JSON.stringify({ audio: dataUrl, language: 'tr', durationMs: Number(durationMs)||undefined })
     });
     const j = await r.json().catch(()=>({}));
     if (!r.ok){
       if (r.status === 403 && j?.error === 'limit_reached'){
-        setSttQuota(j?.dailyUsed ?? '-', j?.dailyLimit ?? '-');
-        alert('Günlük STT hakkınız doldu.');
+        const used = j?.usage?.dailyUsed ?? j?.quota?.dailyUsed ?? j?.dailyUsed ?? '-';
+        const lim = j?.usage?.dailyLimit ?? j?.quota?.dailyLimit ?? j?.dailyLimit ?? '-';
+        setSttQuota(used, lim);
+        alert('Günlük limitiniz doldu.');
         return '';
       }
       alert(j?.error || 'STT hatası');

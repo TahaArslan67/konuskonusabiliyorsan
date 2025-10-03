@@ -237,7 +237,7 @@ app.post('/api/stt', authRequired, express.json({ limit: '20mb' }), async (req, 
     const apiKey = process.env.OPENAI_API_KEY || '';
     if (!apiKey) return res.status(500).json({ error: 'server_not_configured', hint: 'OPENAI_API_KEY missing' });
 
-    const { audio, language = 'tr' } = req.body || {};
+    const { audio, language = 'tr', durationMs } = req.body || {};
     if (typeof audio !== 'string' || audio.length < 50) {
       return res.status(400).json({ error: 'invalid_audio', hint: 'Send data URL (base64) in body.audio' });
     }
@@ -250,17 +250,47 @@ app.post('/api/stt', authRequired, express.json({ limit: '20mb' }), async (req, 
     const b64 = m[1];
     const mime = mimeMatch[1] || 'audio/webm';
 
-    // Kota kontrolü (günlük adet)
+    // Kota kontrolü (dakikaya bağlı) — Realtime ile aynı mantık
     const uid = req.auth?.uid;
     const userDoc = await User.findById(uid);
     if (!userDoc) return res.status(401).json({ error: 'unauthorized' });
-    const plan = userDoc.plan || 'free';
-    const sttDailyLimit = plan === 'pro' ? 30 : plan === 'starter' ? 10 : (plan === 'economy' ? 5 : 1);
-    const today = new Date().toISOString().slice(0, 10);
-    userDoc.sttUsage = userDoc.sttUsage || { day: today, count: 0 };
-    if (userDoc.sttUsage.day !== today) { userDoc.sttUsage.day = today; userDoc.sttUsage.count = 0; }
-    if ((userDoc.sttUsage.count || 0) >= sttDailyLimit) {
-      return res.status(403).json({ error: 'limit_reached', dailyUsed: userDoc.sttUsage.count, dailyLimit: sttDailyLimit });
+
+    // Usage alanlarını hazırla / eksikleri tamamla
+    userDoc.usage = userDoc.usage || {};
+    const now = new Date();
+    // Günlük sıfırlama
+    try {
+      const lastReset = userDoc.usage.lastReset ? new Date(userDoc.usage.lastReset) : null;
+      if (!lastReset || now.toDateString() !== lastReset.toDateString()) {
+        userDoc.usage.dailyUsed = 0;
+        userDoc.usage.lastReset = now;
+      }
+    } catch {}
+    // Aylık sıfırlama (ay başlangıcını geçince)
+    try {
+      if (!userDoc.usage.monthlyResetAt) {
+        userDoc.usage.monthlyResetAt = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      } else if (now > new Date(userDoc.usage.monthlyResetAt)) {
+        userDoc.usage.monthlyUsed = 0;
+        userDoc.usage.monthlyResetAt = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      }
+    } catch {}
+    // Limitleri belirle
+    const dailyLimit = userDoc.usage.dailyLimit || getPlanLimit(userDoc.plan || 'free', 'daily');
+    const monthlyLimit = userDoc.usage.monthlyLimit || getPlanLimit(userDoc.plan || 'free', 'monthly');
+    const usedDaily = Number(userDoc.usage.dailyUsed || 0);
+    const usedMonthly = Number(userDoc.usage.monthlyUsed || 0);
+
+    // Bu çağrının tahmini süresi (dk)
+    const durMsNum = Math.max(100, Math.min(120000, Number(durationMs) || 7000)); // 0.1s-120s arası, varsayılan 7s
+    const callMinutes = Math.max(0.05, Math.round((durMsNum / 60000) * 100) / 100); // 2 ondalık, min 0.05 dk
+
+    // Limit aşımı pre-check (işlem öncesi)
+    if (usedDaily + callMinutes > dailyLimit || usedMonthly + callMinutes > monthlyLimit) {
+      return res.status(403).json({
+        error: 'limit_reached',
+        usage: { dailyUsed: usedDaily, monthlyUsed: usedMonthly, dailyLimit, monthlyLimit },
+      });
     }
 
     // OpenAI Whisper çağrısı (multipart/form-data)
@@ -288,13 +318,29 @@ app.post('/api/stt', authRequired, express.json({ limit: '20mb' }), async (req, 
     const j = await r.json();
     const text = typeof j?.text === 'string' ? j.text : '';
 
-    // Sayaç artır
+    // Kullanımı dakika bazlı artır
     try {
-      userDoc.sttUsage.count = (userDoc.sttUsage.count || 0) + 1;
+      userDoc.usage.dailyUsed = (Number(userDoc.usage.dailyUsed || 0) + callMinutes);
+      userDoc.usage.monthlyUsed = (Number(userDoc.usage.monthlyUsed || 0) + callMinutes);
+      // Persist aggregate Usage koleksiyonuna da yaz (best-effort)
+      try {
+        const y = now.getFullYear();
+        const mth = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const dateBucket = `${y}-${mth}-${d}`;
+        const monthBucket = `${y}-${mth}`;
+        await Usage.updateOne(
+          { userId: new mongoose.Types.ObjectId(uid), dateBucket, monthBucket },
+          { $inc: { minutes: callMinutes } },
+          { upsert: true }
+        );
+      } catch (aggErr) {
+        console.warn('[stt] usage aggregate update failed:', aggErr?.message || aggErr);
+      }
       await userDoc.save();
-    } catch(e) { console.warn('[stt] quota increment failed:', e?.message || e); }
+    } catch(e) { console.warn('[stt] minute quota increment failed:', e?.message || e); }
 
-    return res.json({ text, quota: { dailyUsed: userDoc.sttUsage.count, dailyLimit: sttDailyLimit } });
+    return res.json({ text, quota: { dailyUsed: userDoc.usage.dailyUsed, dailyLimit, monthlyUsed: userDoc.usage.monthlyUsed, monthlyLimit, added: callMinutes } });
   } catch (e) {
     console.error('[stt] error:', e);
     return res.status(500).json({ error: 'server_error' });

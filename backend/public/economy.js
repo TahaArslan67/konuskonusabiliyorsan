@@ -16,6 +16,7 @@ const recDot = $('#recDot');
 const transcriptEl = $('#transcript');
 const remoteAudio = $('#remoteAudio');
 const autoTurnEl = document.querySelector('#autoTurn');
+const shortRecEl = document.querySelector('#shortRec');
 
 let ws = null;
 let wsAudioChunks = [];
@@ -26,6 +27,7 @@ let recorder = null;
 let recChunks = [];
 let isRecording = false;
 let recStartAt = 0;
+let playToken = 0;
 
 function setConn(open){
   try{ statusConn.textContent = `Bağlantı: ${open ? 'Açık' : 'Kapalı'}`; }catch{}
@@ -43,7 +45,7 @@ function wsEnsurePlaybackCtx(){
   if (wsPlaybackCtx.state === 'suspended') wsPlaybackCtx.resume();
 }
 
-function wsPlayPcm(arrayBuffer){
+function wsPlayPcm(arrayBuffer, token){
   try{
     wsEnsurePlaybackCtx();
     const pcm16 = new Int16Array(arrayBuffer);
@@ -68,6 +70,8 @@ function wsPlayPcm(arrayBuffer){
     try {
       src.onended = () => {
         try {
+          // Yalnızca son başlatılan oynatımın bitişini dikkate al
+          if (token !== playToken) return;
           const auto = !!(autoTurnEl && autoTurnEl.checked);
           if (auto && ws && ws.readyState === WebSocket.OPEN && !isRecording){
             setTimeout(() => { try { if (!isRecording) toggleRec(); } catch {} }, 300);
@@ -171,8 +175,21 @@ async function connect(){
             let off = 0; for (const c of wsAudioChunks){ merged.set(new Uint8Array(c), off); off += c.byteLength; }
             lastResponseBuffer = merged.buffer;
             try { console.debug('[economy] audio_end totalBytes=', total); } catch {}
+            // Boş/çok kısa ses paketlerinde tekrar kayda geçme ve çalma yapma
+            if (total < 512) {
+              wsAudioChunks = [];
+              // Yine de oto-tur açıksa yeni kayda geç (model sadece metin göndermiş olabilir)
+              try {
+                const auto = !!(autoTurnEl && autoTurnEl.checked);
+                if (auto && ws && ws.readyState === WebSocket.OPEN && !isRecording){
+                  setTimeout(() => { try { if (!isRecording) toggleRec(); } catch {} }, 200);
+                }
+              } catch {}
+              return;
+            }
             if (btnReplay) btnReplay.disabled = false;
-            wsPlayPcm(lastResponseBuffer);
+            playToken++; const token = playToken;
+            wsPlayPcm(lastResponseBuffer, token);
             wsAudioChunks = [];
           }
         }catch{}
@@ -230,8 +247,10 @@ async function toggleRec(){
     isRecording = true;
     btnRec.textContent = 'Kaydı Durdur';
     setRec(true);
-    // Otomatik olarak 7 sn sonra durdur (kısa cümleler için)
-    setTimeout(() => { try{ isRecording && recorder && recorder.state === 'recording' && recorder.stop(); }catch{} }, 7000);
+    // Otomatik durdurmayı sadece "Kısa kayıt (7s)" açıkken uygula
+    if (shortRecEl && shortRecEl.checked){
+      setTimeout(() => { try{ isRecording && recorder && recorder.state === 'recording' && recorder.stop(); }catch{} }, 7000);
+    }
   }catch(e){ alert('Mikrofona erişilemiyor'); }
 }
 

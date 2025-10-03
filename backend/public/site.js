@@ -155,11 +155,6 @@ async function onPlanClick(e){
       if (r.ok) {
         alert('Free plana geçiş yapıldı! 🎉');
         updateHeader();
-// Ensure Google Sign-In initializes on page load
-try{ if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initGoogleSignin); else initGoogleSignin(); }catch{}
-
-// Initialize Google Sign-In lazily
-try{ if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initGoogleSignin); else initGoogleSignin(); }catch{}
         window.location.reload();
       } else {
         alert(j?.error || 'Free plana geçiş yapılamadı');
@@ -323,6 +318,34 @@ const formRegister = $('#formRegister');
 const formForgot = $('#formForgot');
 const authMsg = $('#authMsg');
 
+// Dynamically load Google Identity Services script on demand
+let __gsiLoading = null;
+function loadGoogleGsi(){
+  try{
+    if (window.google && window.google.accounts && window.google.accounts.id) return Promise.resolve();
+  }catch{}
+  if (__gsiLoading) return __gsiLoading;
+  __gsiLoading = new Promise((resolve, reject) => {
+    try{
+      const existing = document.getElementById('googleGsiScript');
+      if (existing){
+        if (window.google && window.google.accounts && window.google.accounts.id){ resolve(); return; }
+        existing.addEventListener('load', () => resolve());
+        existing.addEventListener('error', () => reject(new Error('gsi_load_error')));
+        return;
+      }
+      const s = document.createElement('script');
+      s.id = 'googleGsiScript';
+      s.src = 'https://accounts.google.com/gsi/client';
+      s.async = true; s.defer = true;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('gsi_load_error'));
+      (document.head || document.documentElement).appendChild(s);
+    }catch(e){ reject(e); }
+  });
+  return __gsiLoading;
+}
+
 // Google Sign-In
 async function initGoogleSignin(){
   try{
@@ -373,9 +396,13 @@ async function initGoogleSignin(){
   }catch{}
 }
 
-function openAuth(){
+async function openAuth(){
   try{
-    if (authModal){ authModal.style.display = 'block'; try{ initGoogleSignin(); }catch{} return; }
+    if (authModal){
+      authModal.style.display = 'block';
+      try{ await loadGoogleGsi(); await initGoogleSignin(); }catch{}
+      return;
+    }
     const redirect = encodeURIComponent(window.location.pathname + window.location.search);
     window.location.href = `/?auth=1&redirect=${redirect}`;
   } catch {}

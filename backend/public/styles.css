@@ -417,12 +417,51 @@ h6{ font-size:.875rem; }
 .toast.show{ display:block; animation: fadeIn .2s ease-out; }
 
 /* ===== Homepage Enhancements ===== */
-/* Marquee */
-.marquee{ overflow:hidden; border-top:1px solid rgba(124,58,237,.15); border-bottom:1px solid rgba(124,58,237,.15); padding:10px 0; background: linear-gradient(180deg, rgba(14,20,48,.35), rgba(14,20,48,.25)); }
-.marquee__inner{ display:flex; width:auto; animation: none !important; transform: none !important; backface-visibility: visible; justify-content:center; }
-.marquee__track{ display:flex; gap:20px; white-space:nowrap; color:#c7d2fe; font-weight:600; letter-spacing:.2px; padding-right:0; }
-.marquee__track[aria-hidden="true"]{ display:none; }
-.marquee__track span{ opacity:.9; }
+/* Marquee (redesign) */
+.marquee{
+  overflow: hidden;
+  border-top: 1px solid rgba(124,58,237,.15);
+  border-bottom: 1px solid rgba(124,58,237,.15);
+  padding: 12px 0;
+  background: linear-gradient(180deg, rgba(14,20,48,.35), rgba(14,20,48,.25));
+  position: relative;
+}
+.marquee__inner{
+  display: flex;
+  width: auto;
+  justify-content: flex-start; /* override previous center */
+  gap: 40px;
+  /* Fade edges for nicer look */
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+}
+.marquee__track{
+  display: flex;
+  flex: 0 0 auto;
+  gap: 14px;
+  white-space: nowrap;
+  color: #c7d2fe;
+  font-weight: 600;
+  letter-spacing: .2px;
+  padding-right: 40px;
+  will-change: transform;
+  animation: marqueeSlide 28s linear infinite;
+}
+.marquee__track:nth-child(2){ animation-delay: -14s; }
+.marquee .marquee__track[aria-hidden="true"]{ display:flex; }
+.marquee__track span{
+  opacity: .95;
+  background: #0e1430cc;
+  border: 1px solid #2c3a6a;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+/* Pause marquee on hover for readability */
+.marquee:hover .marquee__track{ animation-play-state: paused; }
+@keyframes marqueeSlide{
+  from{ transform: translateX(0); }
+  to{ transform: translateX(-100%); }
+}
 
 /* Logos band */
 .logos__row{ display:flex; gap:28px; align-items:center; justify-content:center; opacity:.85; padding:18px 0; }
@@ -468,4 +507,6 @@ h6{ font-size:.875rem; }
   body::before, body::after{ animation: none !important; }
   .demo-wave{ animation: none !important; }
   [data-reveal]{ transition: none !important; transform: none !important; opacity: 1 !important; }
+  /* Disable marquee animation for users who prefer reduced motion */
+  .marquee__track{ animation: none !important; }
 }

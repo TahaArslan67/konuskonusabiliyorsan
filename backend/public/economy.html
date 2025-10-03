@@ -47,7 +47,6 @@
     .pill{ font-size:12px; color:#aab4c3; padding:4px 8px; border:1px solid #243055; border-radius:999px; }
     .rec-dot{ width:10px; height:10px; border-radius:50%; background:#ef4444; display:inline-block; margin-left:6px; opacity:.2; transition:opacity .2s; }
     .rec-dot.on{ opacity:1; }
-    #transcript{ white-space:pre-wrap; background:#0b1022; border:1px solid #1b2442; min-height:80px; padding:10px; border-radius:10px; color:var(--text); }
   </style>
 </head>
 <body>
@@ -74,10 +73,6 @@
           <div class="row" style="margin-top:4px;">
             <span class="subtle">Kayıt <span class="rec-dot" id="recDot"></span></span>
             <button id="btnReplay" class="btn" disabled>Son Yanıtı Tekrar Çal</button>
-          </div>
-          <div class="stack" style="margin-top:10px;">
-            <label class="subtle">Transkript</label>
-            <div id="transcript" aria-live="polite"></div>
           </div>
         </div>
         <div class="card" style="padding:22px;">
